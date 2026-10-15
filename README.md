@@ -20,13 +20,15 @@ Supports:
 
 ## Tech stack
 
-- PHP
-- [sabre/dav](https://github.com/sabre-io/dav)
+- **Core**: PHP + [sabre/dav](https://github.com/sabre-io/dav)
+- **Application**: [Laravel](https://laravel.com/)
+- **Admin panel**: [Filament](https://filamentphp.com/) (Livewire + Tailwind CSS)
+- **Frontend styling**: Tailwind CSS
 - Docker (planned)
 
 ## Status
 
-Early stage — project skeleton. Core library: sabre/dav.
+Early stage — project skeleton.
 
 ## License
 
