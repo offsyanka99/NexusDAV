@@ -2,6 +2,8 @@
 
 **Self-hosted CalDAV / CardDAV / WebDAV server** with a dedicated admin panel and user portal.
 
+Built on top of the [sabre/dav](https://sabre.io/) PHP library.
+
 Supports:
 - CalDAV
 - CardDAV
@@ -16,9 +18,15 @@ Supports:
 - Docker-friendly
 - Standards-compliant DAV protocols
 
+## Tech stack
+
+- PHP
+- [sabre/dav](https://github.com/sabre-io/dav)
+- Docker (planned)
+
 ## Status
 
-Early stage — project skeleton.
+Early stage — project skeleton. Core library: sabre/dav.
 
 ## License
 
