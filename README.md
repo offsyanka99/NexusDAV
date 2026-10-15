@@ -4,17 +4,24 @@
 
 Built on top of the [sabre/dav](https://sabre.io/) PHP library.
 
-Supports:
+## Supported protocols & extensions
+
+- WebDAV
 - CalDAV
 - CardDAV
-- WebDAV
 - WebDAV-Push
+- Principal / Home Collections
+- CalDAV Scheduling (invitations, free/busy)
+- Sync-token / Collection Sync
+- Sharing (CalDAV/CardDAV Sharing + ACL)
+- Managed Attachments
+- Tasks (VTODO) via CalDAV
 
 ## Features (planned)
 
 - Lightweight self-hosted alternative to full groupware
-- Admin interface for users, calendars, address books and shares
-- Separate user portal for managing personal calendars and contacts
+- Admin interface for users, calendars, address books, shares and permissions
+- Separate user portal for managing personal calendars, contacts and tasks
 - Docker-friendly
 - Standards-compliant DAV protocols
 
