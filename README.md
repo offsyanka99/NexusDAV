@@ -22,6 +22,7 @@ Built on top of the [sabre/dav](https://sabre.io/) PHP library.
 - Lightweight self-hosted alternative to full groupware
 - Admin interface for users, calendars, address books, shares and permissions
 - Separate user portal for managing personal calendars, contacts and tasks
+- **Multilingual** admin panel and user portal
 - Docker-friendly
 - Standards-compliant DAV protocols
 
@@ -35,6 +36,7 @@ Built on top of the [sabre/dav](https://sabre.io/) PHP library.
 - **Core**: PHP + [sabre/dav](https://github.com/sabre-io/dav)
 - **Application**: [Laravel](https://laravel.com/)
 - **Admin panel**: [Filament](https://filamentphp.com/) (Livewire + Tailwind CSS)
+- **User portal**: Laravel + Livewire + Tailwind CSS
 - **Frontend styling**: Tailwind CSS
 - Docker (planned)
 
