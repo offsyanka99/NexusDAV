@@ -25,6 +25,11 @@ Built on top of the [sabre/dav](https://sabre.io/) PHP library.
 - Docker-friendly
 - Standards-compliant DAV protocols
 
+## Authentication
+
+- Main user passwords: **Argon2id**
+- **App passwords / personal access tokens** (for DAVx5, Thunderbird and other clients)
+
 ## Tech stack
 
 - **Core**: PHP + [sabre/dav](https://github.com/sabre-io/dav)
