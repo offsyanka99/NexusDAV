@@ -40,6 +40,8 @@ Built on top of the [sabre/dav](https://sabre.io/) PHP library.
 - **Frontend styling**: Tailwind CSS
 - Docker (planned)
 
+**Use the latest stable versions** of all libraries and dependencies.
+
 ## Status
 
 Early stage — project skeleton.
