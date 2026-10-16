@@ -12,11 +12,12 @@ Built on top of the [sabre/dav](https://sabre.io/) PHP library.
 - WebDAV-Push
 - Principal / Home Collections
 - CalDAV Scheduling (invitations, free/busy)
-- Sync-token / Collection Sync
 - Sharing (CalDAV/CardDAV Sharing + ACL)
 - Managed Attachments
 - Tasks (VTODO) via CalDAV
 - Notes (VJOURNAL) via CalDAV
+
+Collection sync (sync-token) is provided by sabre/dav and is enabled through configuration.
 
 ## Target clients
 
@@ -61,13 +62,14 @@ These are long-term goals for the project. Implementation will be staged. The ar
 
 - Minimal admin panel only (no user portal)
 - Create and manage users
-- Create calendars, address books, tasks and notes
+- Authentication: Argon2id user passwords and app passwords / personal access tokens (for DAVx5, Thunderbird and other clients)
+- Create calendars, address books, tasks (VTODO) and notes (VJOURNAL)
 - Basic sync working with DAVx5 (and ideally other clients)
 - Core DAV protocols (WebDAV, CalDAV, CardDAV)
+- Docker Compose setup: base file + PostgreSQL / SQLite overrides
 
 ### Version 1.x
 
-- App passwords / personal access tokens
 - Basic Sharing and ACL
 - WebDAV-Push
 - Improved sync reliability
@@ -90,17 +92,37 @@ These are long-term goals for the project. Implementation will be staged. The ar
 
 ## Configuration
 
-Initial `docker-compose.yml` / `.env` contains only the minimal required variables. All other server settings are configured through the admin UI on first launch / first admin login.
+Docker Compose is split into a shared base file and one override per database, so the database is already defined at install time:
+
+```
+compose.yaml            # application, shared volumes, ports
+compose.postgres.yaml   # adds the postgres service and DB_* variables
+compose.sqlite.yaml     # sets DB_CONNECTION=sqlite and the database file path
+```
+
+Start with PostgreSQL (recommended for production):
+
+```bash
+docker compose -f compose.yaml -f compose.postgres.yaml up -d
+```
+
+Or with SQLite (simple deployments and development):
+
+```bash
+docker compose -f compose.yaml -f compose.sqlite.yaml up -d
+```
+
+The `.env` file contains only what the application needs to boot: database connection, `APP_KEY`, `APP_URL` and the initial admin account. All other server settings (SMTP, quotas, defaults, etc.) are configured through the admin UI and stored in the database. If a setting is also defined as an environment variable, the environment value takes precedence and the field is read-only in the UI.
 
 ## Authentication
 
 - Main user passwords: **Argon2id**
-- **App passwords / personal access tokens** (for DAVx5, Thunderbird and other clients)
+- **App passwords / personal access tokens** (for DAVx5, Thunderbird and other clients), available from Version 1
 
 ## Database
 
-- **Primary**: PostgreSQL
-- **Also supported**: SQLite (for simple deployments and development)
+- **Primary (recommended for production)**: PostgreSQL, via `compose.postgres.yaml`
+- **Also supported**: SQLite (for simple deployments and development), via `compose.sqlite.yaml`
 
 ## Email
 
