@@ -39,9 +39,13 @@ Built on top of the [sabre/dav](https://sabre.io/) PHP library.
 ## Email
 
 Outbound email only (via external mail server / SMTP). Used for:
-- Notifications
+
+- Invitations
+ - Notifications
+ - Reminders
 - Meeting invitations and scheduling
 - Calendar / address book shares
+- Account notices
 - System reports
 
 ## Tech stack
