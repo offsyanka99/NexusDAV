@@ -121,7 +121,7 @@ Outbound email only (via external mail server / SMTP). Used for:
 - **Frontend styling**: Tailwind CSS
 - Docker (planned)
 
-**Use the latest stable versions** of all libraries and dependencies.
+**Use the latest stable versions** of all libraries and dependencies when possible. (Webdav-Push don't have a release version. Use the latest commit).
 
 ## Status
 
