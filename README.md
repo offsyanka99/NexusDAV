@@ -31,6 +31,19 @@ Built on top of the [sabre/dav](https://sabre.io/) PHP library.
 - Main user passwords: **Argon2id**
 - **App passwords / personal access tokens** (for DAVx5, Thunderbird and other clients)
 
+## Database
+
+- **Primary**: PostgreSQL
+- **Also supported**: SQLite (for simple deployments and development)
+
+## Email
+
+Outbound email only (via external mail server / SMTP). Used for:
+- Notifications
+- Meeting invitations and scheduling
+- Calendar / address book shares
+- System reports
+
 ## Tech stack
 
 - **Core**: PHP + [sabre/dav](https://github.com/sabre-io/dav)
