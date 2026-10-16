@@ -18,6 +18,13 @@ Built on top of the [sabre/dav](https://sabre.io/) PHP library.
 - Tasks (VTODO) via CalDAV
 - Notes (VJOURNAL) via CalDAV
 
+## Target clients
+
+- DAVx5
+- Thunderbird
+- Apple Calendar / Contacts
+- Other standards-compliant DAV clients
+
 ## Features (planned)
 
 These are long-term goals for the project. Implementation will be staged. The architecture and framework should be designed to support future features without major rewrites.
@@ -36,7 +43,7 @@ These are long-term goals for the project. Implementation will be staged. The ar
 - User quotas
 - Logs / audit trail
 - Health checks
-- Export of server configuration
+- Export of server configuration (JSON)
 
 ### Security (long-term)
 
@@ -46,7 +53,31 @@ These are long-term goals for the project. Implementation will be staged. The ar
 
 ### Infrastructure (long-term)
 
-- Automatic backups
+- Automatic backups (local + remote: S3, Backblaze, etc.)
+
+## Roadmap
+
+### Version 1 (minimal viable server)
+
+- Minimal admin panel only (no user portal)
+- Create and manage users
+- Create calendars, address books, tasks and notes
+- Basic sync working with DAVx5 (and ideally other clients)
+- Core DAV protocols (WebDAV, CalDAV, CardDAV)
+
+### Later versions (ideas)
+
+- User portal
+- Sharing and ACL
+- WebDAV-Push
+- CalDAV Scheduling
+- App passwords / tokens
+- Import/Export
+- Search
+- Quotas, logs, health checks
+- Automatic backups (local + remote)
+- Multilingual UI
+- Optional 2FA, rate limiting, etc.
 
 ## Configuration
 
