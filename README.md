@@ -1,5 +1,7 @@
 # NexusDAV
 
+![NexusDAV logo](docs/images/NexusDAV%20-%20logo.jpg)
+
 **Self-hosted CalDAV / CardDAV / WebDAV server** with a dedicated admin panel and user portal.
 
 Built on top of the [sabre/dav](https://sabre.io/) PHP library.
