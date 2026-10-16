@@ -65,19 +65,28 @@ These are long-term goals for the project. Implementation will be staged. The ar
 - Basic sync working with DAVx5 (and ideally other clients)
 - Core DAV protocols (WebDAV, CalDAV, CardDAV)
 
-### Later versions (ideas)
+### Version 1.x
 
-- User portal
-- Sharing and ACL
+- App passwords / personal access tokens
+- Basic Sharing and ACL
 - WebDAV-Push
-- CalDAV Scheduling
-- App passwords / tokens
-- Import/Export
-- Search
-- Quotas, logs, health checks
+- Improved sync reliability
+
+### Version 2
+
+- Basic user portal
+- CalDAV Scheduling (invitations, free/busy)
+- Import / Export (ICS, VCF)
+- Search across events and contacts
+
+### Version 3+
+
+- User quotas
+- Logs / audit trail and health checks
 - Automatic backups (local + remote)
 - Multilingual UI
-- Optional 2FA, rate limiting, etc.
+- Optional 2FA, rate limiting, brute-force protection
+- Export of server configuration
 
 ## Configuration
 
