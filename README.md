@@ -13,8 +13,8 @@ Built on top of the [sabre/dav](https://sabre.io/) PHP library.
 1. Get the Compose files and create your environment file:
 
    ```bash
-   git clone https://github.com/<owner>/nexusdav.git
-   cd nexusdav
+   git clone https://github.com/offsyanka99/NexusDAV.git
+   cd NexusDAV
    cp .env.example .env
    ```
 
@@ -50,6 +50,8 @@ Remove `ADMIN_PASSWORD` from `.env` after the first login.
 
 Running with Docker needs only Docker Engine with the Compose plugin. The table below applies to development and to anyone running the code without Docker.
 
+> Versions listed below reflect the planned target at the time of writing and will be confirmed or adjusted as development progresses.
+
 | Component | Version | Notes |
 |---|---|---|
 | PHP | **8.3 – 8.5**, 8.4 recommended | Laravel 13 requires 8.3+. sabre/dav 4.7 is officially tested up to PHP 8.4, so 8.4 is the safe target until 8.5 is verified. |
@@ -66,6 +68,8 @@ Running with Docker needs only Docker Engine with the Compose plugin. The table 
 **Required PHP extensions:** `ctype`, `curl`, `date`, `dom`, `fileinfo`, `filter`, `hash`, `iconv`, `intl`, `json`, `libxml`, `mbstring`, `openssl`, `pcre`, `pdo`, `pdo_pgsql`, `pdo_sqlite`, `session`, `simplexml`, `tokenizer`, `xml`.
 
 `intl` is required by Filament. PHP must also be built with Argon2 support (`password_hash` with `PASSWORD_ARGON2ID`); the official PHP Docker images include it.
+
+**WebDAV-Push:** no stable release is available yet. Use the latest commit of the WebDAV-Push implementation compatible with sabre/dav (exact package/repository will be documented once chosen).
 
 ## Supported protocols & extensions
 
@@ -93,7 +97,7 @@ NexusDAV targets standards-compliant clients. Status below is the **target** for
 | **Apple Calendar / Contacts** (macOS, iOS) | Yes | Yes | Yes, in Reminders (not in Calendar) | No | Target |
 | Other standards-compliant clients | Expected | Expected | Client-dependent | Client-dependent | Best effort |
 
-**About notes (VJOURNAL):** very few clients can read or write journal entries. The server stores and syncs them as standard CalDAV collections, so they work with clients that support VJOURNAL (currently mainly DAVx5 with jtx Board). Apple Notes and Thunderbird do not use VJOURNAL, so notes will not appear there. Notes remain fully manageable from the NexusDAV admin panel and, later, the user portal.
+**About notes (VJOURNAL):** Notes are a server-side capability stored as standard CalDAV VJOURNAL entries. Client support is limited — currently mainly DAVx5 with jtx Board. Apple Notes and Thunderbird do not use VJOURNAL, so notes will not appear in those clients. Notes remain fully manageable from the NexusDAV admin panel and, later, the user portal.
 
 **About tasks (VTODO):** on Android, DAVx5 only syncs the data; a separate tasks app is needed to display it. On Apple devices, tasks appear in Reminders.
 
@@ -103,7 +107,7 @@ These are long-term goals for the project. Implementation will be staged. The ar
 
 - Focused self-hosted DAV server with a modern admin panel, without the weight of a full groupware suite
 - Admin interface for users, calendars, address books, shares, permissions and server settings
-- Separate user portal for managing personal calendars, contacts, notes (VJOURNAL), tasks and files (WebDAV)
+- Separate user portal for managing personal calendars, contacts, notes (VJOURNAL — limited client support), tasks and files (WebDAV)
 - **Multilingual** admin panel and user portal
 - Docker-friendly
 - Standards-compliant DAV protocols
@@ -231,11 +235,11 @@ Outbound email only (via external mail server / SMTP). Used for:
 - **Admin panel**: [Filament](https://filamentphp.com/) (Livewire + Tailwind CSS)
 - **User portal**: Laravel + Livewire + Tailwind CSS
 - **Frontend styling**: Tailwind CSS
-- Docker (planned)
+- **Deployment**: Docker Compose (base file + PostgreSQL / SQLite overrides)
 
 See [Requirements](#requirements) for the exact versions.
 
-**Use the latest stable versions** of all libraries and dependencies when possible. (Webdav-Push don't have a release version. Use the latest commit).
+**Use the latest stable versions** of all libraries and dependencies when possible. For WebDAV-Push, use the latest compatible commit until a stable release is available.
 
 ## Status
 
