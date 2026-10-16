@@ -20,8 +20,8 @@ Built on top of the [sabre/dav](https://sabre.io/) PHP library.
 ## Features (planned)
 
 - Lightweight self-hosted alternative to full groupware
-- Admin interface for users, calendars, address books, shares and permissions
-- Separate user portal for managing personal calendars, contacts and tasks
+- Admin interface for statistics, server settings, configurations, users, calendars, address books, shares and permissions
+- Separate user portal for managing personal calendars, contacts, notes, tasks and files
 - **Multilingual** admin panel and user portal
 - Docker-friendly
 - Standards-compliant DAV protocols
