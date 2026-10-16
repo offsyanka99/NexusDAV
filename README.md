@@ -16,15 +16,41 @@ Built on top of the [sabre/dav](https://sabre.io/) PHP library.
 - Sharing (CalDAV/CardDAV Sharing + ACL)
 - Managed Attachments
 - Tasks (VTODO) via CalDAV
+- Notes (VJOURNAL) via CalDAV
 
 ## Features (planned)
 
+These are long-term goals for the project. Implementation will be staged. The architecture and framework should be designed to support future features without major rewrites.
+
 - Lightweight self-hosted alternative to full groupware
-- Admin interface for statistics, server settings, configurations, users, calendars, address books, shares and permissions
-- Separate user portal for managing personal calendars, contacts, notes, tasks and files
+- Admin interface for users, calendars, address books, shares, permissions and server settings
+- Separate user portal for managing personal calendars, contacts, notes (VJOURNAL), tasks and files (WebDAV)
 - **Multilingual** admin panel and user portal
 - Docker-friendly
 - Standards-compliant DAV protocols
+- Search across events and contacts
+- Import / Export of ICS and VCF (calendars, contacts, tasks and notes)
+
+### Admin panel (long-term)
+
+- User quotas
+- Logs / audit trail
+- Health checks
+- Export of server configuration
+
+### Security (long-term)
+
+- Rate limiting
+- Brute-force protection
+- Optional 2FA
+
+### Infrastructure (long-term)
+
+- Automatic backups
+
+## Configuration
+
+Initial `docker-compose.yml` / `.env` contains only the minimal required variables. All other server settings are configured through the admin UI on first launch / first admin login.
 
 ## Authentication
 
@@ -40,10 +66,8 @@ Built on top of the [sabre/dav](https://sabre.io/) PHP library.
 
 Outbound email only (via external mail server / SMTP). Used for:
 
-- Invitations
- - Notifications
- - Reminders
 - Meeting invitations and scheduling
+- Notifications and reminders
 - Calendar / address book shares
 - Account notices
 - System reports
@@ -61,7 +85,7 @@ Outbound email only (via external mail server / SMTP). Used for:
 
 ## Status
 
-Early stage — project skeleton.
+Early stage — project skeleton. Features listed above are roadmap items and will be implemented in stages.
 
 ## License
 
