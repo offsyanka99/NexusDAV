@@ -90,7 +90,7 @@ Running with Docker needs only Docker Engine with the Compose plugin. The table 
 
 `intl` is required by Filament. PHP must also be built with Argon2 support (`password_hash` with `PASSWORD_ARGON2ID`); the official PHP Docker images include it.
 
-**WebDAV-Push:** no stable release is available yet. Use the latest commit of the WebDAV-Push implementation compatible with sabre/dav (exact package/repository will be documented once chosen).
+**WebDAV-Push:** no stable release is available yet. Use the latest commit of the WebDAV-Push implementation compatible with sabre/dav (exact package/repository will be documented once chosen). Once available, it is switched on or off in the admin panel settings.
 
 ## Tech stack
 
@@ -260,9 +260,10 @@ Nothing is released yet; the table shows the target version for each item (see [
 | Notes (VJOURNAL) via CalDAV | Version 1 |
 | Collection sync (sync-token), provided by sabre/dav | Version 1 |
 | Sharing (CalDAV/CardDAV Sharing + ACL) | Version 1.x |
-| WebDAV-Push | Version 1.x |
+| WebDAV-Push (can be switched on or off in the admin panel settings) | Version 1.x |
 | CalDAV Scheduling (invitations, free/busy) | Version 2 |
-| Managed Attachments | Not scheduled yet |
+| Files (WebDAV file storage) | Version 1.x |
+| Managed Attachments | Version 2.x |
 
 Collection sync is enabled through configuration.
 
@@ -273,7 +274,7 @@ These are long-term goals for the project. Implementation will be staged. The ar
 - Focused self-hosted DAV server with a modern admin panel, without the weight of a full groupware suite
 - Admin interface for users, calendars, address books, shares, permissions and server settings
 - Separate user portal for managing personal calendars, contacts, notes (VJOURNAL — limited client support), tasks and files (WebDAV)
-- **Multilingual** admin panel and user portal
+- **Multilingual** admin panel (Version 1.x) and user portal (Version 2+)
 - Docker-friendly
 - Standards-compliant DAV protocols
 - Search across events and contacts
@@ -373,7 +374,9 @@ Export calendars as `.ics` and contacts as `.vcf` from your current server (Radi
 ### Version 1.x
 
 - Basic Sharing and ACL
-- WebDAV-Push
+- WebDAV-Push, with an on/off toggle in the admin panel settings
+- Multilingual admin panel
+- Files (WebDAV file storage)
 - Improved sync reliability
 
 ### Version 2
@@ -383,12 +386,16 @@ Export calendars as `.ics` and contacts as `.vcf` from your current server (Radi
 - Import / Export (ICS, VCF)
 - Search across events and contacts
 
+### Version 2.x
+
+- Managed attachments
+
 ### Version 3+
 
 - User quotas
 - Logs / audit trail and health checks
 - Automatic backups (local + remote)
-- Multilingual UI
+- Multilingual user portal
 - Optional 2FA
 - Export of server configuration
 
