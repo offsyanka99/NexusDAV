@@ -1,0 +1,35 @@
+# Contacts
+
+Contacts are a CardDAV address book. People edit contacts in a contacts client. NexusDAV stores the address book and syncs it.
+
+The address book URL looks like `/dav/addressbooks/<username>/<addressbook-id>/`. The address uses the collection identifier, not the display name. Most clients only need `https://<your-domain>/dav/` and discover the address book from there.
+
+## What each version includes
+
+**Version 1.** The admin panel can create an address book for a user. A CardDAV client can create, edit, and delete contacts in it. Sync uses the collection sync token. There is no sharing and no email.
+
+**Version 1.x.** An address book can be shared with another user on this server, with access limited by ACL. WebDAV-Push can notify a subscribed client when the address book changes. Push uses the bitfire draft `draft-bitfire-webdav-push-00` at commit `611abe2e8a0cdd7570cb936844b6588f7145b27d`, until that project publishes a release. The admin panel turns push on or off for the server.
+
+**Version 2.** The user portal can manage that person's own address books and contacts. Import and export of `.vcf` files is included. Search can find contacts.
+
+**Version 2.x.** When an address book is shared, the server can email the sharee through the external SMTP server. That notice is outbound only.
+
+## Who does what
+
+| Action | CardDAV client | Admin panel | User portal |
+|---|---|---|---|
+| Create the address book | No | Version 1 | Version 2, for that person's own address books |
+| Create and edit contacts | Version 1 | No | Version 2 |
+| Share the address book with another local user | Version 1.x, if the client supports sharing | Version 1.x | Version 2 |
+| Email the sharee about a new share | No | Version 2.x | Version 2.x |
+
+Target clients are DAVx⁵, Thunderbird, and Apple Contacts. Nothing has been tested against them yet. See [Client compatibility](../../README.md#client-compatibility).
+
+## Not in the plan yet
+
+These are not assigned to a version:
+
+- Finding duplicate contacts and merging them
+- Sending one contact to someone by email. That needs the Version 2.x mailer and is still a separate feature
+- Trash and restore of a deleted contact
+- A direct import from Radicale, Baïkal, or Nextcloud. Version 2 import is a `.vcf` file. Until then a connected client can import the file.

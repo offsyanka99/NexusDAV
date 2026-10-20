@@ -24,7 +24,7 @@ Current limitations:
 - No published Docker image, and nothing is tested against real clients yet.
 - No user portal before Version 2; all management goes through the admin panel.
 - Notes (VJOURNAL) show up only in a few clients (see [Client compatibility](#client-compatibility)).
-- Email is outbound only (see [Email](#email)). Emailed replies to invitations are not read or processed in Version 1.
+- No email before Version 2.x (see [Email](#email)). Emailed replies to invitations are not read or processed.
 - The database cannot be switched after install in Version 1 (see [Database](#database)).
 
 ## Quick start
@@ -61,9 +61,9 @@ Current limitations:
 
    On first start the container runs database migrations and creates the first admin account from `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 
-4. Log in to the admin panel at `http://localhost:8080/admin` (or your `APP_URL`) with the admin credentials from step 2, then create your first user, calendar and address book.
+4. Log in to the admin panel at `http://localhost:8080/admin` (or your `APP_URL`) with the admin credentials from step 2, then create your first user, calendar and address book. The admin panel creates users and collections. Events, tasks and notes are written by a CalDAV client, not in the admin panel.
 
-5. Connect a client (DAVx5, Thunderbird, Apple Calendar / Contacts) using your server URL and the user's **app password**. See [Client setup and compatibility](#client-setup-and-compatibility). For automatic account discovery, set up your reverse proxy as described in [Reverse proxy and `.well-known`](#reverse-proxy-and-well-known).
+5. Connect a client (DAVx5, Thunderbird, Apple Calendar / Contacts) using your server URL and the user's **app password**. See [Client setup and compatibility](#client-setup-and-compatibility). The app redirects `/.well-known/caldav` and `/.well-known/carddav` to `/dav/`. Some proxies never forward those paths; the fallback is in [Reverse proxy and `.well-known`](#reverse-proxy-and-well-known).
 
 Remove `ADMIN_PASSWORD` from `.env` after the first login. If you lose access to the admin account later, see [Resetting the admin password](#resetting-the-admin-password).
 
@@ -90,7 +90,7 @@ Running with Docker needs only Docker Engine with the Compose plugin. The table 
 
 `intl` is required by Filament. PHP must also be built with Argon2 support (`password_hash` with `PASSWORD_ARGON2ID`); the official PHP Docker images include it.
 
-**WebDAV-Push:** no stable release is available yet. Use the latest commit of the WebDAV-Push implementation compatible with sabre/dav (exact package/repository will be documented once chosen). Once available, it is switched on or off in the admin panel settings.
+**WebDAV-Push:** sabre/dav does not provide this. Version 1.x implements the bitfire draft [bitfireAT/webdav-push](https://github.com/bitfireAT/webdav-push) at commit `611abe2e8a0cdd7570cb936844b6588f7145b27d` (`draft-bitfire-webdav-push-00`). NexusDAV stays on that commit until the project publishes a release, then switches to the release. It is switched on or off in the admin panel.
 
 ## Tech stack
 
@@ -103,7 +103,7 @@ Running with Docker needs only Docker Engine with the Compose plugin. The table 
 
 See [Requirements](#requirements) for the exact versions.
 
-**Use the latest stable versions** of all libraries and dependencies when possible. For WebDAV-Push, use the latest compatible commit until a stable release is available.
+**Use the latest stable versions** of all libraries and dependencies when possible. WebDAV-Push is the exception: the bitfire draft commit named under [Requirements](#requirements), until that project publishes a release.
 
 ## Configuration
 
@@ -117,7 +117,7 @@ compose.sqlite.yaml     # sets DB_CONNECTION=sqlite and the database file path
 
 See [Quick start](#quick-start) for the exact commands. PostgreSQL is recommended for production; SQLite is intended for simple deployments and development.
 
-The `.env` file contains only what the application needs to boot: database connection, `APP_KEY`, `APP_URL` and the initial admin account. All other server settings (SMTP, quotas, defaults, etc.) are configured through the admin UI and stored in the database. If a setting is also defined as an environment variable, the environment value takes precedence and the field is read-only in the UI.
+The `.env` file contains only what the application needs to boot: database connection, `APP_URL` and the initial admin account. `APP_KEY` is not in `.env`. It is generated on first start and stored on the data volume. All other server settings (SMTP, quotas, defaults, etc.) are configured through the admin UI and stored in the database. If a setting is also defined as an environment variable, the environment value takes precedence and the field is read-only in the UI.
 
 ### Environment variables
 
@@ -130,7 +130,7 @@ The variables used in this README (names and defaults may change before the firs
 | `ADMIN_PASSWORD` | First start | none | Yes | Password of the first admin account. Remove it after the first login. |
 | `DB_CONNECTION` | Set by the compose override | set by override | No | `pgsql` or `sqlite`. Do not change after install. |
 | `DB_PASSWORD` | PostgreSQL only | none | Yes | Database password. |
-| `APP_KEY` | No | generated | Yes | Generated on first start and stored on the data volume. |
+| `APP_KEY` | No | generated | Yes | Not set in `.env`. Generated on first start and stored on the data volume. |
 | `LOG_LEVEL` | No | `debug` | No | Minimum level written to the log (see [Health check and logging](#health-check-and-logging)). |
 
 Secrets can also be supplied as files (for example `DB_PASSWORD_FILE`) for use with Docker secrets; this is planned. The application stops at start with a clear message if a required variable is missing.
@@ -142,10 +142,11 @@ If you lose access to the admin account, see [Resetting the admin password](#res
 Run the reset command on the server. Shell access to the container is the proof of ownership; nothing is exposed on the web.
 
 ```bash
-docker compose exec nexusdav php artisan nexusdav:reset-admin-password --email=admin@example.com
+# Use compose.postgres.yaml or compose.sqlite.yaml, matching how the stack was started.
+docker compose -f compose.yaml -f compose.postgres.yaml exec nexusdav php artisan nexusdav:reset-admin-password --email=admin@example.com
 ```
 
-The command asks for the new password (input hidden), or can generate one and print it once. It also signs out existing sessions and can optionally revoke app passwords. The reset is logged, and an email is sent to the admin if SMTP is configured.
+The command asks for the new password (input hidden), or can generate one and print it once. It also signs out existing sessions and can optionally revoke app passwords. The reset is logged. From Version 2.x, an email is sent to the admin if SMTP is configured.
 
 The command name is planned and may change before the first release. A web-based reset triggered by an environment variable is deliberately not used: anyone who reaches the page first after a restart could set the admin password.
 
@@ -164,31 +165,35 @@ The command name is planned and may change before the first release. A web-based
 
 ### Email
 
-Outbound email only (via external mail server / SMTP). Used for:
+No email in Version 1 or Version 2. Outbound email is Version 2.x, submitted to an external SMTP server. NexusDAV does not receive email.
 
-- Meeting invitations and scheduling
+When that version arrives, mail is used for:
+
+- Invitations to people who are not users of this server
 - Notifications and reminders
-- Calendar / address book shares
-- Account notices
+- Calendar and address book share notices
+- Account notices, including login notifications and account-lockout emails (each can be switched off)
 - System reports
 
-NexusDAV does not receive email. Replies to emailed invitations are not processed; local attendees respond through CalDAV scheduling (Version 2).
+Replies to emailed invitations are not read or processed. People who have an account respond through on-server CalDAV scheduling (Version 2).
 
 ## Reverse proxy and `.well-known`
 
 In production NexusDAV is expected to run behind a reverse proxy (Caddy, nginx, Traefik) that terminates HTTPS. Two things matter:
 
-1. **Service discovery.** Clients such as Apple Calendar / Contacts, Thunderbird and DAVx5 look for `/.well-known/caldav` and `/.well-known/carddav` on your domain. These URLs must answer with an HTTP redirect (301, 303 or 307) to the DAV root. With them in place, users can enter just the domain (or the root URL) instead of full calendar and address book paths. sabre/dav does not do this itself, so it is configured in the proxy.
+1. **Service discovery.** The application serves `/.well-known/caldav` and `/.well-known/carddav` and redirects them to `/dav/`. Clients such as Apple Calendar / Contacts, Thunderbird and DAVx5 can then use the domain (or the root URL) instead of a full collection path. The proxy must forward those two paths to the app. Some proxies swallow unknown paths and never do. For those, configure the fallback redirects below in the proxy itself.
 2. **A DAV-aware proxy.** The proxy must pass through all HTTP methods used by DAV (`PROPFIND`, `PROPPATCH`, `REPORT`, `MKCOL`, `MKCALENDAR`, `COPY`, `MOVE`, `LOCK`, `UNLOCK`), forward the `Host` and `X-Forwarded-Proto` headers, and allow large request bodies for file uploads. `APP_URL` must match the public HTTPS address, and the proxy should be configured as a trusted proxy.
 
-The DAV root is `/dav/`. It is fixed once chosen, because clients store full URLs. Example for nginx:
+The DAV root is `/dav/`. It is fixed once chosen, because clients store full URLs. These examples are fallbacks for a proxy that does not forward `/.well-known` to the app.
+
+nginx:
 
 ```nginx
 location = /.well-known/caldav  { return 301 /dav/; }
 location = /.well-known/carddav { return 301 /dav/; }
 ```
 
-Example for Caddy:
+Caddy:
 
 ```caddy
 dav.example.com {
@@ -198,7 +203,7 @@ dav.example.com {
 }
 ```
 
-Ready-to-use proxy configurations will be provided in the documentation as part of Version 1.
+Ready-to-use proxy configurations, including these fallbacks, will be provided in the documentation as part of Version 1.
 
 ## Client setup and compatibility
 
@@ -213,7 +218,7 @@ NexusDAV targets standards-compliant clients. Status below is the **target** for
 | **Apple Calendar / Contacts** (macOS, iOS) | Yes | Yes | Yes, in Reminders (not in Calendar) | No | Target |
 | Other standards-compliant clients | Expected | Expected | Client-dependent | Client-dependent | Best effort |
 
-**About notes (VJOURNAL):** Notes are a server-side capability stored as standard CalDAV VJOURNAL entries. Client support is limited — currently mainly DAVx5 with jtx Board. Apple Notes and Thunderbird do not use VJOURNAL, so notes will not appear in those clients. Notes remain fully manageable from the NexusDAV admin panel and, later, the user portal.
+**About notes (VJOURNAL):** Notes are stored as standard CalDAV VJOURNAL entries. A CalDAV client writes them. The admin panel creates and manages the collection that holds them; it does not edit the notes. Client support is limited — currently mainly DAVx5 with jtx Board. Apple Notes and Thunderbird do not use VJOURNAL, so notes will not appear in those clients. A user portal that can edit them is planned for later.
 
 **About tasks (VTODO):** on Android, DAVx5 only syncs the data; a separate tasks app is needed to display it. On Apple devices, tasks appear in Reminders.
 
@@ -260,8 +265,9 @@ Nothing is released yet; the table shows the target version for each item (see [
 | Notes (VJOURNAL) via CalDAV | Version 1 |
 | Collection sync (sync-token), provided by sabre/dav | Version 1 |
 | Sharing (CalDAV/CardDAV Sharing + ACL) | Version 1.x |
-| WebDAV-Push (can be switched on or off in the admin panel settings) | Version 1.x |
-| CalDAV Scheduling (invitations, free/busy) | Version 2 |
+| WebDAV-Push (bitfire draft, on/off in the admin panel; not a sabre/dav plugin) | Version 1.x |
+| CalDAV Scheduling, on-server invitations and free/busy | Version 2 |
+| Outbound email (external invitations, notices, reminders, reports) | Version 2.x |
 | Files (WebDAV file storage) | Version 1.x |
 | Managed Attachments | Version 2.x |
 
@@ -283,17 +289,51 @@ These are long-term goals for the project. Implementation will be staged. The ar
 #### Admin panel (long-term)
 
 - User quotas
-- Logs / audit trail
+- Per-user and server storage statistics
+- WebDAV-Push subscriptions (view and manage)
 - Health checks
-- Export of server configuration (JSON)
+- Export and import of server settings (JSON)
 
 #### Security (long-term)
 
 - Optional 2FA
+- Audit log of logins and admin actions
 
-#### Infrastructure (long-term)
+#### Calendar (long-term)
+
+- Public read-only calendar links / ICS subscriptions
+- Birthdays calendar generated from contacts
+- Holidays calendar (the country is selected first)
+- Custom color for a specific event
+
+#### Contacts (long-term)
+
+- Duplicate detection and merge
+- Share a contact by email (requires the Version 2.x mailer)
+
+#### Data (long-term)
+
+- Trash and restore of deleted items
+- Trash for files in the user portal
+- Direct import from Radicale, Baïkal and Nextcloud
+
+#### Integration (long-term)
+
+- Webhooks and API tokens for automation
+
+#### Infrastructure and operations (long-term)
 
 - Automatic backups (local + remote: S3, Backblaze, etc.)
+- Support for TrueNAS Scale
+- Prometheus metrics endpoint
+- Maintenance mode and read-only mode for upgrades
+
+#### Accessibility (long-term)
+
+- Mobile-friendly admin panel and user portal
+- Dark mode
+
+These items are not assigned to a version yet; they will be added to the [Roadmap](#roadmap) as they are scheduled.
 
 ## Backup, restore and upgrade
 
@@ -301,17 +341,19 @@ These are the intended procedures; commands will be confirmed once a release exi
 
 **What to back up**
 
-- The database and the data volume, taken at the same time (or with the application briefly stopped) so they stay consistent.
-- `.env` and `APP_KEY` (also on the data volume). Without the key, encrypted values cannot be read after a restore. Store it separately from the database backup.
+- The database and the data volume, taken at the same time (or with the application briefly stopped) so they stay consistent. The data volume holds `APP_KEY`.
+- `.env`. Without `APP_KEY`, encrypted values cannot be read after a restore. Store a copy of the key separately from the database backup.
 
 **Database backup**
 
 ```bash
 # PostgreSQL (do not copy the live data directory)
-docker compose exec postgres pg_dump -U <db-user> -Fc <db-name> > nexusdav.dump
+docker compose -f compose.yaml -f compose.postgres.yaml exec postgres pg_dump -U <db-user> -Fc <db-name> > nexusdav.dump
 
-# SQLite (do not copy the live file; use the online backup)
-sqlite3 <path-to-database> ".backup 'nexusdav.sqlite'"
+# SQLite. Run inside the app container. Do not copy the live database file.
+# The image includes the sqlite3 command-line tool. The path is the file inside the container.
+docker compose -f compose.yaml -f compose.sqlite.yaml exec nexusdav sqlite3 /data/database/nexusdav.sqlite ".backup '/tmp/nexusdav.sqlite'"
+docker compose -f compose.yaml -f compose.sqlite.yaml cp nexusdav:/tmp/nexusdav.sqlite ./nexusdav.sqlite
 ```
 
 Keep at least three copies on two kinds of storage, with one off-site, and encrypt remote copies. Test a restore on a clean machine regularly.
@@ -321,6 +363,15 @@ Keep at least three copies on two kinds of storage, with one off-site, and encry
 1. Stop the stack.
 2. Restore the database and the data volume.
 3. Start the stack, log in and sync one client to check.
+
+**Server settings**
+
+Settings changed in the admin panel (SMTP, quotas, defaults, etc.) are stored in the database, so a database backup already contains them. For moving settings between installs, or keeping a copy that is separate from user data, the admin panel will offer:
+
+- **Export settings:** downloads a JSON file with the server settings. Values set through environment variables stay in `.env` and are not exported. Secrets such as the SMTP password are left out, or the file is encrypted; they must be re-entered or the file passphrase supplied on import.
+- **Import settings:** uploads that file. The admin sees a summary of the changes and confirms before they are applied. Import is refused when the file comes from an incompatible version.
+
+Export the settings before an upgrade and keep the file with your other backups. It does not replace a database backup: it contains no users, calendars or contacts.
 
 **Upgrade**
 
@@ -337,7 +388,7 @@ Automatic backups are a long-term goal (see [Roadmap](#roadmap)).
 
 Intended behaviour; not implemented yet.
 
-- **Health check:** an unauthenticated endpoint at `/health` that confirms the application is running and the database is reachable, without exposing details. The Compose file will use it as a `healthcheck`. A basic version is planned for Version 1; the fuller health checks in the admin panel are Version 3+.
+- **Health check:** an unauthenticated endpoint at `/health` that confirms the application is running and the database is reachable, without exposing details. The Compose file will use it as a `healthcheck`. A basic version is planned for Version 1; the fuller health checks in the admin panel are Version 2+.
 - **Logs:** written to stdout / stderr, so `docker compose logs` works and Docker log drivers can collect them. Level is set with `LOG_LEVEL` (default `debug`; use `info` or higher in production).
 - **What is logged:** request ID, method, path, status and user, plus failed logins (needed for rate limiting and brute-force protection). Passwords, app passwords and tokens are never logged.
 - **Rotation:** the Compose file will set log rotation (`max-size`, `max-file`) so logs do not fill the disk.
@@ -347,7 +398,7 @@ Intended behaviour; not implemented yet.
 | Symptom | Likely cause |
 |---|---|
 | Client says "401 Unauthorized" | The main password was used instead of an app password, or the app password was revoked. |
-| Entering only the domain finds nothing | `/.well-known/caldav` and `/.well-known/carddav` redirects are missing in the reverse proxy. |
+| Entering only the domain finds nothing | The proxy is not forwarding `/.well-known/caldav` and `/.well-known/carddav` to the app, and it has no fallback redirect. |
 | Some operations fail (creating calendars, editing events) | The proxy blocks DAV methods such as `PROPFIND`, `REPORT`, `MKCALENDAR`. |
 | Redirects or links use `http://` | `APP_URL` is not the public HTTPS address, or `X-Forwarded-Proto` is not forwarded. |
 | Large file upload fails | The proxy request-body limit is too low. |
@@ -365,8 +416,9 @@ Export calendars as `.ics` and contacts as `.vcf` from your current server (Radi
 - Create and manage users
 - Authentication: Argon2id user passwords and app passwords / personal access tokens (for DAVx5, Thunderbird and other clients)
 - Rate limiting and brute-force protection for login and DAV (Basic Auth) endpoints
-- Reverse proxy support and service discovery (`/.well-known/caldav` and `/.well-known/carddav`), documented with ready-to-use configs
-- Create calendars, address books, tasks (VTODO) and notes (VJOURNAL)
+- The app serves `/.well-known/caldav` and `/.well-known/carddav`. Documented proxy fallbacks cover proxies that swallow those paths
+- Admin panel creates users and collections (calendars and address books, including collections that hold tasks and notes)
+- Events, tasks (VTODO) and notes (VJOURNAL) are written by CalDAV clients
 - Basic sync working with DAVx5 (and ideally other clients)
 - Core DAV protocols (WebDAV, CalDAV, CardDAV)
 - Docker Compose setup: base file + PostgreSQL / SQLite overrides
@@ -382,22 +434,20 @@ Export calendars as `.ics` and contacts as `.vcf` from your current server (Radi
 ### Version 2
 
 - Basic user portal
-- CalDAV Scheduling (invitations, free/busy)
+- On-server CalDAV scheduling (invitations and free/busy between users on this server). No outbound email yet
 - Import / Export (ICS, VCF)
 - Search across events and contacts
 
 ### Version 2.x
 
+- Outbound email through an external SMTP server: invitations to people who are not users, reminders, account notices (including login and lockout mail, each with an on/off option), share notices and reports. Replies are not read
 - Managed attachments
-
-### Version 3+
-
 - User quotas
 - Logs / audit trail and health checks
 - Automatic backups (local + remote)
 - Multilingual user portal
 - Optional 2FA
-- Export of server configuration
+- Export and import of server settings (JSON)
 
 ## Contributing
 
