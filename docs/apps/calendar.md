@@ -25,7 +25,7 @@ The collection URL looks like `/dav/calendars/<username>/<calendar-id>/`. The ad
 | Invite someone who has no account | Version 2.x, by email | No | Version 2.x |
 | Turn WebDAV-Push on or off | No | Version 1.x | No |
 
-Target clients for events are DAVx⁵, Thunderbird, and Apple Calendar. Nothing has been tested against them yet. See [Client compatibility](../../README.md#client-compatibility).
+Target clients for events are DAVx⁵, Thunderbird, and Apple Calendar. Nothing has been tested against them yet. See [Client compatibility](../guide.md#client-compatibility).
 
 ## Not in the plan yet
 

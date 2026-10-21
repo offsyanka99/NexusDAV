@@ -40,7 +40,7 @@ At the top left of the table tab name - Users. At the top right of the table but
 **Version 1.x.**
 
 - Share a calendar or an address book and set the ACL.
-- Turn WebDAV-Push on or off. The implementation is the bitfire draft named in the [README requirements](../../README.md#requirements), not a sabre/dav plugin.
+- Turn WebDAV-Push on or off. The implementation is the bitfire draft named in the [guide requirements](../guide.md#requirements), not a sabre/dav plugin.
 - Use the panel in more than one language.
 - See that a user's [Files](files.md) home exists, once file storage exists.
 

@@ -7,8 +7,8 @@ Thank you for your interest in NexusDAV! Contributions of all kinds are welcome:
 ## Ways to contribute
 
 - **Report a bug.** Open an issue with steps to reproduce, the expected and actual behavior, your NexusDAV version, database (PostgreSQL or SQLite) and the client used (for example DAVx5, Thunderbird, Apple Calendar).
-- **Report client compatibility.** Tested a client against NexusDAV? Tell us the client name and version, what works and what does not. This helps fill the [client compatibility table](README.md#client-compatibility).
-- **Suggest a feature.** Check the [Roadmap](README.md#roadmap) first, then open an issue describing the use case rather than only the solution.
+- **Report client compatibility.** Tested a client against NexusDAV? Tell us the client name and version, what works and what does not. This helps fill the [client compatibility table](docs/guide.md#client-compatibility).
+- **Suggest a feature.** Check the [Roadmap](docs/guide.md#roadmap) first, then open an issue describing the use case rather than only the solution.
 - **Improve documentation.** Fixes to the README, setup guides and reverse proxy examples are always welcome.
 - **Send code.** See below.
 
@@ -16,7 +16,7 @@ Thank you for your interest in NexusDAV! Contributions of all kinds are welcome:
 
 ## Development setup
 
-You need the components listed under [Requirements](README.md#requirements): PHP 8.3+ (8.4 recommended) with the required extensions, Composer 2, Node.js (current LTS) and either SQLite or PostgreSQL.
+You need the components listed under [Requirements](docs/guide.md#requirements): PHP 8.3+ (8.4 recommended) with the required extensions, Composer 2, Node.js (current LTS) and either SQLite or PostgreSQL.
 
 ```bash
 git clone https://github.com/<owner>/nexusdav.git
@@ -66,7 +66,7 @@ Notes:
 
 ### Dependencies
 
-Use the latest stable versions of libraries when possible and keep the versions in [Requirements](README.md#requirements) accurate. WebDAV-Push has no tagged release, so it is tracked by commit. Before adding a new dependency, check that it is maintained, compatible with the supported PHP and Laravel versions, and compatible with the MIT license.
+Use the latest stable versions of libraries when possible and keep the versions in [Requirements](docs/guide.md#requirements) accurate. WebDAV-Push has no tagged release, so it is tracked by commit. Before adding a new dependency, check that it is maintained, compatible with the supported PHP and Laravel versions, and compatible with the MIT license.
 
 ## Review process
 

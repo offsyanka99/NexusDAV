@@ -22,7 +22,7 @@ Few clients do. Apple Notes and Thunderbird do not use `VJOURNAL`, so notes stor
 | Create and edit notes | Version 1, only if the client supports `VJOURNAL` | No | Version 2 |
 | Show the note | The client, when it supports `VJOURNAL` | No | Version 2 |
 
-The client that is expected to show notes is DAVx⁵ together with jtx Board. Other clients are best effort. Nothing has been tested yet. See [Client compatibility](../../README.md#client-compatibility).
+The client that is expected to show notes is DAVx⁵ together with jtx Board. Other clients are best effort. Nothing has been tested yet. See [Client compatibility](../guide.md#client-compatibility).
 
 ## Not in the plan yet
 

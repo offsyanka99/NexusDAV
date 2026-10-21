@@ -23,7 +23,7 @@ There is no Files feature in Version 1. Calendars, contacts, tasks, and notes do
 | See that a user's file home exists | No | Version 1.x | Version 2, their own home only |
 | Set a storage quota | No | Version 2.x | No |
 
-Large uploads depend on the reverse proxy allowing a large request body. See [Troubleshooting](../../README.md#troubleshooting).
+Large uploads depend on the reverse proxy allowing a large request body. See [Troubleshooting](../guide.md#troubleshooting).
 
 ## Not in the plan yet
 

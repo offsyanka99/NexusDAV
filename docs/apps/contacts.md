@@ -23,7 +23,7 @@ The address book URL looks like `/dav/addressbooks/<username>/<addressbook-id>/`
 | Share the address book with another local user | Version 1.x, if the client supports sharing | Version 1.x | Version 2 |
 | Email the sharee about a new share | No | Version 2.x | Version 2.x |
 
-Target clients are DAVx⁵, Thunderbird, and Apple Contacts. Nothing has been tested against them yet. See [Client compatibility](../../README.md#client-compatibility).
+Target clients are DAVx⁵, Thunderbird, and Apple Contacts. Nothing has been tested against them yet. See [Client compatibility](../guide.md#client-compatibility).
 
 ## Not in the plan yet
 

@@ -26,7 +26,7 @@ How clients show tasks:
 - **Thunderbird** is a target for tasks.
 - **Apple** shows them in Reminders, not in Calendar.
 
-Nothing has been tested against these clients yet. See [Client compatibility](../../README.md#client-compatibility).
+Nothing has been tested against these clients yet. See [Client compatibility](../guide.md#client-compatibility).
 
 ## Not in the plan yet
 
