@@ -12,6 +12,15 @@ Sign-in lands on the **Dashboard**. The Dashboard shows the server at a glance: 
 
 A menu links to the other admin pages. The items include **Settings**, **Configuration**, and **Users**, plus the other pages described below as they arrive. Whether that menu sits on the left or along the top is not decided yet.
 
+### Settings
+
+The Settings page is where the System settings are located. The administrator can enable or disable DAV services and WebDAV-Push, along with their settings; configure the WebDAV files service; and set Session & portal settings.
+
+### Configuration
+
+The Configuration page is where the administrator can set the server time zone, time format, and week start day. You can also configure backup and restore settings for settings and data here.
+On this same page is the '**Danger Zone**' section - '***Reset to Default***' performs a full factory reset: configuration, database (all users and data), WebDAV files, and install lock.
+
 ### Users
 
 The Users page lists all accounts. An administrator can search and filter the list, create a new user, and edit, enable, disable or delete an existing one.
