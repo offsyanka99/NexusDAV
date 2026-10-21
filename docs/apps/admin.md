@@ -12,83 +12,15 @@ Sign-in lands on the **Dashboard**. The Dashboard shows the server at a glance: 
 
 A menu links to the other admin pages. The items include **Settings**, **Configuration**, and **Users**, plus the other pages described below as they arrive. Whether that menu sits on the left or along the top is not decided yet.
 
-All tabs have a header and a footer. The tab name appears on the left side of the header. Footer have About link and link to Docs
-
-### Setting
-
 ### Users
 
-Header have a tab name - Users
-At the right of the header the button '**Add user**'. And before the button search field - "Search users"
+The Users page lists all accounts. An administrator can search and filter the list, create a new user, and edit, enable, disable or delete an existing one.
 
-1. The Users page consists of two sections. On the left is a table listing the users.
-Table columns are:
- - Username
- - Display name
- - e-mail
- - Actions (Kebab menu icon)
-Table can be filtered by Username, Display name or e-mail
-Menu have the following actions links/buttons:
- - Edit
- - Enable/Disable
- - Delete
+Selecting a user shows their basic information together with the calendars and address books that belong to them. From there the administrator can create a new calendar or address book for that user.
 
+Creating a calendar includes choosing a URI, display name, description, color, and whether the collection holds tasks (VTODO) or notes (VJOURNAL). Creating an address book includes a URI, display name and description.
 
-2. When the administrator clicks the '**Add User**' button, a modal appears with the following fields and buttons:
- - Username
- - Display name
- - Email
- - Password (hidden)
- - Confirm password
- - Cancel and Save buttons
-The 'Password' and 'Confirm password' fields have an icon (on the right) that shows the password.
-
-3. When the Administrator selects an existing user, information about that user appears on the right. The information is divided into three sections:
- - User
- - Calendars
- - Address books
-
-3.1 The '***User***' section contains the following information:
- - Username {test_user}
- - Display name {QA Test}
- - Email {qa_test@email.com}
- - Principal {principals/test_user}
- - Calendars {3}
- - Events/Objects {2812}
- - Address Books {1}
- - Contacts {93}
-
-3.2 The '***Calendars***' section contains a table with available Calendars and table have the following columns:
- - URI {holidays-ca}
- - Name {Canadian Holidays}
- - Objects {38 TASKS NOTES}
- - DAV path {/dav.php/calendars/test_user/holidays-ca/}
- - Actions {Edit Delete}
-At the top of the section is the '**Add Calendar**' button
-When '**Add calendar**' button clicked, a modal appears with the following fields and buttons:
- - URI token id (prefiled with default)
- - Display name
- - Description
- - Color (#RRGGBB)
- - [ ] Tasks (VTODO)
- - [ ] Notes (VJOURNAL)
- - Cancel and Save buttons
-
-3.3 The “Address books” section contains a table with available Address books and table have the following columns:
- - URI {default}
- - Name {Personal Address Book}
- - Contacts {93}
- - Actions {Edit Delete}
-At the top of the section is the '**Add address book**' button
-When '**Add address book**' button clicked, a modal appears with the following fields and buttons:
- - URI token id (prefiled with default)
- - Display name
- - Description
- - Cancel and Save buttons
-
-
-An examples is given in {}
-
+A more detailed UI draft is kept in [docs/design/admin-users.md](../design/admin-users.md).
 
 ## What each version includes
 
