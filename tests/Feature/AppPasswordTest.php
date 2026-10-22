@@ -7,6 +7,7 @@ use App\Services\AppPasswordService;
 use App\Services\UserService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use Tests\TestCase;
 
 class AppPasswordTest extends TestCase
@@ -15,8 +16,6 @@ class AppPasswordTest extends TestCase
 
     public function test_app_password_lookup_hash_revoke_expiry_and_last_used_interval(): void
     {
-        config(['nexusdav.app_password_last_used_interval' => 60]);
-
         $user = app(UserService::class)->create([
             'username' => 'ada',
             'display_name' => 'Ada',
@@ -94,5 +93,34 @@ class AppPasswordTest extends TestCase
         $service->markUsed($fresh->fresh() ?? $fresh);
 
         $this->assertTrue($fresh->fresh()?->last_used_at?->greaterThan($withinInterval));
+    }
+
+    public function test_app_password_name_is_measured_in_characters(): void
+    {
+        $user = app(UserService::class)->create([
+            'username' => 'ada',
+            'display_name' => 'Ada',
+            'email' => 'ada@example.com',
+        ]);
+        $service = app(AppPasswordService::class);
+        $name = str_repeat('名', 100);
+
+        $issued = $service->issue($user, $name);
+
+        $this->assertSame($name, $issued['app_password']->name);
+
+        try {
+            $service->issue($user, '   ');
+            $this->fail('A blank app password name was accepted.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertSame('App password name must be between 1 and 255 characters.', $exception->getMessage());
+        }
+
+        try {
+            $service->issue($user, str_repeat('名', 256));
+            $this->fail('An app password name longer than 255 characters was accepted.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertSame('App password name must be between 1 and 255 characters.', $exception->getMessage());
+        }
     }
 }

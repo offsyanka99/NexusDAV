@@ -5,14 +5,14 @@ namespace App\Services;
 use App\Models\AppPassword;
 use App\Models\User;
 use DateTimeInterface;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use InvalidArgumentException;
-use RuntimeException;
 
 final class AppPasswordService
 {
     public const SEPARATOR = '.';
+
+    private const LAST_USED_INTERVAL_SECONDS = 60;
 
     /**
      * Issue a token and store only the SHA-256 hash of its secret.
@@ -26,40 +26,24 @@ final class AppPasswordService
     {
         $name = trim($name);
 
-        if ($name === '' || strlen($name) > 255) {
+        if ($name === '' || mb_strlen($name) > 255) {
             throw new InvalidArgumentException('App password name must be between 1 and 255 characters.');
         }
 
-        $expiresAt = $this->expiresAt($expiresAt);
-        $collision = null;
+        $publicId = $this->newPublicId();
+        $secret = $this->newSecret();
+        $appPassword = AppPassword::query()->create([
+            'user_id' => $user->getKey(),
+            'name' => $name,
+            'public_id' => $publicId,
+            'token_hash' => $this->hashSecret($secret),
+            'expires_at' => $this->expiresAt($expiresAt),
+        ]);
 
-        for ($attempt = 0; $attempt < 5; $attempt++) {
-            $publicId = $this->newPublicId();
-            $secret = $this->newSecret();
-
-            try {
-                $appPassword = AppPassword::query()->create([
-                    'user_id' => $user->getKey(),
-                    'name' => $name,
-                    'public_id' => $publicId,
-                    'token_hash' => $this->hashSecret($secret),
-                    'expires_at' => $expiresAt,
-                ]);
-
-                return [
-                    'app_password' => $appPassword,
-                    'token' => $publicId.self::SEPARATOR.$secret,
-                ];
-            } catch (QueryException $exception) {
-                if (! $this->isPublicIdCollision($exception)) {
-                    throw $exception;
-                }
-
-                $collision = $exception;
-            }
-        }
-
-        throw $collision;
+        return [
+            'app_password' => $appPassword,
+            'token' => $publicId.self::SEPARATOR.$secret,
+        ];
     }
 
     public function findByPublicId(string $publicId): ?AppPassword
@@ -116,18 +100,12 @@ final class AppPasswordService
     }
 
     /**
-     * Record use at most once per the configured interval.
+     * Record use at most once per LAST_USED_INTERVAL_SECONDS.
      */
     public function markUsed(AppPassword $appPassword): void
     {
-        $interval = config('nexusdav.app_password_last_used_interval');
-
-        if (! is_int($interval) || $interval < 1) {
-            throw new RuntimeException('nexusdav.app_password_last_used_interval must be a positive number of seconds.');
-        }
-
         $now = now();
-        $cutoff = $now->copy()->subSeconds($interval);
+        $cutoff = $now->copy()->subSeconds(self::LAST_USED_INTERVAL_SECONDS);
 
         $updated = AppPassword::query()
             ->whereKey($appPassword->getKey())
@@ -177,12 +155,5 @@ final class AppPasswordService
     private function base64Url(string $bytes): string
     {
         return rtrim(strtr(base64_encode($bytes), '+/', '-_'), '=');
-    }
-
-    private function isPublicIdCollision(QueryException $exception): bool
-    {
-        $detail = $exception->errorInfo[2] ?? '';
-
-        return is_string($detail) && str_contains($detail, 'public_id');
     }
 }

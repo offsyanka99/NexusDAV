@@ -38,7 +38,7 @@ Decisions:
 | token_hash | string | SHA-256 hex of the secret only. The plaintext token is not stored |
 | revoked_at | timestamp | nullable. Set on revoke; the row is kept |
 | expires_at | timestamp | nullable |
-| last_used_at | timestamp | nullable. Updated at most once per `nexusdav.app_password_last_used_interval` seconds |
+| last_used_at | timestamp | nullable. Updated at most once per 60 seconds |
 | created_at | timestamp | |
 | updated_at | timestamp | |
 

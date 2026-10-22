@@ -219,4 +219,72 @@ class UserResourceTest extends TestCase
         $this->assertNotNull($appPassword->fresh()?->revoked_at);
         $this->assertSame(1, AppPassword::query()->count());
     }
+
+    public function test_invalid_names_stay_on_the_form(): void
+    {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'is_active' => true,
+        ]);
+        $user = app(UserService::class)->create([
+            'username' => 'ada',
+            'display_name' => 'Ada',
+            'email' => 'ada@example.com',
+        ]);
+
+        $this->actingAs($admin);
+
+        Livewire::test(CreateUser::class)
+            ->fillForm([
+                'username' => 'blankname',
+                'display_name' => '   ',
+                'email' => 'blank@example.com',
+                'is_admin' => false,
+                'is_active' => true,
+            ])
+            ->call('create')
+            ->assertHasFormErrors(['display_name' => 'required']);
+
+        $this->assertNull(User::query()->where('username', 'blankname')->first());
+
+        Livewire::test(CreateUser::class)
+            ->fillForm([
+                'username' => 'localuser',
+                'display_name' => 'Local',
+                'email' => 'user@localhost',
+                'is_admin' => false,
+                'is_active' => true,
+            ])
+            ->call('create')
+            ->assertNotified('Could not create the user');
+
+        $this->assertNull(User::query()->where('username', 'localuser')->first());
+
+        Livewire::test(EditUser::class, ['record' => $user->getKey()])
+            ->fillForm(['display_name' => '   '])
+            ->call('save')
+            ->assertHasFormErrors(['display_name' => 'required']);
+
+        $this->assertSame('Ada', $user->fresh()?->display_name);
+
+        Livewire::test(AppPasswordsRelationManager::class, [
+            'ownerRecord' => $user,
+            'pageClass' => EditUser::class,
+        ])
+            ->callTableAction('generate', data: [
+                'name' => '   ',
+            ])
+            ->assertHasFormErrors(['name' => 'required']);
+
+        Livewire::test(AppPasswordsRelationManager::class, [
+            'ownerRecord' => $user,
+            'pageClass' => EditUser::class,
+        ])
+            ->callTableAction('generate', data: [
+                'name' => str_repeat('名', 256),
+            ])
+            ->assertHasFormErrors(['name' => 'max']);
+
+        $this->assertSame(0, AppPassword::query()->where('user_id', $user->getKey())->count());
+    }
 }

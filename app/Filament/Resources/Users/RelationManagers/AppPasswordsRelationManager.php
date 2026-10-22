@@ -16,9 +16,11 @@ use Filament\Schemas\Components\EmbeddedTable;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\FontFamily;
+use Filament\Support\Exceptions\Halt;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use InvalidArgumentException;
 use RuntimeException;
 
 class AppPasswordsRelationManager extends RelationManager
@@ -95,11 +97,21 @@ class AppPasswordsRelationManager extends RelationManager
 
                         $expiresAt = $data['expires_at'] ?? null;
 
-                        $issued = app(AppPasswordService::class)->issue(
-                            $owner,
-                            (string) $data['name'],
-                            is_string($expiresAt) || $expiresAt instanceof DateTimeInterface ? $expiresAt : null,
-                        );
+                        try {
+                            $issued = app(AppPasswordService::class)->issue(
+                                $owner,
+                                (string) $data['name'],
+                                is_string($expiresAt) || $expiresAt instanceof DateTimeInterface ? $expiresAt : null,
+                            );
+                        } catch (InvalidArgumentException $exception) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Could not create the app password')
+                                ->body($exception->getMessage())
+                                ->send();
+
+                            throw new Halt;
+                        }
 
                         $this->plainTextToken = $issued['token'];
 

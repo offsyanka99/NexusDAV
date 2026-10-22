@@ -48,6 +48,14 @@ class EditUser extends EditRecord
                 ->send();
 
             throw new Halt;
+        } catch (InvalidArgumentException $exception) {
+            Notification::make()
+                ->danger()
+                ->title('Could not save the user')
+                ->body($exception->getMessage())
+                ->send();
+
+            throw new Halt;
         }
     }
 

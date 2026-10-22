@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Exceptions\LastActiveAdminException;
 use App\Models\AppPassword;
 use App\Models\Principal;
+use App\Models\User;
 use App\Services\AppPasswordService;
 use App\Services\UserService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -178,6 +179,63 @@ class UserManagementTest extends TestCase
         $users->update($second, ['is_active' => false]);
 
         $this->assertFalse($second->fresh()?->is_active);
+    }
+
+    public function test_blank_password_is_not_hashed(): void
+    {
+        $admin = app(UserService::class)->create([
+            'username' => 'root',
+            'display_name' => 'Root',
+            'email' => 'root@example.com',
+            'is_admin' => true,
+            'password' => 'correct-horse-battery',
+        ]);
+
+        foreach (['', false] as $blank) {
+            try {
+                $admin->update(['password' => $blank]);
+                $this->fail('A blank admin password was stored.');
+            } catch (InvalidArgumentException $exception) {
+                $this->assertSame('An admin must have a password.', $exception->getMessage());
+            }
+
+            $fresh = $admin->fresh();
+
+            $this->assertNotNull($fresh);
+            $this->assertFalse(Hash::check('', (string) $fresh->password));
+            $this->assertTrue(Hash::check('correct-horse-battery', (string) $fresh->password));
+        }
+
+        $user = app(UserService::class)->create([
+            'username' => 'ada',
+            'display_name' => 'Ada',
+            'email' => 'ada@example.com',
+            'password' => 'a-real-password',
+        ]);
+
+        $user->update(['password' => '']);
+
+        $this->assertNull($user->fresh()?->getAttributes()['password'] ?? null);
+    }
+
+    public function test_a_direct_create_syncs_its_principal_on_a_later_save_of_the_same_instance(): void
+    {
+        $user = User::query()->create([
+            'username' => 'direct',
+            'display_name' => 'Direct',
+            'email' => 'direct@example.com',
+            'password' => null,
+            'is_admin' => false,
+            'is_active' => true,
+        ]);
+
+        $this->assertSame('principals/direct', $user->principal?->uri);
+
+        $user->update(['email' => 'direct2@example.com']);
+
+        $this->assertSame('direct2@example.com', $user->email);
+        $this->assertSame('direct2@example.com', $user->principal()->first()?->email);
+        $this->assertSame(1, Principal::query()->where('user_id', $user->getKey())->count());
     }
 
     public function test_deleting_a_user_removes_the_principal_and_app_passwords(): void

@@ -4,9 +4,7 @@ namespace App\Support;
 
 use App\Models\User;
 use App\Services\UserService;
-use Illuminate\Support\Facades\DB;
 use RuntimeException;
-use Throwable;
 
 final class FirstAdminCreator
 {
@@ -17,7 +15,7 @@ final class FirstAdminCreator
      */
     public function createIfMissing(?string $email, ?string $password): User
     {
-        return $this->withAdminLock(function () use ($email, $password): User {
+        return $this->users->withAdminLock(function () use ($email, $password): User {
             $existing = User::query()->where('is_admin', true)->first();
 
             if ($existing instanceof User) {
@@ -31,44 +29,6 @@ final class FirstAdminCreator
             }
 
             return $this->create(trim($email), $password);
-        });
-    }
-
-    /**
-     * One writer at a time. Postgres has a transaction advisory lock. SQLite
-     * does not, so an outer IMMEDIATE transaction takes the write lock instead.
-     *
-     * @param  callable(): User  $callback
-     */
-    private function withAdminLock(callable $callback): User
-    {
-        $connection = DB::connection();
-
-        if ($connection->getDriverName() === 'sqlite' && $connection->transactionLevel() === 0) {
-            $pdo = $connection->getPdo();
-            $pdo->exec('PRAGMA busy_timeout = 5000');
-            $pdo->exec('BEGIN IMMEDIATE TRANSACTION');
-
-            try {
-                $user = $callback();
-                $pdo->exec('COMMIT');
-
-                return $user;
-            } catch (Throwable $exception) {
-                if ($pdo->inTransaction()) {
-                    $pdo->exec('ROLLBACK');
-                }
-
-                throw $exception;
-            }
-        }
-
-        return $connection->transaction(function () use ($callback, $connection): User {
-            if ($connection->getDriverName() === 'pgsql') {
-                $connection->select('select pg_advisory_xact_lock(872461)');
-            }
-
-            return $callback();
         });
     }
 

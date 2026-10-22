@@ -14,7 +14,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Hash;
 use InvalidArgumentException;
+use RuntimeException;
 
 #[Fillable([
     'username',
@@ -60,12 +62,59 @@ class User extends Authenticatable implements FilamentUser, HasName
         });
 
         static::saved(function (User $user): void {
-            if ($user->wasRecentlyCreated || ! $user->wasChanged(['display_name', 'email'])) {
+            if (UserService::skippingPrincipalSync()) {
+                return;
+            }
+
+            if (! $user->wasChanged(['display_name', 'email']) && $user->principal()->exists()) {
                 return;
             }
 
             app(UserService::class)->syncPrincipal($user);
         });
+    }
+
+    /**
+     * The last-admin check runs in the updating hook. Keep the admin lock
+     * until this write commits, or a second demotion can pass the same count.
+     */
+    public function save(array $options = []): bool
+    {
+        return app(UserService::class)->withAdminLock(
+            fn (): bool => parent::save($options) !== false,
+        );
+    }
+
+    public function delete()
+    {
+        return app(UserService::class)->withAdminLock(fn () => parent::delete());
+    }
+
+    /**
+     * Blank and non-string values become null before hashing. The hashed cast
+     * would otherwise store Argon2id('') and accept a blank login.
+     */
+    protected function setPasswordAttribute(mixed $value): void
+    {
+        if (! is_string($value) || $value === '') {
+            $this->attributes['password'] = null;
+
+            return;
+        }
+
+        if (! Hash::isHashed($value)) {
+            $this->attributes['password'] = Hash::make($value);
+
+            return;
+        }
+
+        // HashManager's phpdoc types this argument as array; hashers take the hash string.
+        /** @phpstan-ignore argument.type */
+        if (! Hash::verifyConfiguration($value)) {
+            throw new RuntimeException("Could not verify the hashed value's configuration.");
+        }
+
+        $this->attributes['password'] = $value;
     }
 
     /**
@@ -136,7 +185,6 @@ class User extends Authenticatable implements FilamentUser, HasName
     protected function casts(): array
     {
         return [
-            'password' => 'hashed',
             'is_admin' => 'boolean',
             'is_active' => 'boolean',
             'quota_bytes' => 'integer',
