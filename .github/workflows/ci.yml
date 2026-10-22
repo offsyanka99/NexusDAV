@@ -5,15 +5,55 @@ on:
   pull_request:
 
 jobs:
-  tests:
-    name: ${{ matrix.db }}
+  static:
+    name: lint
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    strategy:
-      fail-fast: false
-      matrix:
-        db: [sqlite, pgsql]
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: ctype, curl, dom, fileinfo, intl, mbstring, pdo, pdo_sqlite, sqlite, xml
+          coverage: none
 
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Lint
+        run: composer lint
+
+      - name: Analyse
+        run: composer analyse
+
+  sqlite:
+    name: sqlite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: ctype, curl, dom, fileinfo, intl, mbstring, pdo, pdo_sqlite, sqlite, xml
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Test
+        run: composer test
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+
+  pgsql:
+    name: pgsql
+    runs-on: ubuntu-latest
     services:
       postgres:
         image: postgres:17-alpine
@@ -28,7 +68,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,18 +82,12 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
-      - name: Lint
-        run: composer lint
-
-      - name: Analyse
-        run: composer analyse
-
       - name: Test
         run: composer test
         env:
-          DB_CONNECTION: ${{ matrix.db }}
+          DB_CONNECTION: pgsql
           DB_HOST: 127.0.0.1
           DB_PORT: 5432
-          DB_DATABASE: ${{ matrix.db == 'pgsql' && 'nexusdav' || ':memory:' }}
+          DB_DATABASE: nexusdav
           DB_USERNAME: nexusdav
           DB_PASSWORD: nexusdav

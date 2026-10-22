@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
+use Filament\Models\Contracts\HasName;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -24,7 +25,7 @@ use InvalidArgumentException;
     'quota_bytes',
 ])]
 #[Hidden(['password'])]
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable implements FilamentUser, HasName
 {
     public const USERNAME_PATTERN = '/^[a-z0-9][a-z0-9_-]{0,62}$/';
 
@@ -48,6 +49,25 @@ class User extends Authenticatable implements FilamentUser
     {
         return $panel->getId() === 'admin' && $this->is_admin && $this->is_active;
     }
+
+    public function getFilamentName(): string
+    {
+        if ($this->display_name !== '') {
+            return $this->display_name;
+        }
+
+        if ($this->username !== '') {
+            return $this->username;
+        }
+
+        return $this->email;
+    }
+
+    /**
+     * The users table has no remember_token column. Ignore the value so
+     * remember-me does not UPDATE a missing field.
+     */
+    public function setRememberToken($value): void {}
 
     public function resolvedTimezone(): string
     {

@@ -7,26 +7,13 @@ return [
     | Default Hash Driver
     |--------------------------------------------------------------------------
     |
-    | Human passwords use Argon2id. App-password tokens are a later concern
-    | and are not hashed with this driver.
+    | Human passwords use Argon2id.
     |
     | Supported: "bcrypt", "argon", "argon2id"
     |
     */
 
     'driver' => 'argon2id',
-
-    /*
-    |--------------------------------------------------------------------------
-    | Bcrypt Options
-    |--------------------------------------------------------------------------
-    */
-
-    'bcrypt' => [
-        'rounds' => env('BCRYPT_ROUNDS', 12),
-        'verify' => env('HASH_VERIFY', true),
-        'limit' => env('BCRYPT_LIMIT', null),
-    ],
 
     /*
     |--------------------------------------------------------------------------

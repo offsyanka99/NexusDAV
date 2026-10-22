@@ -32,6 +32,11 @@ chmod 600 /data/app.key
 APP_KEY=$(cat /data/app.key)
 export APP_KEY
 
+# An empty value would override config/logging.php's debug default.
+if [ -z "${LOG_LEVEL:-}" ]; then
+    unset LOG_LEVEL
+fi
+
 chown -R nexusdav:nexusdav /app/storage /app/bootstrap/cache /home/nexusdav
 
 cd /app

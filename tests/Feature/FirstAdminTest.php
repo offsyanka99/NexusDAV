@@ -69,6 +69,25 @@ class FirstAdminTest extends TestCase
         $this->assertSame(0, User::query()->count());
     }
 
+    public function test_prepare_does_not_log_the_password_when_the_insert_conflicts(): void
+    {
+        User::factory()->create([
+            'username' => 'someone',
+            'email' => 'admin@example.com',
+            'is_admin' => false,
+        ]);
+
+        $this->setEnv('APP_URL', 'http://localhost:8080');
+        $this->setEnv('ADMIN_EMAIL', 'admin@example.com');
+        $this->setEnv('ADMIN_PASSWORD', 'correct-horse-battery');
+
+        $this->artisan('nexusdav:prepare')
+            ->expectsOutputToContain('constraint')
+            ->doesntExpectOutputToContain('correct-horse-battery')
+            ->doesntExpectOutputToContain('$argon2id$')
+            ->assertFailed();
+    }
+
     public function test_username_is_immutable_after_create(): void
     {
         $user = User::factory()->create(['username' => 'admin']);

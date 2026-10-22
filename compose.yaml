@@ -17,6 +17,8 @@ services:
       - TRUSTED_PROXIES=${TRUSTED_PROXIES:-*}
       - PUID=${PUID:-568}
       - PGID=${PGID:-568}
+      # Empty when unset, so the entrypoint can drop it and keep the config default.
+      - LOG_LEVEL=${LOG_LEVEL-}
     restart: unless-stopped
     logging:
       driver: json-file

@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Support\EnvironmentChecker;
 use App\Support\FirstAdminCreator;
 use Illuminate\Console\Command;
+use Illuminate\Database\QueryException;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -39,12 +40,19 @@ class PrepareApplication extends Command
             $checker->assertAdminCredentials($environment, $adminExists);
 
             if (! $adminExists) {
-                $admins->createIfMissing(
+                $admin = $admins->createIfMissing(
                     $environment['ADMIN_EMAIL'] ?? null,
                     $environment['ADMIN_PASSWORD'] ?? null,
                 );
-                $this->info('Created the first admin account.');
+
+                if ($admin->wasRecentlyCreated) {
+                    $this->info('Created the first admin account.');
+                }
             }
+        } catch (QueryException $exception) {
+            $this->error($this->queryFailureMessage($exception));
+
+            return self::FAILURE;
         } catch (RuntimeException|InvalidArgumentException $exception) {
             $this->error($exception->getMessage());
 
@@ -78,6 +86,21 @@ class PrepareApplication extends Command
         }
 
         return $environment;
+    }
+
+    private function queryFailureMessage(QueryException $exception): string
+    {
+        $detail = $exception->errorInfo[2] ?? '';
+
+        if (is_string($detail) && preg_match('/constraint "([^"]+)"/', $detail, $matches) === 1) {
+            return "Could not create the first admin because of constraint {$matches[1]}.";
+        }
+
+        if (is_string($detail) && preg_match('/UNIQUE constraint failed: ([\w.]+)/', $detail, $matches) === 1) {
+            return "Could not create the first admin because of unique constraint on {$matches[1]}.";
+        }
+
+        return 'Could not create the first admin because the database rejected the insert.';
     }
 
     private function read(string $name): ?string
