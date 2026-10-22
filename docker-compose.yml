@@ -1,17 +1,7 @@
-# NexusDAV — Docker Compose skeleton
-# To be expanded as the project develops
-
-services:
-  nexusdav:
-    # image: will be defined later
-    # build: .
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./data:/data
-    restart: unless-stopped
-    # environment:
-    #   - ...
-
-volumes:
-  data:
+# This file is kept for compatibility.
+# Prefer the new structure:
+#
+#   docker compose -f compose.yaml -f compose.postgres.yaml up -d
+#   docker compose -f compose.yaml -f compose.sqlite.yaml up -d
+#
+# See compose.yaml, compose.postgres.yaml and compose.sqlite.yaml
