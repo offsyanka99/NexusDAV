@@ -14,19 +14,41 @@ A menu links to the other admin pages. The items include **Settings**, **Configu
 
 ### Settings
 
-The Settings page holds system-level controls.
+The Settings page holds system-level controls for services and related options.
 
-**Version 1.** Enable or disable CalDAV, CardDAV, Tasks (VTODO) and Notes (VJOURNAL).
+**Version 1.**
+- Enable or disable CalDAV, CardDAV, Tasks (VTODO) and Notes (VJOURNAL).
+- Logging level for the server.
 
-**Version 1.x.** Enable or disable WebDAV (files) and WebDAV-Push, and configure their options. Session and portal-related settings appear once the user portal exists (Version 2).
+**Version 1.x.**
+- Enable or disable WebDAV (files) and WebDAV-Push, and configure their options.
+- Logging for WebDAV-Push.
+- Enable or disable Sharing.
+- File size limits and per-user disk space limits.
+- Session and portal-related settings appear once the user portal exists (Version 2).
+
+**Version 2.**
+- Enable or disable on-server Scheduling.
+
+**Version 2.x.**
+- Enable or disable Managed Attachments.
 
 ### Configuration
 
 The Configuration page holds server-wide preferences.
 
-**Version 1.** Server time zone, time format and week start day.
+**Version 1.**
+- Server time zone, time format and week start day.
+- Rate limiting settings.
+- Session settings (lifetime, secure cookies, etc.).
 
-**Version 2.x.** Backup and restore settings for configuration and data. These options are documented here so the architecture can accommodate them from the start.
+**Version 1.x.**
+- Default interface language.
+
+**Version 2.x.**
+- Backup and restore settings for configuration and data.
+- Health check settings.
+- SMTP settings and the From address used for outbound email.
 
 On the same page, a **Danger Zone** section (Version 2.x) contains **Reset to Default**. This performs a full factory reset: configuration, database (all users and data), WebDAV files and the install lock. The action requires one or two explicit confirmations before it runs.
 
