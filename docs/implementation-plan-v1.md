@@ -2,7 +2,7 @@
 
 Goal: a working minimal server that allows creating users, calendars and address books in the admin panel, and syncing with DAVx5 (CalDAV + CardDAV).
 
-This plan was revised after the [review](plans/implementation-plan-v1-review.md). The open decisions are settled in [Decisions](#decisions).
+This plan was revised after the [review](plans/implementation-plan-v1-review.md). Items marked **(proposed)** are recommended defaults for open decisions listed under [Decisions](#decisions-to-confirm); confirm or change them before the PR that uses them starts.
 
 Effort levels:
 - **Low** — small, mostly boilerplate or config
@@ -30,9 +30,9 @@ Effort levels:
 - Web server inside the image: FrankenPHP in classic (non-worker) mode, port 8080, non-root with `PUID` / `PGID` support for TrueNAS SCALE
 - Entrypoint script: validate required variables and stop with a clear message if one is missing; generate `APP_KEY` on first start and store it on `/data`; run migrations
 - Trusted proxy handling (`X-Forwarded-Proto`, `Host`) so `APP_URL` and generated links stay HTTPS
-- Update `compose.yaml` to use the local build; add log rotation (`max-size`, `max-file`); do not set it in Compose unless the user sets it
+- Update `compose.yaml` to use the local build; add log rotation (`max-size`, `max-file`); default `LOG_LEVEL` so the Settings field can be editable later **(proposed: do not set it in Compose unless the user sets it)**
 - `/health` endpoint (app + DB up, no details exposed)
-- First admin creation on boot from `ADMIN_EMAIL` / `ADMIN_PASSWORD`: **idempotent** (only when no admin exists, never overwrites); derive `username` from the email
+- First admin creation on boot from `ADMIN_EMAIL` / `ADMIN_PASSWORD`: **idempotent** (only when no admin exists, never overwrites); derive `username` from the email **(proposed)**
 - CI (GitHub Actions): `composer test`, `composer lint`, `composer analyse` on SQLite and PostgreSQL
 - Tests: health endpoint, first-admin creation is idempotent, missing variable stops start
 
@@ -41,7 +41,7 @@ Effort levels:
 ### PR 2 — Users, app passwords and principals (Effort: High)
 
 - Migrations and models: `AppPassword`, `Principal` (see [Principal strategy](#principal-strategy))
-- Argon2id for main passwords; main password is optional for non-admin users because DAV accepts only app passwords and there is no portal in Version 1
+- Argon2id for main passwords; main password is **optional for non-admin users (proposed)** because DAV accepts only app passwords and there is no portal in Version 1
 - App password generation: random token with a **short public ID prefix**, shown once. The ID is used for direct lookup, so DAV Basic auth never checks every hash of a user. Store only the SHA-256 hash of the secret (Argon2id is unnecessary for high-entropy tokens and too slow per request)
 - Columns for revocation and optional expiry (`revoked_at`, `expires_at`); `last_used_at` is written at most once per interval, not on every request
 - Filament User resource: list, search, create, edit, enable/disable, **delete**
@@ -83,7 +83,7 @@ Start with a short spike (throwaway branch) to prove Laravel → sabre/dav → D
 - Create address book (URI slug, display name, description)
 - **Edit and delete** calendars and address books (matches the [Users page design](design/admin-users.md))
 - Show a user's calendars and address books in the Users page, with object / contact counts and the DAV path
-- **Default calendar and address book on user creation**
+- **Default calendar and address book on user creation (proposed)**
 - Call sabre/dav backends to create the collections
 - Tests: create/edit/delete collections, slug validation, collections visible via DAV
 - Manual smoke test with DAVx5: sync a calendar and an address book end to end
@@ -109,7 +109,7 @@ Moved before Settings so there is something to configure.
 - Configuration: timezone, time format, week start day; rate limiting thresholds; session settings
 - Store non-boot settings in the database; env values win and are read-only
 - Settings are loaded into config at boot and **cached**, so DAV requests do not query them each time
-- Define what each switch does: which sabre plugins load, the response when a feature is off (plugin not loaded; requests return 403 with a clear message), and what happens to existing collections
+- Define what each switch does: which sabre plugins load, the response when a feature is off (**proposed: 403 with a clear message / collection not advertised**), and what happens to existing collections
 - Tests: setting precedence (env wins and is read-only), each switch changes DAV behaviour
 
 **Done when:** admin can change these settings, and each one has a test or manual check showing the effect (for example, disabling CardDAV makes address book requests fail; a new rate limit applies without restart).
@@ -125,7 +125,7 @@ Moved before Settings so there is something to configure.
 
 ### PR 8 — Release polish and documentation (Effort: High)
 
-- Logging: stdout, with request ID, method, path, status and user; no secrets. stdout only, as in the guide
+- Logging: stdout, with request ID, method, path, status and user; no secrets. Resolve stdout vs `/data/logs` **(proposed: stdout only, as in the guide)**
 - Build and publish the image (GitHub Container Registry, amd64 + arm64); pin the image tag in the Compose examples
 - Ready-to-use reverse proxy configs (nginx, Caddy, Traefik) including the `.well-known` fallbacks
 - Manual test with DAVx5 (calendar, contacts, tasks via a tasks app); also try Thunderbird and Apple Calendar / Contacts; optionally run `litmus` / CalDAVTester
@@ -154,9 +154,9 @@ PR3 is the critical path. Everything after it depends on a working DAV server. P
 
 ## Principal strategy
 
-The sabre/dav PDO principal backend expects its own `principals` table (`uri`, `email`, `displayname`), while [data-model.md](data-model.md) defines a Laravel `principals` table with different columns. **Decided:** keep the Laravel table and write a small custom principal backend that reads it, so there is one source of truth. `UserService` keeps `users.display_name` / `users.email` and `principals` in sync. Update the data model in PR 2.
+The sabre/dav PDO principal backend expects its own `principals` table (`uri`, `email`, `displayname`), while [data-model.md](data-model.md) defines a Laravel `principals` table with different columns. **Proposed:** keep the Laravel table and write a small custom principal backend that reads it, so there is one source of truth. `UserService` keeps `users.display_name` / `users.email` and `principals` in sync. Decide this at the start of PR 2 and update the data model.
 
-## Decisions
+## Decisions to confirm
 
 All decisions below are confirmed.
 
