@@ -38,6 +38,8 @@ Effort levels:
 
 **Done when:** container starts, `/health` returns OK, admin can log in, CI is green on both databases, restart does not recreate or change the admin.
 
+**Shipped** on `execute-plan/9ece2d6d-pr-1-project-skeleton-and-container` (not merged). Laravel 13, Filament 5, Livewire 4, and Tailwind 4.1 were already on `main`, including unused `sabre/dav` 4.7.1. This branch added the users table (Argon2id, URL-safe immutable username), `config/nexusdav.php`, trusted proxies, `GET /health` (`{"status":"ok"}` or 503 with no details), and idempotent first-admin boot. The image is FrankenPHP PHP 8.4 in classic `php-server` mode on port 8080, uid/gid from `PUID`/`PGID` (default 568). `APP_KEY` is stored at `/data/app.key`. Compose builds the local Dockerfile, rotates logs, and does not force `LOG_LEVEL` (a blank value is treated as unset). CI runs lint and analyse once, then the suite on SQLite and PostgreSQL 17. Checked: container `/health` was 200, the admin authenticated, and a second start did not change that admin.
+
 ### PR 2 — Users, app passwords and principals (Effort: High)
 
 - Migrations and models: `AppPassword`, `Principal` (see [Principal strategy](#principal-strategy))
@@ -52,6 +54,8 @@ Effort levels:
 - Tests: user creation, app password generation/hash/revoke/expiry, last-admin guard, disabled user cannot log in
 
 **Done when:** admin can create a user, generate and revoke an app password, and delete a user.
+
+**Shipped** on `execute-plan/fa533be6-pr-2-users-app-passwords-and-principals`, stacked on the PR 1 branch. `UserService` creates a user and one principal (`principals/{username}`) in one transaction and keeps `display_name` and `email` in sync. The first-admin boot uses that path and does not change an admin that already exists. `users.password` is nullable Argon2id and required only for admins. An app password is shown once as `{public_id}.{secret}` (12-character id, 32-byte secret). Only the SHA-256 of the secret is stored. Revoke sets `revoked_at`. `expires_at` is optional. `last_used_at` is written at most once per 60 seconds. The Filament Users page lists, searches, creates, edits, enables, disables, and deletes users, and can issue and revoke app passwords. The last active admin cannot be deleted, disabled, or demoted. Admin login uses Filament's built-in 5-attempt throttle. `docs/data-model.md` matches these columns. Not in this branch: the sabre principal backend, DAV routes, and calendars or address books.
 
 ### PR 3 — sabre/dav integration (Effort: Extra High)
 
