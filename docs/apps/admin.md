@@ -14,12 +14,21 @@ A menu links to the other admin pages. The items include **Settings**, **Configu
 
 ### Settings
 
-The Settings page is where the System settings are located. The administrator can enable or disable DAV services and WebDAV-Push, along with their settings; configure the WebDAV files service; and set Session & portal settings.
+The Settings page holds system-level controls.
+
+**Version 1.** Enable or disable CalDAV, CardDAV, Tasks (VTODO) and Notes (VJOURNAL).
+
+**Version 1.x.** Enable or disable WebDAV (files) and WebDAV-Push, and configure their options. Session and portal-related settings appear once the user portal exists (Version 2).
 
 ### Configuration
 
-The Configuration page is where the administrator can set the server time zone, time format, and week start day. You can also configure backup and restore settings for settings and data here.
-On this same page is the '**Danger Zone**' section - '***Reset to Default***' performs a full factory reset: configuration, database (all users and data), WebDAV files, and install lock.
+The Configuration page holds server-wide preferences.
+
+**Version 1.** Server time zone, time format and week start day.
+
+**Version 2.x.** Backup and restore settings for configuration and data. These options are documented here so the architecture can accommodate them from the start.
+
+On the same page, a **Danger Zone** section (Version 2.x) contains **Reset to Default**. This performs a full factory reset: configuration, database (all users and data), WebDAV files and the install lock. The action requires one or two explicit confirmations before it runs.
 
 ### Users
 
