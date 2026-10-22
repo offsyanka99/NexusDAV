@@ -14,9 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\Hash;
 use InvalidArgumentException;
-use RuntimeException;
 
 #[Fillable([
     'username',
@@ -62,10 +60,6 @@ class User extends Authenticatable implements FilamentUser, HasName
         });
 
         static::saved(function (User $user): void {
-            if (UserService::skippingPrincipalSync()) {
-                return;
-            }
-
             if (! $user->wasChanged(['display_name', 'email']) && $user->principal()->exists()) {
                 return;
             }
@@ -91,30 +85,15 @@ class User extends Authenticatable implements FilamentUser, HasName
     }
 
     /**
-     * Blank and non-string values become null before hashing. The hashed cast
-     * would otherwise store Argon2id('') and accept a blank login.
+     * A blank password must not reach the hasher. Argon2id('') would accept a blank login.
      */
     protected function setPasswordAttribute(mixed $value): void
     {
         if (! is_string($value) || $value === '') {
-            $this->attributes['password'] = null;
-
-            return;
+            $value = null;
         }
 
-        if (! Hash::isHashed($value)) {
-            $this->attributes['password'] = Hash::make($value);
-
-            return;
-        }
-
-        // HashManager's phpdoc types this argument as array; hashers take the hash string.
-        /** @phpstan-ignore argument.type */
-        if (! Hash::verifyConfiguration($value)) {
-            throw new RuntimeException("Could not verify the hashed value's configuration.");
-        }
-
-        $this->attributes['password'] = $value;
+        $this->attributes['password'] = $this->castAttributeAsHashedString('password', $value);
     }
 
     /**

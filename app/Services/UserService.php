@@ -13,18 +13,7 @@ use Throwable;
 
 final class UserService
 {
-    /**
-     * Set while UserService::create() inserts the user. That insert is followed
-     * by its own principal insert, so the saved hook must not insert another.
-     */
-    private static bool $skipPrincipalSync = false;
-
     private static int $adminLockDepth = 0;
-
-    public static function skippingPrincipalSync(): bool
-    {
-        return self::$skipPrincipalSync;
-    }
 
     /**
      * Create the user and their principal together.
@@ -67,10 +56,8 @@ final class UserService
                 throw new InvalidArgumentException('An admin must have a password.');
             }
 
-            self::$skipPrincipalSync = true;
-
-            try {
-                $user = User::query()->create([
+            $user = User::withoutEvents(function () use ($username, $displayName, $email, $password, $isAdmin, $isActive): User {
+                return User::query()->create([
                     'username' => $username,
                     'display_name' => $displayName,
                     'email' => $email,
@@ -78,9 +65,7 @@ final class UserService
                     'is_admin' => $isAdmin,
                     'is_active' => $isActive,
                 ]);
-            } finally {
-                self::$skipPrincipalSync = false;
-            }
+            });
 
             $user->setRelation('principal', $this->createPrincipal($user));
 
