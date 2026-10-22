@@ -7,6 +7,14 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+$logLevel = $_ENV['LOG_LEVEL'] ?? $_SERVER['LOG_LEVEL'] ?? getenv('LOG_LEVEL');
+
+// Compose injects LOG_LEVEL="" when it is unset. docker compose exec does not run the entrypoint unset.
+if (is_string($logLevel) && trim($logLevel) === '') {
+    putenv('LOG_LEVEL');
+    unset($_ENV['LOG_LEVEL'], $_SERVER['LOG_LEVEL']);
+}
+
 $appKey = $_ENV['APP_KEY'] ?? $_SERVER['APP_KEY'] ?? getenv('APP_KEY');
 
 // The container keeps the key on the data volume so restarts do not depend on .env.
