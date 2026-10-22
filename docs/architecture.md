@@ -71,8 +71,8 @@ config/
 1. Admin fills the form in Filament.
 2. `UserService` creates a record in `users`.
 3. Creates a record in `principals` (`uri = principals/{username}`).
-4. Calls sabre/dav to create the principal and home collections (calendars + address books).
-5. User can now authenticate with an app password.
+4. Calls sabre/dav to create the principal and home collections (calendars + address books). Not built yet (PR 3 and PR 4). Steps 2 and 3 are in the code.
+5. User can now authenticate with an app password. The DAV check is PR 3. The admin panel can already issue the app password.
 
 ### 2. Create calendar / address book
 

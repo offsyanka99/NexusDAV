@@ -10,7 +10,7 @@ Built on top of the [sabre/dav](https://sabre.io/) PHP library.
 
 ## Status
 
-Early stage — project skeleton. No Docker image has been published, and nothing has been tested against real clients. Features are roadmap items and will be implemented in stages.
+Early stage. The repository contains the admin shell: a FrankenPHP container, `/health`, the first admin, and user, principal, and app-password management. CalDAV and CardDAV sync are not implemented yet. No image has been published, and nothing has been tested against real clients.
 
 NexusDAV is built for homelabs and small teams. It is not a mail, chat or office-document suite, and it is not a hosted multi-tenant service.
 

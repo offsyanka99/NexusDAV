@@ -29,8 +29,6 @@ php artisan migrate
 npm run dev
 ```
 
-> The commands above are the standard Laravel workflow and are a placeholder until the project skeleton is published. They will be kept in sync with the repository.
-
 You can also develop with Docker using the Compose files described in the README (`compose.yaml` plus `compose.postgres.yaml` or `compose.sqlite.yaml`).
 
 ## Making a change
@@ -43,19 +41,18 @@ You can also develop with Docker using the Compose files described in the README
 
 ### Tests and code quality
 
-The project aims to run the following in CI. Run the same locally before opening a pull request:
+CI runs the same checks. Run them locally before opening a pull request:
 
 ```bash
-composer test        # automated tests
-composer lint        # code style
-composer analyse     # static analysis
+composer test        # PHPUnit
+composer lint        # Pint, check only
+composer analyse     # PHPStan / Larastan
 ```
 
 Notes:
 
-- Tests must pass on **both PostgreSQL and SQLite**, since both are supported.
+- Tests must pass on **both PostgreSQL and SQLite**. CI runs the suite once per database. Lint and analyse run once.
 - DAV protocol behavior should be checked against real clients where possible and, over time, against standard compliance suites such as the CalDAV/CardDAV test tools and `litmus` for WebDAV.
-- The exact tool names (test runner, style fixer, static analyzer) will be documented once they are set up in the repository.
 
 ### Code conventions
 

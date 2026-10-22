@@ -117,7 +117,7 @@ The `.env` file contains only what the application needs to boot: database conne
 
 ### Environment variables
 
-The variables used in this guide (names and defaults may change before the first release). `.env.example` will list the same variables with safe placeholder values.
+The variables used in this guide are listed in `.env.example` with safe placeholder values. Names may still change before the first release.
 
 | Variable | Required | Default | Secret | Description |
 |---|---|---|---|---|
@@ -125,9 +125,12 @@ The variables used in this guide (names and defaults may change before the first
 | `ADMIN_EMAIL` | First start | none | No | Email of the first admin account. |
 | `ADMIN_PASSWORD` | First start | none | Yes | Password of the first admin account. Remove it after the first login. |
 | `DB_CONNECTION` | Set by the compose override | set by override | No | `pgsql` or `sqlite`. Do not change after install. |
+| `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME` | PostgreSQL | see `.env.example` | No | SQLite uses `DB_DATABASE` as the file path. |
 | `DB_PASSWORD` | PostgreSQL only | none | Yes | Database password. |
-| `APP_KEY` | No | generated | Yes | Not set in `.env`. Generated on first start and stored on the data volume. |
-| `LOG_LEVEL` | No | `debug` | No | Minimum level written to the log (see [Health check and logging](#health-check-and-logging)). |
+| `APP_KEY` | No | generated | Yes | Not set in `.env`. Generated on first start and stored at `/data/app.key`. |
+| `LOG_LEVEL` | No | `debug` | No | Minimum level written to the log. Compose passes it through only when set. A blank value is ignored. |
+| `TRUSTED_PROXIES` | No | `*` | No | Proxies whose `X-Forwarded-Proto` and `X-Forwarded-Host` are trusted. |
+| `PUID`, `PGID` | No | `568` | No | User and group that own `/data` inside the container. |
 
 Secrets can also be supplied as files (for example `DB_PASSWORD_FILE`) for use with Docker secrets; this is planned. The application stops at start with a clear message if a required variable is missing.
 
@@ -384,12 +387,10 @@ Automatic backups are a long-term goal (see [Roadmap](#roadmap)).
 
 ### Health check and logging
 
-Intended behaviour; not implemented yet.
-
-- **Health check:** an unauthenticated endpoint at `/health` that confirms the application is running and the database is reachable, without exposing details. The Compose file will use it as a `healthcheck`. A basic version is planned for Version 1; the fuller health checks in the admin panel are Version 2+.
-- **Logs:** written to stdout / stderr, so `docker compose logs` works and Docker log drivers can collect them. Level is set with `LOG_LEVEL` (default `debug`; use `info` or higher in production).
-- **What is logged:** request ID, method, path, status and user, plus failed logins (needed for rate limiting and brute-force protection). Passwords, app passwords and tokens are never logged.
-- **Rotation:** the Compose file will set log rotation (`max-size`, `max-file`) so logs do not fill the disk.
+- **Health check:** `GET /health` is unauthenticated. It returns `{"status":"ok"}` when the application and the database are up, and `{"status":"unavailable"}` with HTTP 503 otherwise. It does not include versions, paths, or SQL. Compose uses it as the container healthcheck. Richer checks inside the admin panel are Version 2+.
+- **Logs:** written to stdout / stderr, so `docker compose logs` works. `LOG_LEVEL` defaults to `debug` when unset. Use `info` or higher in production.
+- **What is logged:** Laravel's default log lines. A request ID, method, path, status, and user are not recorded yet. Passwords, app passwords, and tokens must not be logged.
+- **Rotation:** Compose sets `max-size` `10m` and `max-file` `3`.
 
 ## Troubleshooting
 
