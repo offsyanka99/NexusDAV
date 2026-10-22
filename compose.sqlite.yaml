@@ -1,0 +1,8 @@
+# SQLite override
+# Usage: docker compose -f compose.yaml -f compose.sqlite.yaml up -d
+
+services:
+  nexusdav:
+    environment:
+      - DB_CONNECTION=sqlite
+      - DB_DATABASE=/data/database/nexusdav.sqlite
