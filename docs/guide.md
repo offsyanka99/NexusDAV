@@ -76,7 +76,7 @@ Running with Docker needs only Docker Engine with the Compose plugin. The table 
 | Filament | **5.x** | Requires PHP 8.2+, Laravel 11.28+, Livewire 4, Tailwind CSS 4.1+. Fully compatible with Laravel 13. |
 | Livewire | **4.x** (4.4.2+) | Pulled in by Filament 5. Also used by the user portal. |
 | Tailwind CSS | **4.1+** | Required by Filament 5. Built with Vite. |
-| sabre/dav | **4.7.x** (4.7.1) | Requires sabre/http 7, sabre/event 6, sabre/vobject 4.5+. |
+| sabre/dav | **4.7.x** (4.7.1) | Requires sabre/http ^5.0.5, sabre/event ^5.0, sabre/vobject ^4.2.1. |
 | PostgreSQL | **17 or 18** | Primary database. PostgreSQL 14 reaches end of life on 12 Nov 2026. |
 | SQLite | 3.x | For simple deployments and development. |
 | Node.js | Current LTS | Frontend build only (Vite, Tailwind). |
