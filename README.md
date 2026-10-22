@@ -67,6 +67,7 @@ Lost the admin password? Reset it from the container shell, as described in the 
 - [Architecture](docs/architecture.md) — how Laravel, Filament and sabre/dav fit together (Version 1)
 - [Data model](docs/data-model.md) — tables and relationships
 - [DAV endpoints](docs/dav-endpoints.md) — sabre/dav paths used in Version 1
+- [Implementation plan (v1)](docs/implementation-plan-v1.md) — step-by-step PRs with effort levels
 - [Apps](docs/apps/README.md) — Calendar, Contacts, Tasks, Notes, Files and the admin panel
 
 ## Contributing
