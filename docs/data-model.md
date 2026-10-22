@@ -18,7 +18,7 @@ Decisions:
 | username | string | unique |
 | display_name | string | |
 | email | string | unique |
-| password | string | Argon2id |
+| password | string | nullable, Argon2id. Required for admins. Optional for non-admins. Accepted only by the Filament admin login |
 | is_admin | boolean | default false |
 | is_active | boolean | default true |
 | timezone | string | nullable, falls back to server default |
@@ -32,19 +32,23 @@ Decisions:
 | Column | Type | Notes |
 |--------|------|-------|
 | id | bigint | PK |
-| user_id | bigint | FK → users |
+| user_id | bigint | FK → users, cascade delete |
 | name | string | human-readable label (e.g. "Pixel 7") |
-| token_hash | string | only the hash is stored |
-| last_used_at | timestamp | nullable |
+| public_id | string | unique, short, used for lookup |
+| token_hash | string | SHA-256 hex of the secret only. The plaintext token is not stored |
+| revoked_at | timestamp | nullable. Set on revoke; the row is kept |
+| expires_at | timestamp | nullable |
+| last_used_at | timestamp | nullable. Updated at most once per `nexusdav.app_password_last_used_interval` seconds |
 | created_at | timestamp | |
+| updated_at | timestamp | |
 
 ### principals
 
 | Column | Type | Notes |
 |--------|------|-------|
 | id | bigint | PK |
-| user_id | bigint | FK → users, unique |
-| uri | string | unique, e.g. `principals/username` |
+| user_id | bigint | FK → users, unique, cascade delete |
+| uri | string | unique, `principals/{username}` |
 | display_name | string | |
 | email | string | |
 | created_at | timestamp | |
@@ -52,7 +56,7 @@ Decisions:
 
 ## sabre/dav PDO backend tables
 
-These tables are created and managed by sabre/dav (not by Laravel migrations):
+Not created yet. A custom sabre/dav principal backend that reads the Laravel `principals` table is added in PR3. Calendar and address book tables are not created in this version; PR3 adds Laravel migrations for them:
 
 - `calendars`
 - `calendarobjects` (events, tasks, notes)
@@ -64,8 +68,9 @@ These tables are created and managed by sabre/dav (not by Laravel migrations):
 When a user is created in the admin panel:
 
 1. Insert into `users`.
-2. Insert into `principals`.
-3. Call sabre/dav to create the principal and home collections (calendars and address books).
+2. Insert into `principals` (`uri = principals/{username}`).
+
+Deleting a user deletes the principal and app passwords. Home collections are created later (PR3 / PR4).
 
 ## Relationships
 
@@ -80,6 +85,7 @@ addressbooks 1—— * cards         (via sabre/dav)
 
 ## Notes
 
-- App passwords are shown to the user only once (at creation). Only the hash is stored.
+- App passwords are shown once, as a single token `{public_id}.{secret}`. Only the SHA-256 hash of the secret is stored. Lookup uses `public_id`, then `hash_equals`.
+- Revocation sets `revoked_at` and keeps the row. `expires_at` is optional.
 - Quota, timezone and locale are present from Version 1 so later features do not require schema changes.
 - The exact sabre/dav table names and columns follow the version of sabre/dav that is used (currently planned 4.7.x).

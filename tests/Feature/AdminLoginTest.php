@@ -61,6 +61,38 @@ class AdminLoginTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_admin_login_is_rate_limited(): void
+    {
+        User::factory()->create([
+            'email' => 'admin@example.com',
+            'password' => 'secret-password',
+            'is_admin' => true,
+            'is_active' => true,
+        ]);
+
+        $component = Livewire::test(Login::class);
+
+        foreach (range(1, 5) as $attempt) {
+            $component
+                ->fillForm([
+                    'email' => 'admin@example.com',
+                    'password' => 'wrong-password-'.$attempt,
+                ])
+                ->call('authenticate')
+                ->assertHasFormErrors(['email']);
+        }
+
+        $component
+            ->fillForm([
+                'email' => 'admin@example.com',
+                'password' => 'secret-password',
+            ])
+            ->call('authenticate')
+            ->assertNotified('Too many login attempts');
+
+        $this->assertGuest();
+    }
+
     public function test_remember_me_login_does_not_fail_without_a_remember_token_column(): void
     {
         $admin = User::factory()->create([

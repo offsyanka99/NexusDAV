@@ -39,15 +39,13 @@ class PrepareApplication extends Command
             $adminExists = User::query()->where('is_admin', true)->exists();
             $checker->assertAdminCredentials($environment, $adminExists);
 
-            if (! $adminExists) {
-                $admin = $admins->createIfMissing(
-                    $environment['ADMIN_EMAIL'] ?? null,
-                    $environment['ADMIN_PASSWORD'] ?? null,
-                );
+            $admin = $admins->createIfMissing(
+                $environment['ADMIN_EMAIL'] ?? null,
+                $environment['ADMIN_PASSWORD'] ?? null,
+            );
 
-                if ($admin->wasRecentlyCreated) {
-                    $this->info('Created the first admin account.');
-                }
+            if ($admin->wasRecentlyCreated) {
+                $this->info('Created the first admin account.');
             }
         } catch (QueryException $exception) {
             $this->error($this->queryFailureMessage($exception));

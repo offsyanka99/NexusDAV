@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Principal;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -33,6 +34,9 @@ class FirstAdminTest extends TestCase
         $this->assertNull($admin->getRawOriginal('timezone'));
         $this->assertSame('UTC', $admin->resolvedTimezone());
         $this->assertSame('en', $admin->resolvedLocale());
+        $this->assertSame('principals/'.$admin->username, $admin->principal?->uri);
+        $this->assertSame($admin->display_name, $admin->principal?->display_name);
+        $this->assertSame($admin->email, $admin->principal?->email);
 
         $this->setEnv('ADMIN_EMAIL', 'other@example.com');
         $this->setEnv('ADMIN_PASSWORD', 'different-password');
@@ -43,6 +47,31 @@ class FirstAdminTest extends TestCase
 
         $this->assertSame($before, $after);
         $this->assertSame(1, User::query()->count());
+        $this->assertSame(1, Principal::query()->count());
+        $this->assertSame('principals/adminusertag', Principal::query()->sole()->uri);
+    }
+
+    public function test_prepare_adds_a_principal_without_changing_an_existing_admin(): void
+    {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'is_active' => true,
+            'email' => 'admin@example.com',
+        ]);
+        $before = $admin->fresh()?->getAttributes();
+
+        $this->setEnv('APP_URL', 'http://localhost:8080');
+        $this->setEnv('ADMIN_EMAIL', 'other@example.com');
+        $this->setEnv('ADMIN_PASSWORD', 'different-password');
+
+        $this->artisan('nexusdav:prepare')->assertSuccessful();
+
+        $fresh = User::query()->sole();
+
+        $this->assertSame($before, $fresh->getAttributes());
+        $this->assertSame('principals/'.$admin->username, $fresh->principal?->uri);
+        $this->assertSame($fresh->display_name, $fresh->principal?->display_name);
+        $this->assertSame($fresh->email, $fresh->principal?->email);
     }
 
     public function test_prepare_stops_when_a_required_variable_is_missing(): void

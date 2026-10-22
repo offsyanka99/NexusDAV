@@ -3,12 +3,15 @@
 namespace App\Support;
 
 use App\Models\User;
+use App\Services\UserService;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Throwable;
 
 final class FirstAdminCreator
 {
+    public function __construct(private UserService $users) {}
+
     /**
      * Create the first admin, or return the existing one without changing it.
      */
@@ -18,6 +21,8 @@ final class FirstAdminCreator
             $existing = User::query()->where('is_admin', true)->first();
 
             if ($existing instanceof User) {
+                $this->users->syncPrincipal($existing);
+
                 return $existing;
             }
 
@@ -109,7 +114,7 @@ final class FirstAdminCreator
             throw new RuntimeException("Cannot create the first admin because the username [{$username}] is already in use.");
         }
 
-        return User::query()->create([
+        return $this->users->create([
             'username' => $username,
             'display_name' => self::displayNameFromEmail($email),
             'email' => $email,
