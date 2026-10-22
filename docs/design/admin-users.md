@@ -62,8 +62,8 @@ Add Calendar modal fields:
 - Display name
 - Description
 - Color (`#RRGGBB`)
-- [ ] Tasks (VTODO)
-- [ ] Notes (VJOURNAL)
+-  **[checkbox]** Tasks (VTODO)
+-  **[checkbox]** Notes (VJOURNAL)
 - Cancel and Save buttons
 
 #### Address books
