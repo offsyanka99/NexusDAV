@@ -4,7 +4,7 @@
 services:
   nexusdav:
     # image: ghcr.io/offsyanka99/nexusdav:latest   # will be defined later
-    # build: .
+    build: .
     container_name: nexusdav
     ports:
       - "8080:8080"
@@ -14,8 +14,15 @@ services:
       - APP_URL=${APP_URL}
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - LOG_LEVEL=${LOG_LEVEL:-debug}
+      - TRUSTED_PROXIES=${TRUSTED_PROXIES:-*}
+      - PUID=${PUID:-568}
+      - PGID=${PGID:-568}
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s

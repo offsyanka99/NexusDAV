@@ -42,5 +42,3 @@ build/
 # Internal refactor plans/inventories (local only; not published)
 docs/plans/*.md
 
-# Docker
-.dockerignore
