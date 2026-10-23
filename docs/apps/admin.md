@@ -8,7 +8,7 @@ The first admin is created on first start from `ADMIN_EMAIL` and `ADMIN_PASSWORD
 
 ## After sign-in
 
-Sign-in lands on the **Dashboard**. The Dashboard shows the server at a glance: server status, which services are running, and statistics. Later versions add detail to this page, such as storage numbers and fuller health checks. Version 1 still opens here, with the status that exists at that point.
+Sign-in lands on the **Dashboard**. The Dashboard shows the server at a glance: server status, which services are running, and statistics. Later versions add detail to this page, such as storage numbers and fuller health checks. Version 1 still opens here, with the status that exists at that point. A UI draft is kept in [docs/design/admin-dashboard.md](../design/admin-dashboard.md).
 
 A menu links to the other admin pages. The items include **Settings**, **Configuration**, **Users** and **Diagnostics**, plus the other pages described below as they arrive. Whether that menu sits on the left or along the top is not decided yet.
 

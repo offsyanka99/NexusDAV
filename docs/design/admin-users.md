@@ -1,6 +1,6 @@
 # Admin panel — Users page (UI draft)
 
-This is a design note, not part of the official documentation. The high-level description lives in [admin.md](../apps/admin.md).
+This is a design note, not part of the official documentation. The high-level description lives in [admin.md](../apps/admin.md). The landing page is described in [admin-dashboard.md](admin-dashboard.md).
 
 ## Users page layout
 

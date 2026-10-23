@@ -116,7 +116,7 @@ Moved before Settings so there is something to configure.
 
 ### PR 6 — Dashboard, Settings, Configuration and Diagnostics pages (Effort: High)
 
-- **Dashboard** (landing page after sign-in): the default Filament `Dashboard` is already registered; add widgets for server status, enabled services, basic counts
+- **Dashboard** (landing page after sign-in): the default Filament `Dashboard` is already registered; add widgets for server status, enabled services, basic counts and a "needs attention" summary, as described in the [Dashboard design](design/admin-dashboard.md); replace the default `AccountWidget` and `FilamentInfoWidget`
 - **Diagnostics** (simple, read-only), a menu item next to Users, Settings and Configuration:
   - Recent failed logins: `auth_failed` rows from `diagnostic_events` (PR 5), admin panel and DAV, with a source filter
   - Latest DAV errors: `auth_failed` rows from DAV (so a 401 shows its reason) plus `http_error` rows. Record 4xx/5xx responses on `/dav/*` as `http_error` (method, path, status, user, time; no bodies or credentials) from the DAV bridge in PR 3. Skip 401 here, since PR 5 already records it with a reason
