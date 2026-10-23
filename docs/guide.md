@@ -415,6 +415,7 @@ Export calendars as `.ics` and contacts as `.vcf` from your current server (Radi
 - Create and manage users
 - Authentication: Argon2id user passwords and app passwords / personal access tokens (for DAVx5, Thunderbird and other clients)
 - Rate limiting and brute-force protection for login and DAV (Basic Auth) endpoints
+- A simple Diagnostics page in the admin panel: recent failed logins, latest DAV errors and an app password overview
 - The app serves `/.well-known/caldav` and `/.well-known/carddav`. Documented proxy fallbacks cover proxies that swallow those paths
 - Admin panel creates users and collections (calendars and address books, including collections that hold tasks and notes)
 - Events, tasks (VTODO) and notes (VJOURNAL) are written by CalDAV clients
@@ -425,7 +426,7 @@ Export calendars as `.ics` and contacts as `.vcf` from your current server (Radi
 ### Version 1.x
 
 - Basic Sharing and ACL
-- WebDAV-Push, with an on/off toggle in the admin panel settings
+- WebDAV-Push, with an on/off toggle in the admin panel settings and its subscriptions on the Diagnostics page
 - Multilingual admin panel
 - Files (WebDAV file storage)
 - Improved sync reliability

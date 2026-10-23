@@ -10,8 +10,7 @@ The first admin is created on first start from `ADMIN_EMAIL` and `ADMIN_PASSWORD
 
 Sign-in lands on the **Dashboard**. The Dashboard shows the server at a glance: server status, which services are running, and statistics. Later versions add detail to this page, such as storage numbers and fuller health checks. Version 1 still opens here, with the status that exists at that point.
 
-A menu links to the other admin pages. The items include **Settings**, **Configuration**, and **Users**, plus the other pages described below as they arrive. Whether that menu sits on the left or along the top is not decided yet.
-In version 2.x **Diagnostics** tab will be added.
+A menu links to the other admin pages. The items include **Settings**, **Configuration**, **Users** and **Diagnostics**, plus the other pages described below as they arrive. Whether that menu sits on the left or along the top is not decided yet.
 
 ### Settings
 
@@ -65,13 +64,15 @@ A more detailed UI draft is kept in [docs/design/admin-users.md](../design/admin
 
 ### Diagnostics
 
-The Diagnostics page (Version 2.x) shows operational status and recent problems. It helps an administrator see why a client cannot sync or why a notification did not go out.
+The Diagnostics page shows operational status and recent problems. It helps an administrator see why a client cannot sync or why a notification did not go out. A simple version arrives in Version 1 and grows in later versions.
+
+**Version 1**
+- Recent failed login attempts to the admin panel and the DAV endpoint (time, IP, user, reason). Passwords and app password secrets are never stored or shown
+- Latest DAV errors (4xx/5xx responses on `/dav/*`, with method, path, status, user and, for rejected logins, the reason such as revoked app password or main password used). A request without credentials is not an error and is not listed
+- App passwords across all users (user, device, created, last used, revoked or expired; can be revoked)
 
 **Version 1.x**
 - WebDAV-Push subscriptions (user, collection, endpoint, last push, status)
-- Recent failed login attempts (IP, user, time, reason)
-- Latest DAV errors (4xx/5xx responses on `/dav/*`, with method, path, status and user)
-- App passwords (device, created, last used; can be revoked)
 
 **Version 2.x**
 - Collections without recent sync (no requests for a configurable period, for example 30 days)
@@ -89,6 +90,7 @@ The Diagnostics page (Version 2.x) shows operational status and recent problems.
 - Create and disable users. Passwords are stored with Argon2id.
 - Create an app password for a user, one per device. The main password is not accepted on the DAV endpoint.
 - Rate limiting and brute-force protection on the login form and on DAV Basic authentication.
+- A simple Diagnostics page: recent failed logins, latest DAV errors and an overview of app passwords. Failed logins and DAV errors are kept for a limited time and then pruned.
 - Create collections: calendars and address books, including collections that hold [tasks](tasks.md) or [notes](notes.md).
 - It does not edit events, tasks, notes, or contacts. Clients write those.
 - Choose the database before the first start, PostgreSQL or SQLite. The panel cannot switch it later.
@@ -97,7 +99,7 @@ The Diagnostics page (Version 2.x) shows operational status and recent problems.
 **Version 1.x.**
 
 - Share a calendar or an address book and set the ACL.
-- Turn WebDAV-Push on or off. The implementation is the bitfire draft named in the [guide requirements](../guide.md#requirements), not a sabre/dav plugin.
+- Turn WebDAV-Push on or off, and view its subscriptions on the Diagnostics page. The implementation is the bitfire draft named in the [guide requirements](../guide.md#requirements), not a sabre/dav plugin.
 - Use the panel in more than one language.
 - See that a user's [Files](files.md) home exists, once file storage exists.
 
@@ -114,7 +116,6 @@ The Diagnostics page (Version 2.x) shows operational status and recent problems.
 - User quotas, storage statistics, an audit log of logins and admin actions, and fuller health checks.
 - Export and import of server settings as JSON. Secrets such as the SMTP password are left out, or the file is encrypted. Values that come from the environment are not exported. The file has no users, calendars, or contacts.
 - Optional two-factor authentication for the panel.
-- View and manage WebDAV-Push subscriptions.
 
 ## Who does what
 
