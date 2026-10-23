@@ -11,6 +11,7 @@ The first admin is created on first start from `ADMIN_EMAIL` and `ADMIN_PASSWORD
 Sign-in lands on the **Dashboard**. The Dashboard shows the server at a glance: server status, which services are running, and statistics. Later versions add detail to this page, such as storage numbers and fuller health checks. Version 1 still opens here, with the status that exists at that point.
 
 A menu links to the other admin pages. The items include **Settings**, **Configuration**, and **Users**, plus the other pages described below as they arrive. Whether that menu sits on the left or along the top is not decided yet.
+In version 2.x **Diagnostics** tab will be added.
 
 ### Settings
 
@@ -61,6 +62,21 @@ Selecting a user shows their basic information together with the calendars and a
 Creating a calendar includes choosing a URI, display name, description, color, and whether the collection holds tasks (VTODO) or notes (VJOURNAL). Creating an address book includes a URI, display name and description.
 
 A more detailed UI draft is kept in [docs/design/admin-users.md](../design/admin-users.md).
+
+### Diagnostics
+
+In this tab Administrator can check the status of the following:
+ - WebDAV-Push subscriptions (List of active subscriptions (user, collection, endpoint, last push, status))
+ - Recent failed login attempts (IP, user, time, reason (incorrect password / rate limit))
+ - Latest DAV errors (The latest 4xx/5xx responses on /dav/* (method, path, status, user))
+ - Collections without sync (Calendars/address books that haven't been accessed in a long time)
+ - App passwords (Active tokens: device, creation date, last login, can be revoked)
+ - Quotas and Usage (By user: size of calendars, contacts, and files; remaining space)
+ - Extended Health check (Database, disk, queue (if available), SMTP, WebDAV push worker) 
+ - Mail Queues (Emails with a “failed/retry” status (invitations, notifications))
+ - User Logs (Filter logs by username / principal)
+ - Backups (Last Successful Backup, Size, Errors)
+
 
 ## What each version includes
 

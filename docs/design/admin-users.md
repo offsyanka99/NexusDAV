@@ -82,5 +82,3 @@ Add address book modal fields:
 - Cancel and Save buttons
 
 ---
-
-Examples in the original draft were shown in `{}`.
