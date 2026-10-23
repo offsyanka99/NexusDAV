@@ -65,18 +65,21 @@ A more detailed UI draft is kept in [docs/design/admin-users.md](../design/admin
 
 ### Diagnostics
 
-In this tab Administrator can check the status of the following:
- - WebDAV-Push subscriptions (List of active subscriptions (user, collection, endpoint, last push, status))
- - Recent failed login attempts (IP, user, time, reason (incorrect password / rate limit))
- - Latest DAV errors (The latest 4xx/5xx responses on /dav/* (method, path, status, user))
- - Collections without sync (Calendars/address books that haven't been accessed in a long time)
- - App passwords (Active tokens: device, creation date, last login, can be revoked)
- - Quotas and Usage (By user: size of calendars, contacts, and files; remaining space)
- - Extended Health check (Database, disk, queue (if available), SMTP, WebDAV push worker) 
- - Mail Queues (Emails with a “failed/retry” status (invitations, notifications))
- - User Logs (Filter logs by username / principal)
- - Backups (Last Successful Backup, Size, Errors)
+The Diagnostics page (Version 2.x) shows operational status and recent problems. It helps an administrator see why a client cannot sync or why a notification did not go out.
 
+**Version 1.x**
+- WebDAV-Push subscriptions (user, collection, endpoint, last push, status)
+- Recent failed login attempts (IP, user, time, reason)
+- Latest DAV errors (4xx/5xx responses on `/dav/*`, with method, path, status and user)
+- App passwords (device, created, last used; can be revoked)
+
+**Version 2.x**
+- Collections without recent sync (no requests for a configurable period, for example 30 days)
+- Quotas and usage per user (size of calendars, contacts and files; remaining space)
+- Extended health check (database, disk, queue, SMTP, WebDAV-Push worker)
+- Mail queue (messages in failed or retrying state)
+- User log filter (filter server logs by username or principal)
+- Backups (last successful backup, size, errors)
 
 ## What each version includes
 
