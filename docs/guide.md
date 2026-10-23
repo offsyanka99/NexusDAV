@@ -71,7 +71,7 @@ Running with Docker needs only Docker Engine with the Compose plugin. The table 
 
 | Component | Version | Notes |
 |---|---|---|
-| PHP | **8.3 – 8.5**, 8.4 recommended | Laravel 13 requires 8.3+. sabre/dav 4.7 is officially tested up to PHP 8.4, so 8.4 is the safe target until 8.5 is verified. |
+| PHP | **8.3 – 8.5**, 8.4 recommended | Laravel 13 requires 8.3+. sabre/dav 4.7 is officially tested up to PHP 8.4, so 8.4 is the safe target until 8.5 is verified. Use **8.4.27+** (or equivalent patched version) to include the fixes for CVE-2026-109618 and CVE-2026-109619. |
 | Laravel | **13.x** | Supports PHP 8.3 – 8.5. |
 | Filament | **5.x** | Requires PHP 8.2+, Laravel 11.28+, Livewire 4, Tailwind CSS 4.1+. Fully compatible with Laravel 13. |
 | Livewire | **4.x** (4.4.2+) | Pulled in by Filament 5. Also used by the user portal. |
@@ -81,6 +81,8 @@ Running with Docker needs only Docker Engine with the Compose plugin. The table 
 | SQLite | 3.x | For simple deployments and development. |
 | Node.js | Current LTS | Frontend build only (Vite, Tailwind). |
 | Composer | 2.x | |
+
+**Security note (October 2026):** PHP 8.4.27, 8.3.36, 8.2.35 and 8.5.12 fix two critical unauthenticated RCE vulnerabilities (CVE-2026-109618, CVE-2026-109619). The Docker image must use a patched PHP version.
 
 **Required PHP extensions:** `ctype`, `curl`, `date`, `dom`, `fileinfo`, `filter`, `hash`, `iconv`, `intl`, `json`, `libxml`, `mbstring`, `openssl`, `pcre`, `pdo`, `pdo_pgsql`, `pdo_sqlite`, `session`, `simplexml`, `tokenizer`, `xml`.
 
@@ -117,7 +119,7 @@ The `.env` file contains only what the application needs to boot: database conne
 
 ### Environment variables
 
-The variables used in this guide are listed in `.env.example` with safe placeholder values. Names may still change before the first release.
+The variables used in this guide (names and defaults may change before the first release). `.env.example` will list the same variables with safe placeholder values.
 
 | Variable | Required | Default | Secret | Description |
 |---|---|---|---|---|
@@ -125,12 +127,9 @@ The variables used in this guide are listed in `.env.example` with safe placehol
 | `ADMIN_EMAIL` | First start | none | No | Email of the first admin account. |
 | `ADMIN_PASSWORD` | First start | none | Yes | Password of the first admin account. Remove it after the first login. |
 | `DB_CONNECTION` | Set by the compose override | set by override | No | `pgsql` or `sqlite`. Do not change after install. |
-| `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME` | PostgreSQL | see `.env.example` | No | SQLite uses `DB_DATABASE` as the file path. |
 | `DB_PASSWORD` | PostgreSQL only | none | Yes | Database password. |
-| `APP_KEY` | No | generated | Yes | Not set in `.env`. Generated on first start and stored at `/data/app.key`. |
-| `LOG_LEVEL` | No | `debug` | No | Minimum level written to the log. Compose passes it through only when set. A blank value is ignored. |
-| `TRUSTED_PROXIES` | No | `*` | No | Proxies whose `X-Forwarded-Proto` and `X-Forwarded-Host` are trusted. |
-| `PUID`, `PGID` | No | `568` | No | User and group that own `/data` inside the container. |
+| `APP_KEY` | No | generated | Yes | Not set in `.env`. Generated on first start and stored on the data volume. |
+| `LOG_LEVEL` | No | `debug` | No | Minimum level written to the log (see [Health check and logging](#health-check-and-logging)). |
 
 Secrets can also be supplied as files (for example `DB_PASSWORD_FILE`) for use with Docker secrets; this is planned. The application stops at start with a clear message if a required variable is missing.
 
@@ -387,10 +386,12 @@ Automatic backups are a long-term goal (see [Roadmap](#roadmap)).
 
 ### Health check and logging
 
-- **Health check:** `GET /health` is unauthenticated. It returns `{"status":"ok"}` when the application and the database are up, and `{"status":"unavailable"}` with HTTP 503 otherwise. It does not include versions, paths, or SQL. Compose uses it as the container healthcheck. Richer checks inside the admin panel are Version 2+.
-- **Logs:** written to stdout / stderr, so `docker compose logs` works. `LOG_LEVEL` defaults to `debug` when unset. Use `info` or higher in production.
-- **What is logged:** Laravel's default log lines. A request ID, method, path, status, and user are not recorded yet. Passwords, app passwords, and tokens must not be logged.
-- **Rotation:** Compose sets `max-size` `10m` and `max-file` `3`.
+Intended behaviour; not implemented yet.
+
+- **Health check:** an unauthenticated endpoint at `/health` that confirms the application is running and the database is reachable, without exposing details. The Compose file will use it as a `healthcheck`. A basic version is planned for Version 1; the fuller health checks in the admin panel are Version 2+.
+- **Logs:** written to stdout / stderr, so `docker compose logs` works and Docker log drivers can collect them. Level is set with `LOG_LEVEL` (default `debug`; use `info` or higher in production).
+- **What is logged:** request ID, method, path, status and user, plus failed logins (needed for rate limiting and brute-force protection). Passwords, app passwords and tokens are never logged.
+- **Rotation:** the Compose file will set log rotation (`max-size`, `max-file`) so logs do not fill the disk.
 
 ## Troubleshooting
 
@@ -415,7 +416,6 @@ Export calendars as `.ics` and contacts as `.vcf` from your current server (Radi
 - Create and manage users
 - Authentication: Argon2id user passwords and app passwords / personal access tokens (for DAVx5, Thunderbird and other clients)
 - Rate limiting and brute-force protection for login and DAV (Basic Auth) endpoints
-- A simple Diagnostics page in the admin panel: recent failed logins, latest DAV errors and an app password overview
 - The app serves `/.well-known/caldav` and `/.well-known/carddav`. Documented proxy fallbacks cover proxies that swallow those paths
 - Admin panel creates users and collections (calendars and address books, including collections that hold tasks and notes)
 - Events, tasks (VTODO) and notes (VJOURNAL) are written by CalDAV clients
@@ -426,7 +426,7 @@ Export calendars as `.ics` and contacts as `.vcf` from your current server (Radi
 ### Version 1.x
 
 - Basic Sharing and ACL
-- WebDAV-Push, with an on/off toggle in the admin panel settings and its subscriptions on the Diagnostics page
+- WebDAV-Push, with an on/off toggle in the admin panel settings
 - Multilingual admin panel
 - Files (WebDAV file storage)
 - Improved sync reliability
