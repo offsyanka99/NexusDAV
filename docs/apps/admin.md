@@ -14,7 +14,7 @@ A menu links to the other admin pages. The items include **Settings**, **Configu
 
 ### Settings
 
-The Settings page holds system-level controls for services and related options.
+The Settings page holds system-level controls for services and related options. A UI draft is kept in [docs/design/admin-settings.md](../design/admin-settings.md).
 
 **Version 1.**
 - Enable or disable CalDAV, CardDAV, Tasks (VTODO) and Notes (VJOURNAL).
