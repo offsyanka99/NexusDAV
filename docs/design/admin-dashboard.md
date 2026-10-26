@@ -17,26 +17,26 @@ It is read-only. It never changes settings. Anything the administrator needs to 
 The page uses the standard Filament panel layout (navigation, then page header, then widgets). The primary colour is the panel's amber. The top of the page shows the title **Dashboard**. There is no search field and no action button in the header.
 
 ```
-+--------------------------------------------------------------------+
-| Dashboard                                                          |
-+--------------------------------------------------------------------+
-| [ Server status ]                                                  |
-|  ● Application OK    ● Database OK (PostgreSQL)    NexusDAV 0.1.0  |
-+--------------------------------------------------------------------+
-| [ Services ]                                                       |
-|  CalDAV  ● On     CardDAV  ● On     Tasks  ● On     Notes  ○ Off   |
-|                                              Manage in Settings →  |
-+--------------------------------------------------------------------+
-| [ Users ]    [ Calendars ]   [ Address books ]   [ App passwords ] |
-|     12            27               14                  31          |
-+--------------------------------------------------------------------+
-| [ Events and tasks ]   [ Notes ]            [ Contacts ]           |
-|        4 213              58                    1 904              |
-+--------------------------------------------------------------------+
-| [ Needs attention ]                                                |
-|  3 failed logins in the last 24 hours           Open Diagnostics → |
-|  2 DAV errors in the last 24 hours                                 |
-+--------------------------------------------------------------------+
++-----------------------------------------------------------------------+
+| Dashboard                                                             |
++-----------------------------------------------------------------------+
+| [ Server status ]                                                     |
+|  ● Application OK  ● Database OK (PostgreSQL)  NexusDAV 0.1.0+fc8b441 |
++-----------------------------------------------------------------------+
+| [ Services ]                                                          |
+|  CalDAV  ● On     CardDAV  ● On     Tasks  ● On     Notes  ○ Off      |
+|                                              Manage in Settings →     |
++-----------------------------------------------------------------------+
+| [ Users ]    [ Calendars ]   [ Address books ]   [ App passwords ]    |
+|     12            27               14                  31             |
++-----------------------------------------------------------------------+
+| [ Events and tasks ]   [ Notes ]            [ Contacts ]              |
+|        4 213              58                    1 904                 |
++-----------------------------------------------------------------------+
+| [ Needs attention ]                                                   |
+|  3 failed logins in the last 24 hours           Open Diagnostics →    |
+|  2 DAV errors in the last 24 hours                                    |
++-----------------------------------------------------------------------+
 ```
 
 The numbers above are examples.
@@ -53,7 +53,7 @@ One card with a row of status items. Each item has a coloured dot, a label and a
 |---|---|---|---|
 | Application | The page rendering at all | Green, `OK` | Not shown, since the page would not load |
 | Database | The same check as `/health` | Green, `OK`, with the type (`PostgreSQL` or `SQLite`) | Red, `Unavailable` |
-| Version | NexusDAV release or build | Plain text | |
+| Version | NexusDAV release or build plus git commit | Plain text | |
 
 Rules:
 
