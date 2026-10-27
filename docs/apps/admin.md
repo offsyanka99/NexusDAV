@@ -35,7 +35,7 @@ The Settings page holds system-level controls for services and related options. 
 
 ### Configuration
 
-The Configuration page holds server-wide preferences.
+The Configuration page holds server-wide preferences. A UI draft is kept in [docs/design/admin-configuration.md](../design/admin-configuration.md).
 
 **Version 1.**
 - Server time zone, time format and week start day.
