@@ -82,10 +82,14 @@ services:
 # and add this service next to nexusdav, under `services:`:
 #
 #   postgres:
-#     image: postgres:17-alpine
+#     image: postgres:18-alpine # 17 also supported; see docs/guide.md#requirements
 #     restart: unless-stopped
 #     volumes:
-#       - /mnt/tank/apps/nexusdav/postgres:/var/lib/postgresql/data # CHANGE ME: your dataset path
+#       # Single mount point, not .../data: 18+ images store data under a
+#       # major-version-specific subdirectory (e.g. /var/lib/postgresql/18/docker)
+#       # so pg_upgrade can run in place later. See
+#       # https://github.com/docker-library/postgres/pull/1259
+#       - /mnt/tank/apps/nexusdav/postgres:/var/lib/postgresql # CHANGE ME: your dataset path
 #     environment:
 #       POSTGRES_DB: nexusdav
 #       POSTGRES_USER: nexusdav
@@ -102,7 +106,18 @@ services:
 # ownership on the host:
 #
 #     chown -R 999:999 /mnt/tank/apps/nexusdav/postgres
+#     chmod -R 0700 /mnt/tank/apps/nexusdav/postgres
 #
-# Prefer POSIX permissions. The directory must be empty on first launch.
-# Without correct ownership Postgres fails to start ("data directory is not
-# writable") and the nexusdav container will stay waiting or unhealthy.
+# TrueNAS SCALE datasets default to NFSv4 ACLs, which take precedence over
+# the POSIX mode bits above and are NOT removed by chown/chmod alone. If
+# Postgres still fails with "Permission denied" after the commands above,
+# strip the inherited ACL first, either in the UI (Datasets > Permissions >
+# Edit > Strip ACL, then set owner/group 999 and apply recursively) or via:
+#
+#     nfs4_setfacl -b /mnt/tank/apps/nexusdav/postgres
+#
+# The directory must be empty on first launch (remove any old
+# .../postgres/data from a previous PostgreSQL 17 install before switching
+# to 18 — the layout changed). Without correct ownership/ACLs Postgres
+# fails to start ("data directory is not writable" / "Permission denied")
+# and the nexusdav container will stay waiting or unhealthy.

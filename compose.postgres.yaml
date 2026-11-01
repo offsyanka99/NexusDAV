@@ -15,14 +15,18 @@ services:
         condition: service_healthy
 
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     container_name: nexusdav-postgres
     environment:
       - POSTGRES_DB=${DB_DATABASE:-nexusdav}
       - POSTGRES_USER=${DB_USERNAME:-nexusdav}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # Single mount point, not .../data: 18+ images store data under a
+      # major-version-specific subdirectory (e.g. /var/lib/postgresql/18/docker)
+      # so pg_upgrade can run in place later. See
+      # https://github.com/docker-library/postgres/pull/1259
+      - postgres_data:/var/lib/postgresql
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-nexusdav} -d ${DB_DATABASE:-nexusdav}"]
