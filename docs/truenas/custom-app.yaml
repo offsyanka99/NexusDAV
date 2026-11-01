@@ -95,3 +95,14 @@ services:
 #       interval: 10s
 #       timeout: 5s
 #       retries: 5
+#
+# IMPORTANT — PostgreSQL data directory permissions on TrueNAS:
+# The official postgres image runs as UID/GID 999 (user "postgres" inside
+# the container). Before the first start, create the dataset and set
+# ownership on the host:
+#
+#     chown -R 999:999 /mnt/tank/apps/nexusdav/postgres
+#
+# Prefer POSIX permissions. The directory must be empty on first launch.
+# Without correct ownership Postgres fails to start ("data directory is not
+# writable") and the nexusdav container will stay waiting or unhealthy.
