@@ -55,7 +55,7 @@ Details, versions and the full roadmap are in the [guide](docs/guide.md).
 
    To build the image from the checkout instead, add `-f compose.build.yaml` last and `--build`.
 
-   **TrueNAS SCALE:** install as a Custom App instead of running Compose by hand — see [docs/truenas/custom-app.yaml](docs/truenas/custom-app.yaml), explained in the [guide](docs/guide.md#installing-on-truenas-scale).
+   **TrueNAS SCALE:** install as a Custom App instead of running Compose by hand — see [docs/truenas/custom-app.sqlite.yaml](docs/truenas/custom-app.sqlite.yaml) or [docs/truenas/custom-app.postgres.yaml](docs/truenas/custom-app.postgres.yaml), explained in the [guide](docs/guide.md#installing-on-truenas-scale).
 
 4. Open the admin panel at `http://localhost:8080/admin` (or your `APP_URL`) and create a user. That user gets a default calendar and address book; add more from the user page. Events, tasks and notes are written by a CalDAV client, not in the admin panel.
 

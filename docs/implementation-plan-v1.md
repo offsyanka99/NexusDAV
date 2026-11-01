@@ -539,7 +539,7 @@ All decisions below are confirmed.
 | 25 | Releases | Tag `v<major>.<minor>.<patch>` publishes `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. First release `0.1.0`. `latest` only for stable versions (PR 8) |
 | 26 | Image in Compose | `compose.yaml` pins the published image by exact version; `compose.build.yaml` builds from the checkout (PR 8) |
 
-TrueNAS SCALE notes: run the app as a Docker Compose custom app, keep `/data` (and the PostgreSQL volume) on a dataset rather than an ephemeral volume, and publish only port 8080 behind the TrueNAS or a separate reverse proxy. A ready-to-edit file is [docs/truenas/custom-app.yaml](truenas/custom-app.yaml), explained in the [guide](guide.md#installing-on-truenas-scale).
+TrueNAS SCALE notes: run the app as a Docker Compose custom app, keep `/data` (and the PostgreSQL volume) on a dataset rather than an ephemeral volume, and publish only port 8080 behind the TrueNAS or a separate reverse proxy. Ready-to-edit files are [docs/truenas/custom-app.sqlite.yaml](truenas/custom-app.sqlite.yaml) and [docs/truenas/custom-app.postgres.yaml](truenas/custom-app.postgres.yaml), explained in the [guide](guide.md#installing-on-truenas-scale).
 
 ## Out of scope for Version 1
 

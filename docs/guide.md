@@ -69,13 +69,13 @@ Remove `ADMIN_PASSWORD` from `.env` after the first login. If you lose access to
 
 TrueNAS SCALE 24.10 (Electric Eel) and later run Apps on Docker, so a Docker Compose file can be installed directly as a **Custom App**:
 
-1. Create a dataset for NexusDAV's data: **Storage > Datasets > Add Dataset**, for example `tank/apps/nexusdav`. Keep it on a pool local to this machine. SQLite needs a local filesystem; a dataset mounted from another machine over the network does not qualify (see [Database](#database)).
-2. Copy [docs/truenas/custom-app.yaml](truenas/custom-app.yaml).
-3. Edit every line marked `CHANGE ME`: the dataset path from step 1, `APP_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and the host port if `8080` is already used by another app. The file has no separate place for environment variables or a `.env` file, so values are written directly into it.
+1. Create a dataset for NexusDAV's data: **Storage > Datasets > Add Dataset**, for example `tank/apps/nexusdav`. With PostgreSQL, also create a second dataset for its data, for example `tank/apps/nexusdav/postgres`. Keep both on a pool local to this machine. SQLite needs a local filesystem; a dataset mounted from another machine over the network does not qualify (see [Database](#database)).
+2. Copy [docs/truenas/custom-app.sqlite.yaml](truenas/custom-app.sqlite.yaml) (good for a single NAS) or [docs/truenas/custom-app.postgres.yaml](truenas/custom-app.postgres.yaml) (recommended for more than a couple of users).
+3. Edit every line marked `CHANGE ME`: the dataset path(s) from step 1, `APP_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and the host port if `8080` is already used by another app. The file has no separate place for environment variables or a `.env` file, so values are written directly into it.
 4. **Apps > Discover Apps**, then **Custom App** (top right) **> Install via YAML**. Paste the edited file and install.
 5. Continue from step 4 of [Quick start](#quick-start).
 
-The file defaults to SQLite, good for a single NAS; a commented block at the end switches to PostgreSQL. `PUID` and `PGID` default to `568`, the UID TrueNAS SCALE apps conventionally run as, so the dataset's ownership matches what the container expects. Put it behind an HTTPS reverse proxy before exposing it outside your network — Nginx Proxy Manager and Caddy are themselves TrueNAS SCALE apps, or use one of the files in [docs/proxy](proxy/).
+`PUID` and `PGID` default to `568`, the UID TrueNAS SCALE apps conventionally run as, so the dataset's ownership matches what the container expects. Put it behind an HTTPS reverse proxy before exposing it outside your network — Nginx Proxy Manager and Caddy are themselves TrueNAS SCALE apps, or use one of the files in [docs/proxy](proxy/).
 
 ## Requirements
 
