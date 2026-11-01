@@ -1,0 +1,21 @@
+# NexusDAV behind Caddy. Replace dav.example.com with the host name in APP_URL.
+# Caddy gets and renews the certificate and redirects HTTP to HTTPS.
+# With compose.caddy.yaml the app is reachable as nexusdav:8080. When Caddy
+# runs on the host instead, use 127.0.0.1:8080.
+
+dav.example.com {
+	# Fallbacks for clients that start at the domain. The app answers these
+	# paths too; these lines keep working when another handler owns /.well-known.
+	redir /.well-known/caldav https://{host}/dav/ 301
+	redir /.well-known/carddav https://{host}/dav/ 301
+
+	# The app accepts request bodies up to 128 MB (vCards with photos,
+	# events with attachments).
+	request_body {
+		max_size 128MB
+	}
+
+	# Keeps the Host header, sets X-Forwarded-For, X-Forwarded-Proto and
+	# X-Forwarded-Host, and passes every DAV method and the Authorization header.
+	reverse_proxy nexusdav:8080
+}

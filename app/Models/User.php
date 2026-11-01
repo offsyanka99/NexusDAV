@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Dav\DavDataCleaner;
 use App\Services\UserService;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
@@ -9,6 +10,7 @@ use Filament\Models\Contracts\HasName;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -16,6 +18,9 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use InvalidArgumentException;
 
+/**
+ * @property-read string $principal_uri
+ */
 #[Fillable([
     'username',
     'display_name',
@@ -57,6 +62,7 @@ class User extends Authenticatable implements FilamentUser, HasName
 
         static::deleting(function (User $user): void {
             app(UserService::class)->assertCanDelete($user);
+            app(DavDataCleaner::class)->deleteForUser($user);
         });
 
         static::saved(function (User $user): void {
@@ -97,6 +103,15 @@ class User extends Authenticatable implements FilamentUser, HasName
     }
 
     /**
+     * DAV and the admin login match the email without case, so it is stored
+     * in lower case. users_email_lower_unique backs this in the database.
+     */
+    protected function setEmailAttribute(mixed $value): void
+    {
+        $this->attributes['email'] = is_string($value) ? mb_strtolower(trim($value)) : $value;
+    }
+
+    /**
      * @return HasOne<Principal, $this>
      */
     public function principal(): HasOne
@@ -110,6 +125,30 @@ class User extends Authenticatable implements FilamentUser, HasName
     public function appPasswords(): HasMany
     {
         return $this->hasMany(AppPassword::class);
+    }
+
+    /**
+     * calendarinstances and addressbooks store principals/{username}, not users.id.
+     */
+    protected function principalUri(): Attribute
+    {
+        return Attribute::get(fn (): string => 'principals/'.$this->username);
+    }
+
+    /**
+     * @return HasMany<CalendarInstance, $this>
+     */
+    public function calendarInstances(): HasMany
+    {
+        return $this->hasMany(CalendarInstance::class, 'principaluri', 'principal_uri');
+    }
+
+    /**
+     * @return HasMany<AddressBook, $this>
+     */
+    public function addressBooks(): HasMany
+    {
+        return $this->hasMany(AddressBook::class, 'principaluri', 'principal_uri');
     }
 
     public function canAccessPanel(Panel $panel): bool
@@ -167,6 +206,7 @@ class User extends Authenticatable implements FilamentUser, HasName
             'is_admin' => 'boolean',
             'is_active' => 'boolean',
             'quota_bytes' => 'integer',
+            'collections_provisioned' => 'boolean',
         ];
     }
 }

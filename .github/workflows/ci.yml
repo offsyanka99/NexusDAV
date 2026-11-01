@@ -2,7 +2,15 @@ name: CI
 
 on:
   push:
+    branches: ["**"]
   pull_request:
+  # The release workflow runs these checks before it publishes an image.
+  workflow_call:
+    inputs:
+      skip-image:
+        description: Skip the image job (the release workflow builds and smoke-tests its own image).
+        type: boolean
+        default: false
 
 jobs:
   static:
@@ -91,3 +99,17 @@ jobs:
           DB_DATABASE: nexusdav
           DB_USERNAME: nexusdav
           DB_PASSWORD: nexusdav
+
+  image:
+    name: image
+    if: ${{ !inputs.skip-image }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: docker build --pull --build-arg NEXUSDAV_VERSION="ci+${GITHUB_SHA::7}" -t nexusdav:ci .
+
+      - name: Smoke test
+        run: docker/smoke-test.sh nexusdav:ci

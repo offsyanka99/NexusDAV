@@ -4,7 +4,7 @@ NexusDAV stores calendars, contacts, notes, tasks and files, and is usually expo
 
 ## Supported versions
 
-NexusDAV is at an early stage and has no stable release yet. Security fixes are provided for the latest released version only. This section will list supported versions once releases begin.
+NexusDAV is in its 0.x series; the first release is 0.1.0. Security fixes are provided for the latest released version only. Images are rebuilt from a freshly pulled base for each release, and a base with PHP older than 8.4.27 stops the release.
 
 | Version | Supported |
 |---|---|
@@ -59,6 +59,8 @@ Out of scope, for example:
 ## Hardening your deployment
 
 - Always run NexusDAV behind HTTPS, for example through a reverse proxy.
+- Leave `TRUSTED_PROXIES` unset (private ranges) or set it to your reverse proxy's address. Do not use `*`: the brute-force limit then counts every client as the proxy, so anyone can briefly lock a username out.
+- Admin passwords must be at least 12 characters. Use a long random one.
 - Use strong, unique passwords and prefer **app passwords** for DAV clients.
 - Remove `ADMIN_PASSWORD` from your environment file after the first login.
 - Keep the application, its dependencies and the Docker images up to date.

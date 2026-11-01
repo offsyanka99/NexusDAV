@@ -1,0 +1,29 @@
+# Caddy in front of NexusDAV, with automatic HTTPS from Let's Encrypt.
+# DNS for the host name must point at this machine, and ports 80 and 443 must
+# reach it. Copy this file and Caddyfile next to compose.yaml, set the host
+# name in Caddyfile, then add this file last:
+#   docker compose -f compose.yaml -f compose.postgres.yaml -f compose.caddy.yaml up -d
+
+services:
+  nexusdav:
+    # Only Caddy talks to the app, so port 8080 is no longer published.
+    ports: !reset []
+
+  caddy:
+    image: caddy:2
+    container_name: nexusdav-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - nexusdav
+
+volumes:
+  caddy_data:
+  caddy_config:

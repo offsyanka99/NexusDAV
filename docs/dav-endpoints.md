@@ -9,8 +9,7 @@ Most clients only need the root URL. They discover principals and collections th
 | Purpose | Method(s) | Path | Notes |
 |---------|-----------|------|-------|
 | DAV root | PROPFIND, OPTIONS | `/dav/` | Entry point for clients |
-| Principal | PROPFIND | `/dav/principals/users/<username>/` | User principal |
-| Principal home | PROPFIND | `/dav/principals/users/<username>/` | |
+| Principal and principal home | PROPFIND | `/dav/principals/<username>/` | User principal |
 | Calendars home | PROPFIND, MKCALENDAR | `/dav/calendars/<username>/` | Home collection for calendars |
 | Calendar collection | PROPFIND, REPORT, GET, PUT, DELETE | `/dav/calendars/<username>/<calendar-id>/` | Holds VEVENT, VTODO, VJOURNAL |
 | Address books home | PROPFIND, MKCOL | `/dav/addressbooks/<username>/` | Home collection for address books |
@@ -54,6 +53,16 @@ Not in Version 1 (later):
 
 ## Notes
 
+- Creating a user creates that user's calendar home and address book home, and a default calendar and address book inside them (`default`). There is no separate home row. The admin panel can add, edit, and delete further collections.
+- A client can create collections in its own homes (`MKCALENDAR` on the calendar home, extended `MKCOL` on the address book home) and delete them. A new calendar offers the components that are switched on; a requested `supported-calendar-component-set` is reduced to those, and refused (403) when none is left.
+- Discovery PROPFIND on `/dav/` returns `current-user-principal`. PROPFIND on that principal returns `calendar-home-set` and `addressbook-home-set` for the signed-in user only.
+- `sync-collection` works on the homes and on each collection inside them.
+- `supported-calendar-component-set` on a calendar is `VEVENT` when CalDAV is on, plus `VTODO` when tasks are on and `VJOURNAL` when notes are on.
 - Collection identifiers (`<calendar-id>`, `<addressbook-id>`) are URI tokens, not display names.
+- Another user's principal, homes and collections answer **404**, exactly like a username that does not exist, so a signed-in user cannot find out which usernames exist. A write into them fails the same way (404, or 409 when the parent is missing).
+- **Service switches** (admin panel Settings page): with CalDAV off, every path under `/dav/calendars/` answers 403 "CalDAV is turned off on this server.", and the principal no longer offers `calendar-home-set`. CardDAV off does the same for `/dav/addressbooks/`. With Tasks or Notes off, `supported-calendar-component-set` leaves out `VTODO` or `VJOURNAL`, so a PUT of that component is refused (403) while existing items stay readable and deletable.
+- A new calendar gets a `calendar-timezone` for its owner's time zone, or the server time zone from Configuration when the owner has none.
+- Client values are checked against the column sizes on both databases: collection and resource names and UIDs at most 200 characters, display names at most 255, `calendar-color` at most 10, `calendar-order` a 32-bit integer, and dead property names at most 255. MKCALENDAR, MKCOL and PUT answer 400 when a value is too long. PROPPATCH answers 207 with 403 for that property and 424 for the others, and changes nothing.
 - Clients should prefer discovery over hard-coded paths.
-- All DAV methods required by the protocols must be passed through by the reverse proxy (`PROPFIND`, `REPORT`, `MKCALENDAR`, `MKCOL`, `PUT`, `DELETE`, `MOVE`, `COPY`, etc.).
+- All DAV methods required by the protocols must be passed through by the reverse proxy (`PROPFIND`, `REPORT`, `MKCALENDAR`, `MKCOL`, `PUT`, `DELETE`, `MOVE`, `COPY`, etc.). Tested configurations for nginx, Caddy and Traefik are in [docs/proxy](proxy/).
+- Every answer carries an `X-Request-Id` header. The same ID is on the request's log lines and on its Diagnostics row.

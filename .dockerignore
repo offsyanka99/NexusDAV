@@ -13,3 +13,16 @@ database/*.sqlite
 database/*.sqlite-journal
 docs
 *.md
+# Local caches, logs and sessions must not ship in the image.
+# A cached config.php would carry the developer's .env values.
+bootstrap/cache/*.php
+public/hot
+storage/logs/*.log
+storage/framework/cache/data/*
+!storage/framework/cache/data/.gitignore
+storage/framework/sessions/*
+!storage/framework/sessions/.gitignore
+storage/framework/views/*
+!storage/framework/views/.gitignore
+storage/framework/testing
+storage/pail

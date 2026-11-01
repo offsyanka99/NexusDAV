@@ -4,7 +4,7 @@ A task is a CalDAV `VTODO`. Tasks are not a separate server and not a separate p
 
 ## What each version includes
 
-**Version 1.** The admin panel can create a collection that accepts tasks. A capable CalDAV client can create, edit, complete, and delete tasks. Sync uses the collection sync token. The admin panel does not edit the task.
+**Version 1.** The admin panel can create a collection that accepts tasks, and so can a CalDAV client for its own user. A capable CalDAV client can create, edit, complete, and delete tasks. Sync uses the collection sync token. The admin panel does not edit the task.
 
 **Version 1.x.** Sharing and WebDAV-Push follow the collection. A shared calendar shares the tasks stored in it. Push uses the same bitfire draft as calendars, and the admin panel is where the server-wide switch lives. See [Calendar](calendar.md).
 
@@ -16,7 +16,7 @@ A task is a CalDAV `VTODO`. Tasks are not a separate server and not a separate p
 
 | Action | CalDAV client | Admin panel | User portal |
 |---|---|---|---|
-| Create the collection that holds tasks | No | Version 1 | Version 2, for that person's own collections |
+| Create the collection that holds tasks | Version 1, for that person's own collections | Version 1 | Version 2, for that person's own collections |
 | Create and edit tasks | Version 1, if the client supports `VTODO` | No | Version 2 |
 | Show the task list | The client, or a companion app | No | Version 2 |
 
@@ -26,7 +26,7 @@ How clients show tasks:
 - **Thunderbird** is a target for tasks.
 - **Apple** shows them in Reminders, not in Calendar.
 
-Nothing has been tested against these clients yet. See [Client compatibility](../guide.md#client-compatibility).
+Automated tests with vdirsyncer and the python caldav client pass; the project has not run these clients itself yet. See [Client compatibility](../guide.md#client-compatibility).
 
 ## Not in the plan yet
 

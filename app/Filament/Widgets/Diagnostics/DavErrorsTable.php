@@ -1,0 +1,58 @@
+<?php
+
+namespace App\Filament\Widgets\Diagnostics;
+
+use App\Models\DiagnosticEvent;
+use App\Services\DiagnosticsSummary;
+use Filament\Support\Enums\FontFamily;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Table;
+use Filament\Widgets\TableWidget;
+
+/**
+ * 4xx and 5xx answers on /dav, including rejected DAV logins with their
+ * reason. Shown on Diagnostics only.
+ */
+class DavErrorsTable extends TableWidget
+{
+    protected static bool $isDiscovered = false;
+
+    protected static bool $isLazy = false;
+
+    protected int|string|array $columnSpan = 'full';
+
+    public function table(Table $table): Table
+    {
+        return $table
+            ->heading(__('Latest DAV errors'))
+            ->description(__('Answers with status 400 or higher on /dav. A request without credentials is not an error and is not listed.'))
+            ->query(DiagnosticsSummary::davErrorsQuery())
+            ->defaultSort('occurred_at', 'desc')
+            ->columns([
+                TextColumn::make('occurred_at')->label(__('Time'))->dateTime()->sortable(),
+                TextColumn::make('method')->label(__('Method')),
+                TextColumn::make('path')->label(__('Path'))->wrap()->searchable(),
+                TextColumn::make('status')
+                    ->label(__('Status'))
+                    ->badge()
+                    ->color(fn (int $state): string => $state >= 500 ? 'danger' : 'warning'),
+                TextColumn::make('username')
+                    ->label(__('User'))
+                    ->formatStateUsing(fn (?string $state): string => $state === null || $state === '' ? '—' : $state)
+                    ->searchable(),
+                TextColumn::make('reason')
+                    ->label(__('Reason'))
+                    ->description(fn (DiagnosticEvent $record): ?string => $record->kind === DiagnosticEvent::KIND_AUTH_FAILED ? __('Rejected login') : null),
+                TextColumn::make('repeat_count')->label(__('Count'))->numeric(),
+                TextColumn::make('request_id')
+                    ->label(__('Request ID'))
+                    ->fontFamily(FontFamily::Mono)
+                    ->placeholder('—')
+                    ->copyable()
+                    ->searchable()
+                    ->tooltip(__('Of the first occurrence. Search the container log for it.'))
+                    ->toggleable(isToggledHiddenByDefault: false),
+            ])
+            ->emptyStateHeading(__('No DAV errors'));
+    }
+}

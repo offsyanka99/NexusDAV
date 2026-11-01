@@ -40,8 +40,21 @@ class AppPasswordTest extends TestCase
         $this->assertSame(64, strlen($found->token_hash));
         $this->assertDoesNotMatchRegularExpression('/^\$argon2id\$/', $found->token_hash);
         $this->assertNull($found->expires_at);
-        $this->assertNotNull($service->verify($token));
-        $this->assertNull($service->verify($publicId.AppPasswordService::SEPARATOR.'not-the-secret'));
+        $this->assertSame($publicId, $service->tokenPublicId($token));
+        $this->assertNull($service->tokenPublicId('correct-horse-battery'));
+
+        $failure = 'unset';
+        $this->assertNotNull($service->verify($token, $failure));
+        $this->assertNull($failure);
+        $failure = 'unset';
+        $this->assertNull($service->verify($publicId.AppPasswordService::SEPARATOR.'not-the-secret', $failure));
+        $this->assertSame(AppPasswordService::FAILURE_MISMATCH, $failure);
+        $failure = 'unset';
+        $this->assertNull($service->verify('correct-horse-battery', $failure));
+        $this->assertSame(AppPasswordService::FAILURE_SHAPE, $failure);
+        $failure = 'unset';
+        $this->assertNull($service->verify('missing-public'.AppPasswordService::SEPARATOR.'secret', $failure));
+        $this->assertSame(AppPasswordService::FAILURE_MISSING, $failure);
 
         $stored = (array) DB::table('app_passwords')->where('id', $appPassword->getKey())->first();
         $encoded = json_encode($stored);
@@ -56,15 +69,25 @@ class AppPasswordTest extends TestCase
 
         $this->assertInstanceOf(AppPassword::class, $revoked);
         $this->assertNotNull($revoked->revoked_at);
-        $this->assertNull($service->verify($token));
+        $failure = 'unset';
+        $this->assertNull($service->verify($token, $failure));
+        $this->assertSame(AppPasswordService::FAILURE_REVOKED, $failure);
         $this->assertNotNull($service->findByPublicId($publicId));
         $this->assertSame(1, AppPassword::query()->count());
 
         $expired = $service->issue($user, 'Old phone', now()->subMinute());
 
         $this->assertNotNull($expired['app_password']->expires_at);
-        $this->assertNull($service->verify($expired['token']));
+        $failure = 'unset';
+        $this->assertNull($service->verify($expired['token'], $failure));
+        $this->assertSame(AppPasswordService::FAILURE_EXPIRED, $failure);
         $this->assertNotNull($service->findByPublicId(explode(AppPasswordService::SEPARATOR, $expired['token'], 2)[0]));
+
+        $revokedAndExpired = $service->issue($user, 'Old revoked phone', now()->subMinute());
+        $service->revoke($revokedAndExpired['app_password']);
+        $failure = 'unset';
+        $this->assertNull($service->verify($revokedAndExpired['token'], $failure));
+        $this->assertSame(AppPasswordService::FAILURE_REVOKED, $failure);
 
         $future = $service->issue($user, 'New phone', now()->addDay());
 

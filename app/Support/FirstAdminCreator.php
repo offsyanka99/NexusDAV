@@ -19,7 +19,7 @@ final class FirstAdminCreator
             $existing = User::query()->where('is_admin', true)->first();
 
             if ($existing instanceof User) {
-                $this->users->syncPrincipal($existing);
+                $this->users->backfillHomeCollections();
 
                 return $existing;
             }
@@ -74,7 +74,7 @@ final class FirstAdminCreator
             throw new RuntimeException("Cannot create the first admin because the username [{$username}] is already in use.");
         }
 
-        return $this->users->create([
+        $admin = $this->users->create([
             'username' => $username,
             'display_name' => self::displayNameFromEmail($email),
             'email' => $email,
@@ -82,6 +82,10 @@ final class FirstAdminCreator
             'is_admin' => true,
             'is_active' => true,
         ]);
+
+        $this->users->backfillHomeCollections();
+
+        return $admin;
     }
 
     private static function localPart(string $email): string

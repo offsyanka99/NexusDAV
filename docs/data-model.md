@@ -17,13 +17,14 @@ Decisions:
 | id | bigint | PK |
 | username | string | unique |
 | display_name | string | |
-| email | string | unique |
+| email | string | unique, stored in lower case. A unique index on `lower(email)` (`users_email_lower_unique`) stops two accounts whose emails differ only in case, because DAV and the admin login match the email without case |
 | password | string | nullable, Argon2id. Required for admins. Optional for non-admins. Accepted only by the Filament admin login |
 | is_admin | boolean | default false |
 | is_active | boolean | default true |
 | timezone | string | nullable, falls back to server default |
 | locale | string | nullable, falls back to server default |
 | quota_bytes | bigint | nullable, 0 or null = unlimited |
+| collections_provisioned | boolean | default false. Set when the default calendar and address book are inserted. A later prepare does not insert those URIs again |
 | created_at | timestamp | |
 | updated_at | timestamp | |
 
@@ -54,33 +55,88 @@ Decisions:
 | created_at | timestamp | |
 | updated_at | timestamp | |
 
-## sabre/dav PDO backend tables
+### settings
 
-Not created yet. A custom sabre/dav principal backend that reads the Laravel `principals` table is added in PR3. Calendar and address book tables are not created in this version; PR3 adds Laravel migrations for them:
+Values saved on the admin panel's Settings and Configuration pages. Boot settings (database, `APP_URL`, the first admin) stay in the environment. `SettingsService` puts the saved values into config at every boot, after config (cached or not) is loaded. A setting whose environment variable is set ignores its row. The saved values are cached in Laravel's file cache (`NEXUSDAV_SETTINGS_CACHE_STORE`, default `file`), so a DAV request does not read this table; saving clears that cache.
 
-- `calendars`
-- `calendarobjects` (events, tasks, notes)
-- `addressbooks`
-- `cards`
-- `locks`
-- and related tables required by the PDO backend
+| Column | Type | Notes |
+|--------|------|-------|
+| id | bigint | PK |
+| key | string(100) | unique, for example `caldav` or `session_lifetime` |
+| value | text | JSON |
+| created_at | timestamp | |
+| updated_at | timestamp | |
+
+### diagnostic_events
+
+Rejected logins (`kind` `auth_failed`) and DAV answers with status 400 or higher other than 401 (`kind` `http_error`, source `dav`, reason the HTTP status text). A DAV request with no `Authorization` header is not stored. There is no foreign key: the username may not match an account.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | bigint | PK |
+| occurred_at | timestamp | Time of the first event in this repeat window |
+| source | string | `admin` or `dav` |
+| kind | string | `auth_failed` or `http_error` |
+| ip | string | Throttle address. The immediate peer, unless that peer is an explicitly configured proxy, in which case it is the forwarded client. A catch-all trusted-proxy list does not use `X-Forwarded-For`. Empty when the request has no peer |
+| username | string | Canonical username when the account exists, otherwise the attempted login |
+| public_id | string | nullable. App password public id only. The secret is not stored |
+| request_id | string(64) | nullable. Request ID of the row's first event, the same as its `X-Request-Id` header and log lines. Null when written outside a request |
+| method | string | HTTP method |
+| path | string | Path without the query string |
+| status | smallint | 401 for a rejected DAV login, 422 for a rejected admin login, the answer's status for `http_error` |
+| reason | string | DAV: unknown user, bad secret, revoked, expired, user disabled, or main password used. Admin: unknown user, bad password, or panel refused. `many usernames` on the summary row (see below). Not returned to the client |
+| repeat_count | integer | How many matching failures share this row |
+| bucket | integer | Epoch time divided by 60. The same source, kind, IP, username, path, reason, and bucket are one row |
+
+One address gets at most 10 rows per bucket (`diagnostics.max_rows_per_address`). Further failures from it in that bucket are counted on one summary row with username and path `*` and reason `many usernames`, and only that row's first failure is logged. `http_error` rows have their own limit per address and their own summary row, with reason `many requests`. They get no log line of their own; the request's log line has the same request ID. Repeats in the same minute share a row. The minute is an epoch bucket, so two failures a few seconds apart can be two rows when they cross a bucket boundary. Rows older than 30 days (`config/nexusdav.php`, `diagnostics.retention_days`) are deleted when a new row is written, and at most once per hour. Nothing schedules that delete.
+
+## sabre/dav storage tables
+
+Laravel migrations create these tables. sabre/dav 4.7.1 only ships SQL examples and creates nothing itself. The standard PDO backends read and write them through Laravel's PDO connection.
+
+sabre's own `principals`, `groupmembers` and `users` tables are **not** created. Identity stays in the Laravel tables above. `App\Services\Dav\PrincipalBackend` reads `principals`.
+
+| Table | Purpose |
+|-------|---------|
+| `calendars` | One row per calendar. `components` lists `VEVENT`, `VTODO` and `VJOURNAL` |
+| `calendarinstances` | A user's view of a calendar. `principaluri` is `principals/{username}`. `access` 1 is the owner |
+| `calendarobjects` | Events, tasks and notes. `calendardata` is the iCalendar body |
+| `calendarchanges` | Sync-collection change log for a calendar |
+| `calendarsubscriptions` | Subscribed calendar feeds |
+| `schedulingobjects` | Scheduling inbox objects. Unused in Version 1, present so the PDO backend can load |
+| `addressbooks` | One row per address book. `principaluri` is `principals/{username}` |
+| `cards` | Contacts. `carddata` is the vCard body |
+| `addressbookchanges` | Sync-collection change log for an address book |
+| `propertystorage` | Dead WebDAV properties, keyed by `path` and `name` |
+| `locks` | WebDAV locks, keyed by `uri` |
+
+Column types follow sabre's SQLite and PostgreSQL scripts for the installed 4.7.1 schema, with four deliberate differences:
+
+- `calendardata`, `carddata` and `propertystorage.value` are `blob` on SQLite and `bytea` on PostgreSQL. PDO may return `bytea` as a stream or a `\x` hex literal. The backends turn that back into the original string before a client reads it.
+- `calendars.components` is `varchar(255)`. sabre's PostgreSQL script uses `varchar(21)`, which cannot store `VEVENT,VTODO,VJOURNAL`.
+- Unix-time columns are `bigint` on PostgreSQL: `calendarobjects.firstoccurence`, `lastoccurence` and `lastmodified`, `lastmodified` on `cards`, `calendarsubscriptions` and `schedulingobjects`, and `locks.created`. sabre's script uses 32-bit `integer`, which rejects any event after 19 January 2038. SQLite integers are already 64-bit. `locks.owner` is `text` on PostgreSQL, because sabre stores the client's LOCK owner element as sent.
+- Child rows have foreign keys. Deleting a calendar deletes its instances, objects and changes. Deleting an address book deletes its cards and changes. A principal is stored as a URI string, so those rows are not a foreign key. `DavDataCleaner` deletes them when the user is deleted, including locks and property storage under `principals/{username}`, `calendars/{username}` and `addressbooks/{username}`.
 
 When a user is created in the admin panel:
 
 1. Insert into `users`.
 2. Insert into `principals` (`uri = principals/{username}`).
+3. Insert a default calendar and a default address book, both with URI `default`, and set `users.collections_provisioned`. The calendar display name is `Calendar` and its color is `#1A73E8`. The address book display name is `Contacts`. `calendars.components` is `VEVENT`, plus `VTODO` when tasks are on and `VJOURNAL` when notes are on. The rows use `insertOrIgnore` on `(principaluri, uri)`.
 
-Deleting a user deletes the principal and app passwords. Home collections are created later (PR3 / PR4).
+The calendar home (`calendars/{username}`) and the address book home (`addressbooks/{username}`) are not rows. sabre serves them from the principal. The admin panel lists collections through Eloquent models and creates, updates, and deletes them through the sabre PDO backends. Deleting a collection also removes its property storage and locks, the same path `DavDataCleaner` uses for the user's home. Deleting the user deletes the principal, which removes the homes, and also deletes the app passwords and the user's sabre rows. `nexusdav:prepare` claims `collections_provisioned` once for users who have never had the defaults, including the first admin. Deleting the default calendar or address book stays deleted across a later prepare.
 
 ## Relationships
 
 ```
 users 1—— 1 principals
 users 1—— * app_passwords
-principals 1—— * calendars      (via sabre/dav)
-principals 1—— * addressbooks   (via sabre/dav)
-calendars 1—— * calendarobjects (via sabre/dav)
-addressbooks 1—— * cards         (via sabre/dav)
+principals 1—— * calendarinstances   (principaluri)
+principals 1—— * addressbooks        (principaluri)
+calendars 1—— * calendarinstances
+calendars 1—— * calendarobjects
+calendars 1—— * calendarchanges
+addressbooks 1—— * cards
+addressbooks 1—— * addressbookchanges
 ```
 
 ## Notes
@@ -88,4 +144,5 @@ addressbooks 1—— * cards         (via sabre/dav)
 - App passwords are shown once, as a single token `{public_id}.{secret}`. Only the SHA-256 hash of the secret is stored. Lookup uses `public_id`, then `hash_equals`.
 - Revocation sets `revoked_at` and keeps the row. `expires_at` is optional.
 - Quota, timezone and locale are present from Version 1 so later features do not require schema changes.
-- The exact sabre/dav table names and columns follow the version of sabre/dav that is used (currently planned 4.7.x).
+- The sabre table names and columns match sabre/dav 4.7.1 except for the differences listed above.
+- New calendars include `VTODO` when tasks are on and `VJOURNAL` when notes are on (`config/nexusdav.php`). Both are on by default. `VEVENT` is always included.

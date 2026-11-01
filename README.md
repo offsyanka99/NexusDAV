@@ -10,7 +10,7 @@ Built on top of the [sabre/dav](https://sabre.io/) PHP library.
 
 ## Status
 
-Early stage. The repository contains the admin shell: a FrankenPHP container, `/health`, the first admin, and user, principal, and app-password management. CalDAV and CardDAV sync are not implemented yet. No image has been published, and nothing has been tested against real clients.
+Version 1 is built; the first release is `0.1.0`. The repository contains a FrankenPHP container, `/health`, the first admin, and user, principal, and app-password management. `/dav/` accepts an app password and serves only that user's own data. Creating a user also creates that user's calendar home (`/dav/calendars/<username>/`) and address book home (`/dav/addressbooks/<username>/`), each with a default collection (`default`). The admin panel lists, creates, edits, and deletes calendars and address books for a user. A client discovers them from `/dav/`. The panel also has a Dashboard, Settings and Configuration pages (DAV services, time, rate limits, sessions), and a Diagnostics page with failed logins, DAV errors and every app password. Every request is logged with an ID that also appears on Diagnostics. Images for amd64 and arm64 are published to `ghcr.io/offsyanka99/nexusdav`, and tested reverse-proxy configurations for Caddy, nginx and Traefik are in [docs/proxy](docs/proxy/). Sync passes automated tests with vdirsyncer and the python caldav client. DAVx5, Thunderbird and Apple clients have not been tried yet.
 
 NexusDAV is built for homelabs and small teams. It is not a mail, chat or office-document suite, and it is not a hosted multi-tenant service.
 
@@ -25,9 +25,7 @@ Details, versions and the full roadmap are in the [guide](docs/guide.md).
 
 ## Quick start
 
-> **Note:** The steps below describe the intended setup. Image name, ports and variable names are placeholders and may change.
-
-1. Get the Compose files and create your environment file:
+1. Get the Compose files and create your environment file. The Compose files pull the published image, `ghcr.io/offsyanka99/nexusdav:0.1.0`:
 
    ```bash
    git clone https://github.com/offsyanka99/NexusDAV.git
@@ -43,7 +41,7 @@ Details, versions and the full roadmap are in the [guide](docs/guide.md).
    ADMIN_PASSWORD=change-me-to-a-long-random-password
    ```
 
-   For PostgreSQL also set `DB_PASSWORD`. `APP_KEY` is generated on first start and stored on the data volume. Remove `ADMIN_PASSWORD` after the first login.
+   `ADMIN_PASSWORD` must be at least 12 characters. For PostgreSQL also set `DB_PASSWORD`. `APP_KEY` is generated on first start and stored on the data volume. Remove `ADMIN_PASSWORD` after the first login.
 
 3. Start the server (pick one database; do not change it later):
 
@@ -55,9 +53,15 @@ Details, versions and the full roadmap are in the [guide](docs/guide.md).
    docker compose -f compose.yaml -f compose.sqlite.yaml up -d
    ```
 
-4. Open the admin panel at `http://localhost:8080/admin` (or your `APP_URL`) and create a user, a calendar and an address book. Events, tasks and notes are written by a CalDAV client, not in the admin panel.
+   To build the image from the checkout instead, add `-f compose.build.yaml` last and `--build`.
 
-5. Connect a client with that user's **app password**, not the account password. Client steps, DAV URLs and the reverse-proxy fallback are in the [guide](docs/guide.md#client-setup-and-compatibility).
+   **TrueNAS SCALE:** install as a Custom App instead of running Compose by hand — see [docs/truenas/custom-app.yaml](docs/truenas/custom-app.yaml), explained in the [guide](docs/guide.md#installing-on-truenas-scale).
+
+4. Open the admin panel at `http://localhost:8080/admin` (or your `APP_URL`) and create a user. That user gets a default calendar and address book; add more from the user page. Events, tasks and notes are written by a CalDAV client, not in the admin panel.
+
+5. Put it behind an HTTPS reverse proxy: ready-to-use files for Caddy, nginx and Traefik are in [docs/proxy](docs/proxy/), explained in the [guide](docs/guide.md#reverse-proxy-and-well-known).
+
+6. Connect a client with that user's **app password**, not the account password. Client steps and DAV URLs are in the [guide](docs/guide.md#client-setup-and-compatibility).
 
 Lost the admin password? Reset it from the container shell, as described in the [guide](docs/guide.md#resetting-the-admin-password). There is no web page that sets it.
 

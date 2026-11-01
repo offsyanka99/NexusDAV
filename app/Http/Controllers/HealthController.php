@@ -2,17 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\DatabaseHealth;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
-use Throwable;
 
 class HealthController extends Controller
 {
-    public function __invoke(): JsonResponse
+    public function __invoke(DatabaseHealth $database): JsonResponse
     {
-        try {
-            DB::connection()->select('select 1');
-        } catch (Throwable) {
+        if (! $database->isUp()) {
             return response()->json(['status' => 'unavailable'], 503);
         }
 

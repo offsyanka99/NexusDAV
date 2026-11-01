@@ -1,6 +1,6 @@
 # Apps
 
-NexusDAV is one server. The pages below describe the parts a person uses. Nothing on these pages is implemented yet, and nothing has been tested against a real client. Versions match the [roadmap](../guide.md#roadmap).
+NexusDAV is one server. The pages below describe the parts a person uses. The Version 1 parts are built; they pass automated tests with the vdirsyncer and python caldav clients, but have not been tried with DAVx⁵, Thunderbird or Apple clients yet. Versions match the [roadmap](../guide.md#roadmap).
 
 | App | What it stores | First version |
 |---|---|---|

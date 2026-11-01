@@ -1,0 +1,89 @@
+<?php
+
+namespace App\Filament\Pages;
+
+use App\Services\SettingsService;
+use BackedEnum;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
+
+/**
+ * DAV services and the log level. Configuration holds server-wide preferences.
+ */
+class Settings extends SettingsPage
+{
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCog6Tooth;
+
+    protected static ?int $navigationSort = 2;
+
+    protected static ?string $slug = 'settings';
+
+    public static function getNavigationLabel(): string
+    {
+        return __('Settings');
+    }
+
+    public function getTitle(): string
+    {
+        return __('Settings');
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function settingKeys(): array
+    {
+        return ['caldav', 'carddav', 'tasks', 'notes', 'log_level'];
+    }
+
+    public function form(Schema $schema): Schema
+    {
+        return $schema
+            ->components([
+                Section::make(__('Services'))
+                    ->description(__('A service that is off answers 403 on DAV. Its data is kept and comes back when the service is turned on again.'))
+                    ->schema([
+                        $this->lockable(
+                            Toggle::make('caldav')
+                                ->label(__('CalDAV'))
+                                ->helperText(__('Calendars, and the tasks and notes stored in them. Paths under /dav/calendars/.')),
+                            'caldav',
+                        ),
+                        $this->lockable(
+                            Toggle::make('carddav')
+                                ->label(__('CardDAV'))
+                                ->helperText(__('Address books. Paths under /dav/addressbooks/.')),
+                            'carddav',
+                        ),
+                        $this->lockable(
+                            Toggle::make('tasks')
+                                ->label(__('Tasks (VTODO)'))
+                                ->helperText(__('When off, calendars stop offering tasks: no new task can be created or changed. Existing tasks stay readable and can be deleted.')),
+                            'tasks',
+                        ),
+                        $this->lockable(
+                            Toggle::make('notes')
+                                ->label(__('Notes (VJOURNAL)'))
+                                ->helperText(__('When off, calendars stop offering notes: no new note can be created or changed. Existing notes stay readable and can be deleted.')),
+                            'notes',
+                        ),
+                    ]),
+                Section::make(__('Logging'))
+                    ->schema([
+                        $this->lockable(
+                            Select::make('log_level')
+                                ->label(__('Log level'))
+                                ->options(array_combine(SettingsService::LOG_LEVELS, array_map('ucfirst', SettingsService::LOG_LEVELS)))
+                                ->required()
+                                ->selectablePlaceholder(false)
+                                ->helperText(__('The least severe message that is written to the container log. Use Info or higher in production.')),
+                            'log_level',
+                        ),
+                    ]),
+            ])
+            ->statePath('data');
+    }
+}

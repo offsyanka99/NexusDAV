@@ -6,7 +6,7 @@ Few clients do. Apple Notes and Thunderbird do not use `VJOURNAL`, so notes stor
 
 ## What each version includes
 
-**Version 1.** The admin panel can create a collection that accepts notes. A capable CalDAV client can create, edit, and delete notes. Sync uses the collection sync token. The admin panel does not edit the note.
+**Version 1.** The admin panel can create a collection that accepts notes, and so can a CalDAV client for its own user. A capable CalDAV client can create, edit, and delete notes. Sync uses the collection sync token. The admin panel does not edit the note.
 
 **Version 1.x.** Sharing and WebDAV-Push follow the collection, as they do for [calendars](calendar.md). There is no separate note-sharing model.
 
@@ -18,11 +18,11 @@ Few clients do. Apple Notes and Thunderbird do not use `VJOURNAL`, so notes stor
 
 | Action | CalDAV client | Admin panel | User portal |
 |---|---|---|---|
-| Create the collection that holds notes | No | Version 1 | Version 2, for that person's own collections |
+| Create the collection that holds notes | Version 1, for that person's own collections | Version 1 | Version 2, for that person's own collections |
 | Create and edit notes | Version 1, only if the client supports `VJOURNAL` | No | Version 2 |
 | Show the note | The client, when it supports `VJOURNAL` | No | Version 2 |
 
-The client that is expected to show notes is DAVx⁵ together with jtx Board. Other clients are best effort. Nothing has been tested yet. See [Client compatibility](../guide.md#client-compatibility).
+The client that is expected to show notes is DAVx⁵ together with jtx Board. Other clients are best effort. Automated tests with vdirsyncer and the python caldav client pass; the project has not run jtx Board itself yet. See [Client compatibility](../guide.md#client-compatibility).
 
 ## Not in the plan yet
 

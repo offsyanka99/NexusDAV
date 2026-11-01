@@ -1,10 +1,11 @@
 # NexusDAV — base Compose file
-# Use together with compose.postgres.yaml or compose.sqlite.yaml
+# Use together with compose.postgres.yaml or compose.sqlite.yaml.
+# To build the image from this checkout instead, add compose.build.yaml.
 
 services:
   nexusdav:
-    # image: ghcr.io/offsyanka99/nexusdav:latest   # will be defined later
-    build: .
+    # Pin an exact version and change it deliberately when you upgrade.
+    image: ghcr.io/offsyanka99/nexusdav:0.1.0
     container_name: nexusdav
     ports:
       - "8080:8080"
@@ -14,7 +15,8 @@ services:
       - APP_URL=${APP_URL}
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - TRUSTED_PROXIES=${TRUSTED_PROXIES:-*}
+      # Empty when unset, so the app uses the private ranges.
+      - TRUSTED_PROXIES=${TRUSTED_PROXIES-}
       - PUID=${PUID:-568}
       - PGID=${PGID:-568}
       # Empty when unset, so the entrypoint can drop it and keep the config default.

@@ -1,9 +1,15 @@
 <?php
 
+use App\Http\Controllers\DavController;
 use App\Http\Controllers\HealthController;
+use App\Http\Middleware\RequestLog;
+use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\TrustProxies;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\TrustProxies as BaseTrustProxies;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -35,32 +41,33 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         then: function (): void {
             Route::get('/health', HealthController::class);
+
+            // Route::any only matches the standard verbs, so PROPFIND and the rest would never hit the controller.
+            $davMethods = ['OPTIONS', 'GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'PROPFIND', 'PROPPATCH', 'REPORT', 'MKCOL', 'MKCALENDAR', 'COPY', 'MOVE', 'LOCK', 'UNLOCK'];
+            Route::match($davMethods, '/dav/{path?}', DavController::class)->where('path', '.*');
+
+            // Built from APP_URL, so a forged X-Forwarded-Host cannot choose the target.
+            $redirectToDav = function (): RedirectResponse {
+                return redirect()->away(rtrim((string) config('app.url'), '/').'/dav/', 301);
+            };
+
+            Route::match(['GET', 'HEAD', 'PROPFIND', 'OPTIONS'], '/.well-known/caldav', $redirectToDav);
+            Route::match(['GET', 'HEAD', 'PROPFIND', 'OPTIONS'], '/.well-known/carddav', $redirectToDav);
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $trustedProxies = env('TRUSTED_PROXIES', '*');
-
-        if (! is_string($trustedProxies) || trim($trustedProxies) === '') {
-            $trustedProxies = '*';
-        }
-
-        $trustedProxies = trim($trustedProxies);
-
-        if ($trustedProxies !== '*') {
-            $trustedProxies = array_values(array_filter(array_map(
-                trim(...),
-                explode(',', $trustedProxies),
-            )));
-        }
-
+        // First, so every answer is logged, including those from the middleware after it.
+        $middleware->prepend(RequestLog::class);
+        // The proxy list comes from config('nexusdav.trusted_proxies') at request time.
+        $middleware->replace(BaseTrustProxies::class, TrustProxies::class);
         $middleware->trustProxies(
-            at: $trustedProxies === [] ? '*' : $trustedProxies,
             headers: Request::HEADER_X_FORWARDED_FOR
                 | Request::HEADER_X_FORWARDED_HOST
                 | Request::HEADER_X_FORWARDED_PORT
                 | Request::HEADER_X_FORWARDED_PROTO
                 | Request::HEADER_X_FORWARDED_PREFIX,
         );
+        $middleware->web(append: SecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

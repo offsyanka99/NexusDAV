@@ -2,6 +2,5 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// The stock welcome page printed the Laravel version to anyone. NexusDAV has no public page.
+Route::redirect('/', '/admin');

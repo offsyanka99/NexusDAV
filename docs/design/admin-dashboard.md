@@ -1,6 +1,6 @@
 # Admin panel — Dashboard (UI draft)
 
-This is a design note, not part of the official documentation. The high-level description lives in [admin.md](../apps/admin.md#after-sign-in). The work is planned in PR 6 of the [implementation plan](../implementation-plan-v1.md).
+This is a design note, not part of the official documentation. The high-level description lives in [admin.md](../apps/admin.md#after-sign-in). It was built in PR 6 of the [implementation plan](../implementation-plan-v1.md); this note describes it as built.
 
 ## Purpose
 
@@ -34,14 +34,14 @@ The page uses the standard Filament panel layout (navigation, then page header, 
 |        4 213              58                    1 904                 |
 +-----------------------------------------------------------------------+
 | [ Needs attention ]                                                   |
-|  3 failed logins in the last 24 hours           Open Diagnostics →    |
-|  2 DAV errors in the last 24 hours                                    |
+|  ⚠ 3 failed logins in the last 24 hours  (links to Diagnostics)      |
+|  ⚠ 2 DAV errors in the last 24 hours     (links to Diagnostics)      |
 +-----------------------------------------------------------------------+
 ```
 
 The numbers above are examples.
 
-On a wide screen the cards sit in the rows shown. On a narrow screen each row wraps to one card per line. The panel is not optimised for mobile in Version 1, but nothing may overflow horizontally.
+On a wide screen the count cards sit four to a row, so the second row of counts starts with whatever card follows App passwords. On a narrow screen each row wraps to one card per line. The panel is not optimised for mobile in Version 1, but nothing may overflow horizontally.
 
 ## What the page contains
 
@@ -53,7 +53,7 @@ One card with a row of status items. Each item has a coloured dot, a label and a
 |---|---|---|---|
 | Application | The page rendering at all | Green, `OK` | Not shown, since the page would not load |
 | Database | The same check as `/health` | Green, `OK`, with the type (`PostgreSQL` or `SQLite`) | Red, `Unavailable` |
-| Version | NexusDAV release or build plus git commit | Plain text | |
+| Version | `NexusDAV` plus `NEXUSDAV_VERSION`, set at image build time (a release shows its version, for example `0.1.0`; CI builds use `ci+<commit>`; a local build without it shows `dev`) | Plain text | |
 
 Rules:
 
@@ -68,7 +68,7 @@ One card listing the four switches from the Settings page: **CalDAV**, **CardDAV
 - `● On` (green) or `○ Off` (grey).
 - If the value is set by an environment variable, show a small lock icon with the tooltip "Set by environment".
 - The card ends with a link, **Manage in Settings →**.
-- Until PR 6 adds the settings storage, every service shows as On.
+- The states come from the Settings page (PR 6), or from the environment when a variable is set.
 
 Later versions add WebDAV (files), WebDAV-Push, Sharing, Scheduling and Managed Attachments to this card, each only when the feature exists.
 
@@ -82,14 +82,16 @@ Small stat cards, one number each, with a label. A short caption may appear unde
 | Calendars | Calendar collections | Users |
 | Address books | Address book collections | Users |
 | App passwords | Active ones (not revoked, not expired) | Diagnostics |
-| Events and tasks | Calendar objects that are events or tasks | |
+| Events and tasks | Calendar objects that are events or tasks. Named **Events** and counting events only when Tasks is Off | |
 | Notes | Calendar objects that are notes (VJOURNAL) | |
 | Contacts | Cards | |
 
+App passwords is the only card with a caption besides Users; it reads "active".
+
 Rules:
 
-- A Notes card is shown only when the Notes service is On. Hide a count card for a service that is Off, so the page matches what the server does.
-- Counts come from cheap `COUNT` queries. If the table grows large, cache the numbers for about a minute rather than counting on every page view.
+- Hide a count card for a service that is Off, so the page matches what the server does. CalDAV Off hides Calendars, Events and Notes; CardDAV Off hides Address books and Contacts; Notes Off hides Notes.
+- Counts come from cheap `COUNT` queries, cached for 60 seconds, so a new user or event can take up to a minute to show.
 - Format large numbers with thousands separators.
 - Do not show per-user or per-collection numbers here. Those live on the Users page.
 
@@ -98,10 +100,10 @@ Rules:
 One card that stays quiet when everything is fine.
 
 - When there is nothing to report it shows `Nothing needs attention` with a green check.
-- Otherwise it lists short lines, each linking to **Diagnostics**:
+- Otherwise it lists short lines with a warning icon, each linking to **Diagnostics**:
   - failed logins in the last 24 hours (admin panel and DAV together);
-  - DAV errors in the last 24 hours (4xx and 5xx, as in the Diagnostics page);
-  - the database check failing, shown in red at the top of the list.
+  - DAV errors in the last 24 hours: rejected DAV logins (401) and other 4xx and 5xx answers, as on the Diagnostics page. A rejected DAV login therefore appears in both lines;
+  - when the database check fails, the card shows only `The database is unavailable` in red, because the other counts cannot be read.
 - Show counts, not details. Names, IP addresses and reasons stay on Diagnostics.
 - The 24-hour window is fixed in Version 1.
 
@@ -125,14 +127,16 @@ One card that stays quiet when everything is fine.
 
 ## Implementation notes
 
-- Build it as widgets on the existing `Filament\Pages\Dashboard`, in `app/Filament/Widgets`:
-  - a status widget (server status);
-  - a services widget;
-  - a stats overview widget (counts);
-  - an attention widget.
-- Replace the widgets currently registered in `AdminPanelProvider` (`AccountWidget`, `FilamentInfoWidget`) with these.
-- Read service states from the Settings storage added in the same PR. Read the attention counts from `diagnostic_events` ([PR 5](../implementation-plan-v1.md)).
-- Tests: the page opens for an administrator and not for a guest; counts match the data; a disabled service shows Off and hides its card; the database check failing shows `Unavailable` with no internal detail; the Needs attention card matches the Diagnostics numbers.
+- The page is the stock `Filament\Pages\Dashboard` with four widgets in `app/Filament/Widgets`, in this order:
+  - `ServerStatusWidget` (server status);
+  - `ServicesWidget` (services, with the **Manage in Settings** link);
+  - `CountsWidget`, a `StatsOverviewWidget` with four columns (counts);
+  - `AttentionWidget` (needs attention).
+- `ServerStatusWidget`, `ServicesWidget` and `AttentionWidget` extend `SchemaWidget`, which builds the card from schema components and shows "Unavailable" when the card fails to load. `CountsWidget` does the same with a single "Counts — Unavailable" stat. The failure is written to the log.
+- Filament's default `AccountWidget` and `FilamentInfoWidget` are removed with `->widgets([])` in `AdminPanelProvider`; the account stays in the user menu.
+- Shared services: `App\Support\DatabaseHealth` (the same check as `GET /health`), `App\Services\ServerCounts` (the counts, cached for 60 seconds) and `App\Services\DiagnosticsSummary` (the 24-hour numbers, also used by the Diagnostics page heading). Service states come from `SettingsService`.
+- Polling is off and the widgets are not lazy-loaded.
+- Tests in `tests/Feature/AdminPagesTest.php` cover access, counts, a disabled service, the database check failing without internal detail, and agreement with the Diagnostics numbers.
 
 ## Later versions
 

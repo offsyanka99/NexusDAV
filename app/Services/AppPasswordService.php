@@ -12,6 +12,16 @@ final class AppPasswordService
 {
     public const SEPARATOR = '.';
 
+    public const FAILURE_SHAPE = 'shape';
+
+    public const FAILURE_MISSING = 'missing';
+
+    public const FAILURE_MISMATCH = 'mismatch';
+
+    public const FAILURE_REVOKED = 'revoked';
+
+    public const FAILURE_EXPIRED = 'expired';
+
     private const LAST_USED_INTERVAL_SECONDS = 60;
 
     /**
@@ -52,14 +62,31 @@ final class AppPasswordService
     }
 
     /**
-     * Look up the public id, then compare the secret with hash_equals.
-     * Revoked and expired tokens do not match.
+     * Public id of a token-shaped string. No database lookup.
      */
-    public function verify(string $token): ?AppPassword
+    public function tokenPublicId(string $token): ?string
     {
-        $parts = explode(self::SEPARATOR, $token, 2);
+        $parts = $this->splitToken($token);
 
-        if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
+        return $parts === null ? null : $parts[0];
+    }
+
+    /**
+     * Look up the public id, then compare the secret with hash_equals.
+     * Revoked and expired tokens do not match. Revoked is reported first.
+     *
+     * $failure is null when the token matches. Otherwise it is one of
+     * FAILURE_SHAPE (no lookup), FAILURE_MISSING, FAILURE_MISMATCH,
+     * FAILURE_REVOKED, or FAILURE_EXPIRED.
+     */
+    public function verify(string $token, ?string &$failure = null): ?AppPassword
+    {
+        $failure = null;
+        $parts = $this->splitToken($token);
+
+        if ($parts === null) {
+            $failure = self::FAILURE_SHAPE;
+
             return null;
         }
 
@@ -67,24 +94,46 @@ final class AppPasswordService
         $appPassword = $this->findByPublicId($publicId);
 
         if (! $appPassword instanceof AppPassword) {
+            $failure = self::FAILURE_MISSING;
+
             return null;
         }
 
         $known = $this->hashSecret($secret);
 
         if (strlen($appPassword->token_hash) !== strlen($known) || ! hash_equals($appPassword->token_hash, $known)) {
+            $failure = self::FAILURE_MISMATCH;
+
             return null;
         }
 
         if ($appPassword->revoked_at !== null) {
+            $failure = self::FAILURE_REVOKED;
+
             return null;
         }
 
         if ($appPassword->expires_at?->isPast()) {
+            $failure = self::FAILURE_EXPIRED;
+
             return null;
         }
 
         return $appPassword;
+    }
+
+    /**
+     * @return array{0: string, 1: string}|null
+     */
+    private function splitToken(string $token): ?array
+    {
+        $parts = explode(self::SEPARATOR, $token, 2);
+
+        if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
+            return null;
+        }
+
+        return [$parts[0], $parts[1]];
     }
 
     /**

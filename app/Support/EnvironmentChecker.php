@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Services\UserService;
 use RuntimeException;
 
 final class EnvironmentChecker
@@ -69,6 +70,10 @@ final class EnvironmentChecker
             throw new RuntimeException(
                 'Missing required environment variable: '.implode(', ', $missing).'.'
             );
+        }
+
+        if (mb_strlen((string) $environment['ADMIN_PASSWORD']) < UserService::MIN_PASSWORD_LENGTH) {
+            throw new RuntimeException('ADMIN_PASSWORD must be at least '.UserService::MIN_PASSWORD_LENGTH.' characters.');
         }
     }
 

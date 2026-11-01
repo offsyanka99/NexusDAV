@@ -6,7 +6,7 @@ The address book URL looks like `/dav/addressbooks/<username>/<addressbook-id>/`
 
 ## What each version includes
 
-**Version 1.** The admin panel can create an address book for a user. A CardDAV client can create, edit, and delete contacts in it. Sync uses the collection sync token. There is no sharing and no email.
+**Version 1.** The admin panel can create an address book for a user, and a CardDAV client can create one for its own user (extended `MKCOL`). A CardDAV client can create, edit, and delete contacts in it. Sync uses the collection sync token. There is no sharing and no email.
 
 **Version 1.x.** An address book can be shared with another user on this server, with access limited by ACL. WebDAV-Push can notify a subscribed client when the address book changes. Push uses the bitfire draft `draft-bitfire-webdav-push-00` at commit `611abe2e8a0cdd7570cb936844b6588f7145b27d`, until that project publishes a release. The admin panel turns push on or off for the server.
 
@@ -18,12 +18,12 @@ The address book URL looks like `/dav/addressbooks/<username>/<addressbook-id>/`
 
 | Action | CardDAV client | Admin panel | User portal |
 |---|---|---|---|
-| Create the address book | No | Version 1 | Version 2, for that person's own address books |
+| Create the address book | Version 1, for that person's own address books | Version 1 | Version 2, for that person's own address books |
 | Create and edit contacts | Version 1 | No | Version 2 |
 | Share the address book with another local user | Version 1.x, if the client supports sharing | Version 1.x | Version 2 |
 | Email the sharee about a new share | No | Version 2.x | Version 2.x |
 
-Target clients are DAVx⁵, Thunderbird, and Apple Contacts. Nothing has been tested against them yet. See [Client compatibility](../guide.md#client-compatibility).
+Target clients are DAVx⁵, Thunderbird, and Apple Contacts. Automated tests with vdirsyncer and the python caldav client pass; the project has not run them itself yet. See [Client compatibility](../guide.md#client-compatibility).
 
 ## Not in the plan yet
 

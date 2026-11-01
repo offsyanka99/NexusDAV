@@ -21,6 +21,11 @@ usermod -o -u "$PUID" -g "$PGID" nexusdav
 mkdir -p /data
 chown nexusdav:nexusdav /data
 
+# A changed PUID or PGID would leave the SQLite files owned by the old user.
+if [ -d /data/database ]; then
+    chown -R nexusdav:nexusdav /data/database
+fi
+
 if [ ! -s /data/app.key ]; then
     key=$(php -r 'echo "base64:".base64_encode(random_bytes(32));')
     (umask 077 && printf '%s' "$key" > /data/app.key)
@@ -42,6 +47,11 @@ chown -R nexusdav:nexusdav /app/storage /app/bootstrap/cache /home/nexusdav
 cd /app
 
 setpriv --reuid=nexusdav --regid=nexusdav --init-groups -- php artisan nexusdav:prepare
+
+# Cache config, routes, events, views and Filament components (optimize runs
+# filament:optimize) once per start, so each request does not rebuild them.
+# Environment changes need a restart.
+setpriv --reuid=nexusdav --regid=nexusdav --init-groups -- php artisan optimize
 
 exec setpriv --reuid=nexusdav --regid=nexusdav --init-groups --inh-caps=-all \
     frankenphp php-server --listen :8080 --root /app/public

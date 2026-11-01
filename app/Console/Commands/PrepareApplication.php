@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\User;
+use App\Services\AuthThrottle;
 use App\Support\EnvironmentChecker;
 use App\Support\FirstAdminCreator;
 use Illuminate\Console\Command;
@@ -55,6 +56,10 @@ class PrepareApplication extends Command
             $this->error($exception->getMessage());
 
             return self::FAILURE;
+        }
+
+        if (AuthThrottle::trustsEveryPeer()) {
+            $this->warn('TRUSTED_PROXIES is "*": every peer is trusted, so the brute-force limit cannot tell clients behind a proxy apart and the per-address limit is off. Set it to your reverse proxy\'s address, or leave it unset for the private ranges.');
         }
 
         return self::SUCCESS;

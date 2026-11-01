@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Exceptions\LastActiveAdminException;
 use App\Models\Principal;
 use App\Models\User;
+use App\Services\Dav\AddressBookBackend;
+use App\Services\Dav\CalendarBackend;
 use Illuminate\Database\Connection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -13,10 +15,26 @@ use Throwable;
 
 final class UserService
 {
+    public const DEFAULT_CALENDAR_URI = 'default';
+
+    public const DEFAULT_CALENDAR_NAME = 'Calendar';
+
+    public const DEFAULT_CALENDAR_COLOR = '#1A73E8';
+
+    public const DEFAULT_ADDRESS_BOOK_URI = 'default';
+
+    public const DEFAULT_ADDRESS_BOOK_NAME = 'Contacts';
+
+    public const EMAIL_TAKEN = 'The email has already been taken.';
+
+    public const MIN_PASSWORD_LENGTH = 12;
+
     private static int $adminLockDepth = 0;
 
     /**
-     * Create the user and their principal together.
+     * Create the user, their principal, and the default calendar and address book.
+     * The principal is the calendar and address book home. sabre serves
+     * calendars/{username} and addressbooks/{username} from that row.
      *
      * @param  array<string, mixed>  $attributes
      */
@@ -46,6 +64,10 @@ final class UserService
                 throw new InvalidArgumentException('Email must be a valid email address.');
             }
 
+            if ($this->emailTaken($email)) {
+                throw new InvalidArgumentException(self::EMAIL_TAKEN);
+            }
+
             $isAdmin = $this->flag($attributes['is_admin'] ?? false, false);
             $isActive = array_key_exists('is_active', $attributes)
                 ? $this->flag($attributes['is_active'], true)
@@ -67,10 +89,33 @@ final class UserService
                 ]);
             });
 
-            $user->setRelation('principal', $this->createPrincipal($user));
+            $user->setRelation('principal', $this->syncPrincipal($user));
+            $this->provisionDefaultCollections($user);
 
             return $user;
         });
+    }
+
+    /**
+     * Give users that lack a principal the principal their homes are served
+     * from, and default collections to users that have never had them.
+     * Everyone else is skipped, so a restart does not visit every account.
+     * A second run inserts nothing. A deleted default URI stays deleted.
+     */
+    public function backfillHomeCollections(): void
+    {
+        $users = User::query()
+            ->where('collections_provisioned', false)
+            ->orWhereDoesntHave('principal')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($users as $user) {
+            $this->transaction(function () use ($user): void {
+                $this->syncPrincipal($user);
+                $this->provisionDefaultCollections($user);
+            });
+        }
     }
 
     /**
@@ -117,6 +162,10 @@ final class UserService
 
                     if (filter_var($attributes['email'], FILTER_VALIDATE_EMAIL) === false) {
                         throw new InvalidArgumentException('Email must be a valid email address.');
+                    }
+
+                    if ($this->emailTaken($attributes['email'], (int) $user->getKey())) {
+                        throw new InvalidArgumentException(self::EMAIL_TAKEN);
                     }
                 }
 
@@ -171,6 +220,18 @@ final class UserService
         return $principal;
     }
 
+    /**
+     * DAV accepts the email as a login and matches it without case, so two
+     * accounts must not share an address that differs only in case.
+     */
+    public function emailTaken(string $email, ?int $exceptUserId = null): bool
+    {
+        return User::query()
+            ->whereRaw('lower(email) = lower(?)', [trim($email)])
+            ->when($exceptUserId !== null, fn ($query) => $query->whereKeyNot($exceptUserId))
+            ->exists();
+    }
+
     public function assertCanSave(User $user): void
     {
         if (! $user->exists) {
@@ -211,14 +272,64 @@ final class UserService
         return User::query()->where('is_admin', true)->where('is_active', true)->count() <= 1;
     }
 
+    /**
+     * One UPDATE claims the user. The loser inserts nothing, so two prepares
+     * cannot both create the defaults, and a delete is not undone.
+     */
+    private function provisionDefaultCollections(User $user): void
+    {
+        $claimed = DB::table('users')
+            ->where('id', $user->getKey())
+            ->where('collections_provisioned', false)
+            ->update(['collections_provisioned' => true]);
+
+        if ($claimed !== 1) {
+            return;
+        }
+
+        $this->ensureDefaultCollections($user);
+    }
+
+    private function ensureDefaultCollections(User $user): void
+    {
+        $pdo = DB::connection()->getPdo();
+        $principalUri = $user->principal_uri;
+
+        (new CalendarBackend($pdo))->ensureCalendar(
+            $principalUri,
+            self::DEFAULT_CALENDAR_URI,
+            self::DEFAULT_CALENDAR_NAME,
+            self::DEFAULT_CALENDAR_COLOR,
+        );
+
+        (new AddressBookBackend($pdo))->ensureAddressBook(
+            $principalUri,
+            self::DEFAULT_ADDRESS_BOOK_URI,
+            self::DEFAULT_ADDRESS_BOOK_NAME,
+        );
+    }
+
     private function createPrincipal(User $user): Principal
     {
-        return Principal::query()->create([
+        $uri = 'principals/'.$user->username;
+        $now = now();
+
+        Principal::query()->insertOrIgnore([
             'user_id' => $user->getKey(),
-            'uri' => 'principals/'.$user->username,
+            'uri' => $uri,
             'display_name' => $user->display_name,
             'email' => $user->email,
+            'created_at' => $now,
+            'updated_at' => $now,
         ]);
+
+        $principal = Principal::query()->where('user_id', $user->getKey())->first();
+
+        if (! $principal instanceof Principal || $principal->uri !== $uri) {
+            throw new RuntimeException('The principal could not be created.');
+        }
+
+        return $principal;
     }
 
     private function password(mixed $password): ?string
@@ -229,6 +340,10 @@ final class UserService
 
         if (! is_string($password) || $password === '') {
             return null;
+        }
+
+        if (mb_strlen($password) < self::MIN_PASSWORD_LENGTH) {
+            throw new InvalidArgumentException('The password must be at least '.self::MIN_PASSWORD_LENGTH.' characters.');
         }
 
         return $password;

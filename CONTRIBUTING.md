@@ -2,7 +2,7 @@
 
 Thank you for your interest in NexusDAV! Contributions of all kinds are welcome: bug reports, documentation, client compatibility reports, and code.
 
-> NexusDAV is at an early stage. The structure, tooling and conventions below will evolve, so please open an issue to discuss larger changes before investing a lot of time.
+> NexusDAV is in its 0.x series. The structure, tooling and conventions below will evolve, so please open an issue to discuss larger changes before investing a lot of time.
 
 ## Ways to contribute
 
@@ -19,8 +19,8 @@ Thank you for your interest in NexusDAV! Contributions of all kinds are welcome:
 You need the components listed under [Requirements](docs/guide.md#requirements): PHP 8.3+ (8.4 recommended) with the required extensions, Composer 2, Node.js (current LTS) and either SQLite or PostgreSQL.
 
 ```bash
-git clone https://github.com/<owner>/nexusdav.git
-cd nexusdav
+git clone https://github.com/offsyanka99/NexusDAV.git
+cd NexusDAV
 composer install
 npm install
 cp .env.example .env
@@ -29,7 +29,11 @@ php artisan migrate
 npm run dev
 ```
 
-You can also develop with Docker using the Compose files described in the README (`compose.yaml` plus `compose.postgres.yaml` or `compose.sqlite.yaml`).
+You can also develop with Docker using the Compose files described in the README (`compose.yaml` plus `compose.postgres.yaml` or `compose.sqlite.yaml`). `compose.yaml` pulls the published image; add `compose.build.yaml` last to build from your checkout:
+
+```bash
+docker compose -f compose.yaml -f compose.sqlite.yaml -f compose.build.yaml up -d --build
+```
 
 ## Making a change
 
@@ -52,7 +56,29 @@ composer analyse     # PHPStan / Larastan
 Notes:
 
 - Tests must pass on **both PostgreSQL and SQLite**. CI runs the suite once per database. Lint and analyse run once.
+- CI also builds the Docker image and runs `docker/smoke-test.sh` against it. The script fails on a PHP older than 8.4.27 and checks `/health`, the admin panel headers, cached config, a DAV request with an app password and its request log line, a client round trip (events, tasks, contacts, sync, creating and deleting a calendar), `.well-known`, `nexusdav:reset-admin-password` run as `nexusdav`, and that logs go to the container output. The Dockerfile itself stops the build on a PHP older than 8.4.27. When you change the Dockerfile, the entrypoint or anything under `docker/`, run it locally:
+
+  ```bash
+  docker build --pull -t nexusdav:local . && docker/smoke-test.sh nexusdav:local
+  ```
 - DAV protocol behavior should be checked against real clients where possible and, over time, against standard compliance suites such as the CalDAV/CardDAV test tools and `litmus` for WebDAV.
+- When you change a file in [docs/proxy](docs/proxy/), test it in front of the image over HTTPS: discovery, a `PROPFIND` with an app password, `MKCALENDAR`, a large upload, and the client address in the log.
+
+### Releasing
+
+Maintainers publish a release by pushing a version tag. The [release workflow](.github/workflows/release.yml) runs the CI checks, builds the image from a freshly pulled base, runs the smoke test, then builds and pushes `ghcr.io/offsyanka99/nexusdav` for `linux/amd64` and `linux/arm64`. A base image with PHP older than 8.4.27 stops it on either platform.
+
+1. Change the tag on the `image:` line of `compose.yaml` and the version named in the README and the guide (Quick start, Client compatibility) to the new version.
+2. Merge that to `main`, then tag the merge commit and push the tag:
+
+   ```bash
+   git tag -a v0.1.0 -m "NexusDAV 0.1.0"
+   git push origin v0.1.0
+   ```
+3. Check that the workflow passed and that the package is public (the first push creates it as private; change it under the package settings).
+4. Write the release notes on GitHub: changes, upgrade steps, and anything an admin must do.
+
+Tags are `v<major>.<minor>.<patch>`, with an optional pre-release suffix such as `-rc.1`. The image gets the exact version, `<major>.<minor>`, `<major>` from 1.0 on, and `latest` for a release without a suffix. A pre-release gets only its exact tag. The Dashboard shows the version.
 
 ### Code conventions
 

@@ -17,8 +17,9 @@ A menu links to the other admin pages. The items include **Settings**, **Configu
 The Settings page holds system-level controls for services and related options. A UI draft is kept in [docs/design/admin-settings.md](../design/admin-settings.md).
 
 **Version 1.**
-- Enable or disable CalDAV, CardDAV, Tasks (VTODO) and Notes (VJOURNAL).
+- Enable or disable CalDAV, CardDAV, Tasks (VTODO) and Notes (VJOURNAL). A service that is off answers 403 on DAV and keeps its data. With Tasks or Notes off, calendars stop offering that component: existing items stay readable and can be deleted, new ones are refused.
 - Logging level for the server.
+- A field whose environment variable is set (for example `NEXUSDAV_CALDAV` or `LOG_LEVEL`) is read-only, with a lock. The [guide](../guide.md#settings-in-the-admin-panel) lists every variable.
 
 **Version 1.x.**
 - Enable or disable WebDAV (files) and WebDAV-Push, and configure their options.
@@ -38,9 +39,11 @@ The Settings page holds system-level controls for services and related options. 
 The Configuration page holds server-wide preferences. A UI draft is kept in [docs/design/admin-configuration.md](../design/admin-configuration.md).
 
 **Version 1.**
-- Server time zone, time format and week start day.
-- Rate limiting settings.
-- Session settings (lifetime, secure cookies, etc.).
+- Server time zone, time format and week start day. The time zone applies to users without their own, to new calendars, and to times shown in the panel.
+- Rate limiting settings: failures per username, failures per address, and the window.
+- Session settings: lifetime (minutes of inactivity) and secure cookies. Secure cookies are on by default when `APP_URL` is `https`, and can be turned on only over HTTPS.
+- How long failed logins and DAV errors are kept for Diagnostics.
+- Changes apply from the next request, with no restart. Locked fields work as on Settings.
 
 **Version 1.x.**
 - Default interface language.
@@ -54,7 +57,7 @@ On the same page, a **Danger Zone** section (Version 2.x) contains **Reset to De
 
 ### Users
 
-The Users page lists all accounts. An administrator can search and filter the list, create a new user, and edit, enable, disable or delete an existing one.
+The Users page lists all accounts. An administrator can search the list by username, display name or email, create a new user, and edit, enable, disable or delete an existing one.
 
 Selecting a user shows their basic information together with the calendars and address books that belong to them. From there the administrator can create a new calendar or address book for that user.
 
@@ -64,11 +67,12 @@ A more detailed UI draft is kept in [docs/design/admin-users.md](../design/admin
 
 ### Diagnostics
 
-The Diagnostics page shows operational status and recent problems. It helps an administrator see why a client cannot sync or why a notification did not go out. A simple version arrives in Version 1 and grows in later versions.
+The Diagnostics page shows operational status and recent problems. Its heading gives the last 24 hours' failed logins and DAV errors, the same numbers as the Dashboard's Needs attention card. It helps an administrator see why a client cannot sync or why a notification did not go out. A simple version arrives in Version 1 and grows in later versions.
 
 **Version 1**
 - Recent failed login attempts to the admin panel and the DAV endpoint (time, IP, user, reason). Passwords and app password secrets are never stored or shown
 - Latest DAV errors (4xx/5xx responses on `/dav/*`, with method, path, status, user and, for rejected logins, the reason such as revoked app password or main password used). A request without credentials is not an error and is not listed
+- A Request ID on each row (shown for DAV errors, optional for failed logins). Searching the container log for it shows that request's log lines, including any error detail
 - App passwords across all users (user, device, created, last used, revoked or expired; can be revoked)
 
 **Version 1.x**

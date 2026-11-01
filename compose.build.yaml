@@ -1,0 +1,10 @@
+# Build the image from this checkout instead of pulling the published one.
+# Usage (add it last, after the database file):
+#   docker compose -f compose.yaml -f compose.postgres.yaml -f compose.build.yaml up -d --build
+
+services:
+  nexusdav:
+    image: nexusdav:local
+    build:
+      context: .
+      pull: true

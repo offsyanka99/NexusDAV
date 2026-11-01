@@ -1,0 +1,67 @@
+<?php
+
+namespace App\Filament\Widgets;
+
+use App\Filament\Pages\Settings;
+use App\Services\SettingsService;
+use Filament\Actions\Action;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Section;
+use Filament\Support\Icons\Heroicon;
+
+/**
+ * The four service switches, On or Off, with a lock when the environment
+ * decides. Changes are made on the Settings page.
+ */
+class ServicesWidget extends SchemaWidget
+{
+    protected static ?int $sort = 2;
+
+    protected function heading(): string
+    {
+        return __('Services');
+    }
+
+    protected function section(Section $section): Section
+    {
+        return $section
+            ->columns(4)
+            ->footer([
+                Action::make('manageSettings')
+                    ->label(__('Manage in Settings'))
+                    ->icon(Heroicon::ArrowRight)
+                    ->iconPosition('after')
+                    ->link()
+                    ->url(Settings::getUrl()),
+            ]);
+    }
+
+    protected function entries(): array
+    {
+        $settings = app(SettingsService::class);
+        $entries = [];
+
+        foreach ([
+            'caldav' => __('CalDAV'),
+            'carddav' => __('CardDAV'),
+            'tasks' => __('Tasks'),
+            'notes' => __('Notes'),
+        ] as $key => $label) {
+            $on = (bool) $settings->get($key);
+            $entry = TextEntry::make($key)
+                ->label($label)
+                ->state($on ? __('On') : __('Off'))
+                ->badge()
+                ->color($on ? 'success' : 'gray')
+                ->icon($on ? Heroicon::CheckCircle : Heroicon::MinusCircle);
+
+            if ($settings->isLocked($key)) {
+                $entry->hintIcon(Heroicon::LockClosed, tooltip: __('Set by environment'));
+            }
+
+            $entries[] = $entry;
+        }
+
+        return $entries;
+    }
+}

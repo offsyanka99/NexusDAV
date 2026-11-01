@@ -26,7 +26,7 @@ class FirstAdminTest extends TestCase
 
         $this->assertSame('adminusertag', $admin->username);
         $this->assertSame('Admin.User+tag', $admin->display_name);
-        $this->assertSame('Admin.User+tag@example.com', $admin->email);
+        $this->assertSame('admin.user+tag@example.com', $admin->email);
         $this->assertTrue($admin->is_admin);
         $this->assertTrue($admin->is_active);
         $this->assertTrue(Hash::check('correct-horse-battery', (string) $admin->password));
@@ -58,7 +58,10 @@ class FirstAdminTest extends TestCase
             'is_active' => true,
             'email' => 'admin@example.com',
         ]);
-        $before = $admin->fresh()?->getAttributes();
+        $loaded = $admin->fresh();
+        $this->assertNotNull($loaded);
+        $this->assertFalse($loaded->collections_provisioned);
+        $before = $loaded->getAttributes();
 
         $this->setEnv('APP_URL', 'http://localhost:8080');
         $this->setEnv('ADMIN_EMAIL', 'other@example.com');
@@ -67,8 +70,11 @@ class FirstAdminTest extends TestCase
         $this->artisan('nexusdav:prepare')->assertSuccessful();
 
         $fresh = User::query()->sole();
+        $after = $fresh->getAttributes();
 
-        $this->assertSame($before, $fresh->getAttributes());
+        $this->assertTrue($fresh->collections_provisioned);
+        unset($before['collections_provisioned'], $after['collections_provisioned']);
+        $this->assertSame($before, $after);
         $this->assertSame('principals/'.$admin->username, $fresh->principal?->uri);
         $this->assertSame($fresh->display_name, $fresh->principal?->display_name);
         $this->assertSame($fresh->email, $fresh->principal?->email);
@@ -111,7 +117,7 @@ class FirstAdminTest extends TestCase
         $this->setEnv('ADMIN_PASSWORD', 'correct-horse-battery');
 
         $this->artisan('nexusdav:prepare')
-            ->expectsOutputToContain('constraint')
+            ->expectsOutputToContain('The email has already been taken.')
             ->doesntExpectOutputToContain('correct-horse-battery')
             ->doesntExpectOutputToContain('$argon2id$')
             ->assertFailed();
