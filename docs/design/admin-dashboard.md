@@ -14,7 +14,7 @@ It is read-only. It never changes settings. Anything the administrator needs to 
 
 ## Version 1 layout
 
-The page uses the standard Filament panel layout (navigation, then page header, then widgets). The primary colour is the panel's amber. The top of the page shows the title **Dashboard**. There is no search field and no action button in the header.
+The page uses the standard Filament panel layout (navigation, then page header, then widgets). The primary colour is the panel's blue. The top of the page shows the title **Dashboard**. There is no search field and no action button in the header.
 
 ```
 +-----------------------------------------------------------------------+

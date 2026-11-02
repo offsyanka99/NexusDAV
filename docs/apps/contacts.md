@@ -10,9 +10,9 @@ The address book URL looks like `/dav/addressbooks/<username>/<addressbook-id>/`
 
 **Version 1.x.** An admin can share an address book with another user on this server, read-only or read-write. The other user's client shows it in their own address book home; clients do not create shares. WebDAV-Push can notify a subscribed client when the address book changes. Push uses the bitfire draft `draft-bitfire-webdav-push-00` at commit `611abe2e8a0cdd7570cb936844b6588f7145b27d`, until that project publishes a release. The admin panel turns push on or off for the server.
 
-**Version 2.** The user portal can manage that person's own address books and contacts. Import and export of `.vcf` files is included. Search can find contacts.
+**Version 2.** The user portal can manage that person's own address books and contacts. Import and export of `.vcf` files is included. Search can find contacts. Duplicate contacts can be found and merged.
 
-**Version 2.x.** When an address book is shared, the server can email the sharee through the external SMTP server. That notice is outbound only.
+**Version 2.x.** When an address book is shared, the server can email the sharee through the external SMTP server. That notice is outbound only. Trash and restore of a deleted contact, and a direct import from Radicale, Baïkal or Nextcloud, are added.
 
 ## Who does what
 
@@ -29,7 +29,4 @@ Target clients are DAVx⁵, Thunderbird, and Apple Contacts. Automated tests wit
 
 These are not assigned to a version:
 
-- Finding duplicate contacts and merging them
 - Sending one contact to someone by email. That needs the Version 2.x mailer and is still a separate feature
-- Trash and restore of a deleted contact
-- A direct import from Radicale, Baïkal, or Nextcloud. Version 2 import is a `.vcf` file. Until then a connected client can import the file.

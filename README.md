@@ -72,7 +72,7 @@ Lost the admin password? Reset it from the container shell, as described in the 
 - [Data model](docs/data-model.md) — tables and relationships
 - [DAV endpoints](docs/dav-endpoints.md) — sabre/dav paths used in Version 1
 - [Implementation plan (v1)](docs/plans/implementation-plan-v1.md) — step-by-step PRs with effort levels
-- [Implementation plan (v1.x)](docs/plans/implementation-plan-v1x.md) — high-level milestones for the Version 1.x features
+- [Implementation plan (v1.x)](docs/plans/implementation-plan-v1x.md) — milestones and PRs for the Version 1.x features
 - [Plan for Version 2 and later](docs/plans/version-2-and-later.md) — features for 2.0, 2.x and beyond
 - [Apps](docs/apps/README.md) — Calendar, Contacts, Tasks, Notes, Files and the admin panel
 

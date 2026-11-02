@@ -30,7 +30,10 @@ A **Save** button stores the values. A change applies from the next request.
 ## Version 1.x
 
 - Default interface language (English or Russian; each admin can choose their own in the user menu)
-- Portal log level (once the user portal exists)
+
+## Version 2
+
+- Portal log level and portal session settings (the user portal arrives in Version 2)
 
 ## Version 2.x
 

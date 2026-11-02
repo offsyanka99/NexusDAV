@@ -8,7 +8,7 @@ Related documents:
 - [Data model](data-model.md) — tables and relationships
 - [DAV endpoints](dav-endpoints.md) — sabre/dav paths
 - [Implementation plan (v1)](plans/implementation-plan-v1.md) — step-by-step PRs with effort levels
-- [Implementation plan (v1.x)](plans/implementation-plan-v1x.md) — high-level milestones for the Version 1.x features
+- [Implementation plan (v1.x)](plans/implementation-plan-v1x.md) — milestones and PRs for the Version 1.x features
 - [Plan for Version 2 and later](plans/version-2-and-later.md) — features for 2.0, 2.x and beyond
 
 Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `0.1.1` (first release `0.1.0`). The server passes automated sync tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
@@ -388,19 +388,20 @@ What each app includes, version by version, is described in [apps](apps/README.m
 
 - Public read-only calendar links / ICS subscriptions
 - Birthdays calendar generated from contacts
-- Holidays calendar (the country is selected first)
-- Custom color for a specific event
+- Holidays calendar (the country is selected first) — Version 2
+- Custom color for a specific event — Version 2
 
 #### Contacts (long-term)
 
-- Duplicate detection and merge
+- Duplicate detection and merge — Version 2
 - Share a contact by email (requires the Version 2.x mailer)
 
 #### Data (long-term)
 
-- Trash and restore of deleted items
-- Trash for files in the user portal
-- Direct import from Radicale, Baïkal and Nextcloud
+- Trash and restore of deleted items — Version 2.x
+- Trash for files in the user portal — Version 2.x
+- Direct import from Radicale, Baïkal and Nextcloud — Version 2.x
+- Editing office documents in the browser — Version 2.x
 
 #### Integration (long-term)
 
@@ -415,10 +416,10 @@ What each app includes, version by version, is described in [apps](apps/README.m
 
 #### Accessibility (long-term)
 
-- Mobile-friendly admin panel and user portal
-- Dark mode
+- Mobile-friendly admin panel and user portal (the admin panel's layout is already responsive) — Version 2.x
+- Dark mode for the user portal (the admin panel already has a light, dark and system theme switcher) — Version 2.x
 
-These items are not assigned to a version yet; they will be added to the [Roadmap](#roadmap) as they are scheduled.
+Items marked with a version are scheduled in the [plan for Version 2 and later](plans/version-2-and-later.md). The others are not assigned to a version yet; they will be added to the [Roadmap](#roadmap) as they are scheduled.
 
 ## Backup, restore and upgrade
 
@@ -539,6 +540,7 @@ Export calendars as `.ics` and contacts as `.vcf` from your current server (Radi
 - On-server CalDAV scheduling (invitations and free/busy between users on this server). No outbound email yet
 - Import / Export (ICS, VCF)
 - Search across events and contacts
+- Holidays calendar, custom color for a single event, and duplicate contact detection and merge
 
 ### Version 2.x
 
@@ -550,3 +552,5 @@ Export calendars as `.ics` and contacts as `.vcf` from your current server (Radi
 - Multilingual user portal
 - Optional 2FA
 - Export and import of server settings (JSON)
+- Trash and restore of deleted items (including files in the user portal), direct import from Radicale, Baïkal and Nextcloud, and editing office documents in the browser
+- A mobile-friendly user portal with dark mode, and an admin panel optimised for mobile

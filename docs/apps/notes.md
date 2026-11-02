@@ -12,7 +12,7 @@ Few clients do. Apple Notes and Thunderbird do not use `VJOURNAL`, so notes stor
 
 **Version 2.** Import and export of `.ics` files includes notes. The user portal can edit that person's own notes. This is the first NexusDAV screen that edits a note. The admin panel still does not.
 
-**Version 2.x.** No note-specific mail.
+**Version 2.x.** No note-specific mail. Trash and restore of a deleted note is added.
 
 ## Who does what
 
@@ -29,4 +29,3 @@ The client that is expected to show notes is DAVx⁵ together with jtx Board. Ot
 - Sync with Apple Notes or Thunderbird
 - A note editor in the admin panel
 - Sharing one note with someone who is not already shared on the whole collection
-- Trash and restore of a deleted note

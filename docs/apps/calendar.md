@@ -10,9 +10,9 @@ The collection URL looks like `/dav/calendars/<username>/<calendar-id>/`. The ad
 
 **Version 1.x.** An admin can share a calendar with another user on this server, read-only or read-write. The other user's client shows it in their own calendar home; clients do not create shares. WebDAV-Push can notify a subscribed client when the collection changes. Push uses the bitfire draft `draft-bitfire-webdav-push-00` at commit `611abe2e8a0cdd7570cb936844b6588f7145b27d`, until that project publishes a release. The admin panel turns push on or off for the server. Sync reliability improves in this same version line.
 
-**Version 2.** Users on this server can invite each other and check free/busy. That scheduling stays on the server. It does not send email. The user portal can manage that person's own calendars. Import and export of `.ics` files includes events. Search can find events.
+**Version 2.** Users on this server can invite each other and check free/busy. That scheduling stays on the server. It does not send email. The user portal can manage that person's own calendars. Import and export of `.ics` files includes events. Search can find events. A holidays calendar (the country is chosen first) and a custom color on a single event are added.
 
-**Version 2.x.** Outbound email can invite someone who does not have an account here, and can send reminders. Mail goes through an external SMTP server. NexusDAV does not read the reply, so an emailed accept or decline does not update the event. People who have an account still respond through CalDAV. Managed attachments can store files that belong to an event.
+**Version 2.x.** Outbound email can invite someone who does not have an account here, and can send reminders. Mail goes through an external SMTP server. NexusDAV does not read the reply, so an emailed accept or decline does not update the event. People who have an account still respond through CalDAV. Managed attachments can store files that belong to an event. Trash and restore of a deleted event, and a direct import from Radicale, Baïkal or Nextcloud, are added. Until the import exists, a connected client can import an `.ics` file.
 
 ## Who does what
 
@@ -33,9 +33,5 @@ These are not assigned to a version:
 
 - A public read-only link or an ICS subscription URL for people without an account
 - A birthdays calendar built from contacts
-- A holidays calendar, with the country chosen first
-- A custom color on a single event
-- Trash and restore of a deleted event
-- A direct import from Radicale, Baïkal, or Nextcloud. Version 2 import is an `.ics` file. Until then a connected client can import the file.
 
 NexusDAV does not run chat, and it does not edit office documents inside a calendar.

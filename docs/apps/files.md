@@ -12,7 +12,7 @@ There is no Files feature in Version 1. Calendars, contacts, tasks, and notes do
 
 **Version 2.** The user portal can manage that person's own files. The admin panel remains the operator's view, not a file editor.
 
-**Version 2.x.** User quotas can limit how much a person stores. Quotas are a server setting, described in the [admin panel](admin.md).
+**Version 2.x.** User quotas can limit how much a person stores. Quotas are a server setting, described in the [admin panel](admin.md). A trash for files in the user portal, and editing office documents in the browser, are added.
 
 ## Who does what
 
@@ -28,7 +28,5 @@ Large uploads depend on the reverse proxy allowing a large request body. See [Tr
 ## Not in the plan yet
 
 - Sharing a file or a folder with another user. Sharing in Version 1.x is for calendars and address books only
-- A trash for files in the user portal
-- Editing office documents in the browser
 - Calendar managed attachments. Those belong to an event and are [Version 2.x of Calendar](calendar.md), not the file home
 - Sync tokens on the file home. Collection sync in Version 1 is for CalDAV and CardDAV collections

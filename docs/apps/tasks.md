@@ -10,7 +10,7 @@ A task is a CalDAV `VTODO`. Tasks are not a separate server and not a separate p
 
 **Version 2.** Import and export of `.ics` files includes tasks. The user portal can manage that person's own tasks. Search in this version covers events and contacts, not a separate task search.
 
-**Version 2.x.** No task-specific mail. A reminder email belongs to a calendar event alarm, described in [Calendar](calendar.md).
+**Version 2.x.** No task-specific mail. A reminder email belongs to a calendar event alarm, described in [Calendar](calendar.md). Trash and restore of a deleted task is added.
 
 ## Who does what
 
@@ -32,5 +32,4 @@ Automated tests with vdirsyncer and the python caldav client pass. DAVx⁵ with 
 
 - A task editor in the admin panel
 - Scheduling or invitations for tasks
-- Trash and restore of a deleted task
 - Turning a task into an event, or the other way around

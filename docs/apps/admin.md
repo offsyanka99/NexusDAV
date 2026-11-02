@@ -121,6 +121,7 @@ The Diagnostics page shows operational status and recent problems. Its heading g
 - User quotas, storage statistics, an audit log of logins and admin actions, and fuller health checks.
 - Export and import of server settings as JSON. Secrets such as the SMTP password are left out, or the file is encrypted. Values that come from the environment are not exported. The file has no users, calendars, or contacts.
 - Optional two-factor authentication for the panel.
+- A layout optimised for mobile. Filament's layout is already responsive, and its light, dark and system theme switcher is already on.
 
 ## Who does what
 
@@ -141,5 +142,4 @@ Health for Version 1 is the unauthenticated `/health` endpoint, which reports th
 - Email of any kind before Version 2.x
 - Switching PostgreSQL and SQLite after install
 - A web page that sets the admin password from an environment flag. Recovery stays the shell command, so a stranger who reaches the site first cannot claim the account
-- Mobile layout and dark mode. Those are not assigned to a version
 - Webhooks or automation tokens
