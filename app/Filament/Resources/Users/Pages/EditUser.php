@@ -10,6 +10,7 @@ use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Support\Enums\Alignment;
 use Filament\Support\Exceptions\Halt;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
@@ -17,6 +18,16 @@ use InvalidArgumentException;
 class EditUser extends EditRecord
 {
     protected static string $resource = UserResource::class;
+
+    public function getTitle(): string
+    {
+        return 'Edit User';
+    }
+
+    public function getFormActionsAlignment(): Alignment
+    {
+        return Alignment::End;
+    }
 
     /**
      * @param  array<string, mixed>  $data

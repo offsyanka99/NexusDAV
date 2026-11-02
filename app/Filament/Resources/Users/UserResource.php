@@ -22,7 +22,10 @@ use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Text;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -47,9 +50,18 @@ class UserResource extends Resource
             ->components([
                 Section::make('User')
                     ->visible(fn (string $operation): bool => $operation === 'edit')
+                    ->compact()
+                    ->gap(false)
+                    ->columnSpan(1)
                     ->schema([
+                        TextEntry::make('username_summary')
+                            ->label('Username')
+                            ->inlineLabel()
+                            ->saved(false)
+                            ->state(fn (?User $record): string => (string) $record?->username),
                         TextEntry::make('principal_uri')
                             ->label('Principal')
+                            ->inlineLabel()
                             ->saved(false)
                             ->state(function (?User $record): string {
                                 $principal = $record?->principal;
@@ -58,12 +70,14 @@ class UserResource extends Resource
                             }),
                         TextEntry::make('calendars_count')
                             ->label('Calendars')
+                            ->inlineLabel()
                             ->saved(false)
                             ->state(fn (?User $record): string => $record instanceof User
                                 ? (string) $record->calendarInstances()->count()
                                 : '0'),
                         TextEntry::make('objects_count')
                             ->label('Events/Objects')
+                            ->inlineLabel()
                             ->saved(false)
                             ->state(function (?User $record): string {
                                 if (! $record instanceof User) {
@@ -76,12 +90,14 @@ class UserResource extends Resource
                             }),
                         TextEntry::make('address_books_count')
                             ->label('Address Books')
+                            ->inlineLabel()
                             ->saved(false)
                             ->state(fn (?User $record): string => $record instanceof User
                                 ? (string) $record->addressBooks()->count()
                                 : '0'),
                         TextEntry::make('contacts_count')
                             ->label('Contacts')
+                            ->inlineLabel()
                             ->saved(false)
                             ->state(function (?User $record): string {
                                 if (! $record instanceof User) {
@@ -93,67 +109,88 @@ class UserResource extends Resource
                                     ->count();
                             }),
                     ]),
-                TextInput::make('username')
-                    ->required()
-                    ->maxLength(63)
-                    ->regex(User::USERNAME_PATTERN)
-                    ->unique()
-                    ->disabled(fn (string $operation): bool => $operation === 'edit')
-                    ->dehydrated(fn (string $operation): bool => $operation === 'create')
-                    ->helperText(fn (string $operation): string => $operation === 'edit'
-                        ? 'Username cannot be changed.'
-                        : 'Lowercase letters, numbers, underscores, and hyphens.'),
-                TextInput::make('display_name')
-                    ->label('Display name')
-                    ->required()
-                    ->maxLength(255),
-                TextInput::make('email')
-                    ->email()
-                    ->required()
-                    ->maxLength(255)
-                    ->rule(fn (?User $record): Closure => function (string $attribute, mixed $value, Closure $fail) use ($record): void {
-                        $exceptId = $record instanceof User ? (int) $record->getKey() : null;
+                Group::make()
+                    ->columns(self::fieldColumns(...))
+                    ->columnSpan(fn (string $operation): int|string => $operation === 'edit' ? 1 : 'full')
+                    ->schema([
+                        TextInput::make('username')
+                            ->visible(fn (string $operation): bool => $operation === 'create')
+                            ->required()
+                            ->maxLength(63)
+                            ->regex(User::USERNAME_PATTERN)
+                            ->unique()
+                            ->helperText('Lowercase letters, numbers, underscores, and hyphens.'),
+                        TextInput::make('display_name')
+                            ->label('Display name')
+                            ->required()
+                            ->maxLength(255),
+                        TextInput::make('email')
+                            ->email()
+                            ->required()
+                            ->maxLength(255)
+                            ->rule(fn (?User $record): Closure => function (string $attribute, mixed $value, Closure $fail) use ($record): void {
+                                $exceptId = $record instanceof User ? (int) $record->getKey() : null;
 
-                        if (is_string($value) && app(UserService::class)->emailTaken($value, $exceptId)) {
-                            $fail(UserService::EMAIL_TAKEN);
-                        }
-                    }),
-                TextInput::make('password')
-                    ->password()
-                    ->revealable()
-                    ->dehydrated(fn (mixed $state): bool => filled($state))
-                    ->required(function (string $operation, Get $get, ?User $record): bool {
-                        if (! (bool) $get('is_admin')) {
-                            return false;
-                        }
+                                if (is_string($value) && app(UserService::class)->emailTaken($value, $exceptId)) {
+                                    $fail(UserService::EMAIL_TAKEN);
+                                }
+                            }),
+                        Grid::make()
+                            ->columns(self::fieldColumns(...))
+                            ->columnSpanFull()
+                            ->schema([
+                                TextInput::make('password')
+                                    ->password()
+                                    ->revealable()
+                                    ->dehydrated(fn (mixed $state): bool => filled($state))
+                                    ->required(function (string $operation, Get $get, ?User $record): bool {
+                                        if (! (bool) $get('is_admin')) {
+                                            return false;
+                                        }
 
-                        if ($operation === 'create') {
-                            return true;
-                        }
+                                        if ($operation === 'create') {
+                                            return true;
+                                        }
 
-                        $stored = $record?->getAttributes()['password'] ?? null;
+                                        $stored = $record?->getAttributes()['password'] ?? null;
 
-                        return ! is_string($stored) || $stored === '';
-                    })
-                    ->minLength(UserService::MIN_PASSWORD_LENGTH)
-                    ->confirmed()
-                    ->helperText('At least '.UserService::MIN_PASSWORD_LENGTH.' characters. Required for admins. Optional for everyone else. Only the admin panel accepts this password.'),
-                TextInput::make('password_confirmation')
-                    ->label('Confirm password')
-                    ->password()
-                    ->revealable()
-                    ->dehydrated(false)
-                    ->required(fn (Get $get): bool => filled($get('password'))),
-                Toggle::make('is_admin')
-                    ->label('Admin')
-                    ->default(false)
-                    ->helperText(fn (?User $record): ?string => $record instanceof User && app(UserService::class)->isLastActiveAdmin($record)
-                        ? LastActiveAdminException::CANNOT_CHANGE
-                        : null),
-                Toggle::make('is_active')
-                    ->label('Active')
-                    ->default(true),
+                                        return ! is_string($stored) || $stored === '';
+                                    })
+                                    ->minLength(UserService::MIN_PASSWORD_LENGTH)
+                                    ->confirmed(),
+                                TextInput::make('password_confirmation')
+                                    ->label('Confirm password')
+                                    ->password()
+                                    ->revealable()
+                                    ->dehydrated(false)
+                                    ->required(fn (Get $get): bool => filled($get('password'))),
+                                Text::make('At least '.UserService::MIN_PASSWORD_LENGTH.' characters. Required for admins. Optional for everyone else. Only the admin panel accepts this password.')
+                                    ->columnSpanFull(),
+                            ]),
+                        Toggle::make('is_admin')
+                            ->label('Admin')
+                            ->default(false)
+                            ->helperText(fn (?User $record): ?string => $record instanceof User && app(UserService::class)->isLastActiveAdmin($record)
+                                ? LastActiveAdminException::CANNOT_CHANGE
+                                : null),
+                        Toggle::make('is_active')
+                            ->label('Active')
+                            ->default(true),
+                    ]),
             ]);
+    }
+
+    /**
+     * On the edit page the fields share the row with the User panel, so they
+     * pair up only on wide screens.
+     *
+     * @return array<string, int>
+     */
+    private static function fieldColumns(string $operation): array
+    {
+        return $operation === 'edit'
+            ? ['default' => 1, 'lg' => 1, '2xl' => 2]
+            : ['default' => 1, 'lg' => 2];
     }
 
     public static function table(Table $table): Table

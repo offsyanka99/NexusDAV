@@ -12,6 +12,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Support\Enums\FontFamily;
 use Filament\Support\Exceptions\Halt;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -36,6 +37,15 @@ class AddressBooksRelationManager extends RelationManager
                 TextColumn::make('cards_count')
                     ->label('Contacts')
                     ->counts('cards'),
+                TextColumn::make('dav_path')
+                    ->label('DAV path')
+                    ->fontFamily(FontFamily::Mono)
+                    ->state(function (AddressBook $record): string {
+                        $owner = $this->getOwnerRecord();
+                        $username = $owner instanceof User ? $owner->username : '';
+
+                        return '/dav/addressbooks/'.$username.'/'.$record->uri.'/';
+                    }),
             ])
             ->headerActions([
                 Action::make('create')

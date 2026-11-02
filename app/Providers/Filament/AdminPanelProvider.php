@@ -30,7 +30,12 @@ class AdminPanelProvider extends PanelProvider
             ->login(Login::class)
             ->brandName('NexusDAV')
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::Blue,
+                'info'    => Color::Sky,
+                'success' => Color::Emerald,
+                'warning' => Color::Amber,
+                'danger'  => Color::Rose,
+                'gray'    => Color::Gray,
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
