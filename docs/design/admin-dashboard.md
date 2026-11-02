@@ -1,6 +1,6 @@
 # Admin panel — Dashboard (UI draft)
 
-This is a design note, not part of the official documentation. The high-level description lives in [admin.md](../apps/admin.md#after-sign-in). It was built in PR 6 of the [implementation plan](../implementation-plan-v1.md); this note describes it as built.
+This is a design note, not part of the official documentation. The high-level description lives in [admin.md](../apps/admin.md#after-sign-in). It was built in PR 6 of the [implementation plan](../plans/implementation-plan-v1.md); this note describes it as built.
 
 ## Purpose
 
@@ -21,7 +21,7 @@ The page uses the standard Filament panel layout (navigation, then page header, 
 | Dashboard                                                             |
 +-----------------------------------------------------------------------+
 | [ Server status ]                                                     |
-|  ● Application OK  ● Database OK (PostgreSQL)  NexusDAV 0.1.0+fc8b441 |
+|  ● Application OK  ● Database OK (PostgreSQL)  NexusDAV 0.1.1         |
 +-----------------------------------------------------------------------+
 | [ Services ]                                                          |
 |  CalDAV  ● On     CardDAV  ● On     Tasks  ● On     Notes  ○ Off      |
@@ -110,7 +110,7 @@ One card that stays quiet when everything is fine.
 ## What is not on the Dashboard in Version 1
 
 - Storage size, disk space and per-user usage. These come with quotas and storage statistics in Version 2.x.
-- Extended health checks (queue, SMTP, WebDAV-Push worker). Version 2.x.
+- Extended health checks (queue, SMTP, mail). Version 2.x. A WebDAV-Push worker warning arrives with WebDAV-Push in Version 1.x.
 - Charts or activity graphs. Version 1 shows numbers only.
 - Quick-action buttons. The navigation already reaches every page.
 - Filament's default welcome and "Filament info" widgets. Remove them. They advertise the framework and give the administrator nothing.
@@ -142,7 +142,7 @@ One card that stays quiet when everything is fine.
 
 | Version | Addition |
 |---|---|
-| 1.x | WebDAV, WebDAV-Push and Sharing in the Services card |
+| 1.x | WebDAV, WebDAV-Push and Sharing in the Services card; a warning in Needs attention when push is on and the worker is not running |
 | 2 | Scheduling in the Services card |
 | 2.x | Storage and quota summary, extended health, mail queue and backup status |
 

@@ -7,10 +7,11 @@ Related documents:
 - [Architecture](architecture.md) — components and request flow for Version 1
 - [Data model](data-model.md) — tables and relationships
 - [DAV endpoints](dav-endpoints.md) — sabre/dav paths
-- [Implementation plan (v1)](implementation-plan-v1.md) — step-by-step PRs with effort levels
+- [Implementation plan (v1)](plans/implementation-plan-v1.md) — step-by-step PRs with effort levels
+- [Implementation plan (v1.x)](plans/implementation-plan-v1x.md) — high-level milestones for the Version 1.x features
 - [Plan for Version 2 and later](plans/version-2-and-later.md) — features for 2.0, 2.x and beyond
 
-Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `0.1.1` (first release `0.1.0`). The server passes automated sync tests with the vdirsyncer and python caldav clients; DAVx5, Thunderbird and Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
+Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `0.1.1` (first release `0.1.0`). The server passes automated sync tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
 
 NexusDAV is built for homelabs and small teams that want calendars, contacts, tasks, notes and files without running a full groupware suite.
 
@@ -99,7 +100,7 @@ Running with Docker needs only Docker Engine with the Compose plugin. The table 
 
 **Security note (October 2026):** PHP 8.4.27, 8.3.36, 8.2.35 and 8.5.12 fix two critical unauthenticated RCE vulnerabilities (CVE-2026-109618, CVE-2026-109619). The Docker image must use a patched PHP version.
 
-**Required PHP extensions:** `ctype`, `curl`, `date`, `dom`, `fileinfo`, `filter`, `hash`, `iconv`, `intl`, `json`, `libxml`, `mbstring`, `openssl`, `pcre`, `pdo`, `pdo_pgsql`, `pdo_sqlite`, `session`, `simplexml`, `tokenizer`, `xml`.
+**Required PHP extensions:** `ctype`, `curl`, `date`, `dom`, `fileinfo`, `filter`, `hash`, `iconv`, `intl`, `json`, `libxml`, `mbstring`, `openssl`, `pcre`, `pdo`, `pdo_pgsql`, `pdo_sqlite`, `session`, `simplexml`, `tokenizer`, `xml`, `zip`.
 
 `intl` is required by Filament. PHP must also be built with Argon2 support (`password_hash` with `PASSWORD_ARGON2ID`); the official PHP Docker images include it.
 
@@ -212,7 +213,7 @@ A web-based reset triggered by an environment variable is deliberately not used:
 ### Authentication
 
 - Main user passwords: **Argon2id**
-- **App passwords / personal access tokens** (for DAVx5, Thunderbird and other clients), available from Version 1
+- **App passwords / personal access tokens** (for DAVx5, Thunderbird and other clients), available from Version 1. An app password is not limited to one service: it works for calendars and contacts, and from Version 1.x also for the user's files, so give each device its own and revoke it when the device is lost
 - **Rate limiting and brute-force protection** on the login form and the DAV endpoints, available from Version 1
 
 ### Database
@@ -279,14 +280,20 @@ NexusDAV targets standards-compliant clients. The table shows the Version 1 targ
 
 | Client | CalDAV (events) | CardDAV (contacts) | Tasks (VTODO) | Notes (VJOURNAL) | Status |
 |---|---|---|---|---|---|
-| **DAVx5** (Android) | Yes | Yes | Yes, via a tasks app (jtx Board, Tasks.org, OpenTasks) | Yes, via jtx Board | Primary target; not tested yet |
-| **Thunderbird** | Yes | Yes | Yes | No (not supported by the client) | Target; not tested yet |
+| **DAVx5** (Android) | Yes | Yes | Yes, via a tasks app (jtx Board, Tasks.org, OpenTasks) | Yes, via jtx Board | Primary target; tested for 0.1.1 (4.5.21): calendar, contacts, tasks and notes via jtx Board |
+| **Thunderbird** | Yes | Yes | Yes | No (not supported by the client) | Target; tested for 0.1.1 (159.0): calendar and contacts. Tasks not tested |
 | **Apple Calendar / Contacts** (macOS, iOS) | Yes | Yes | Yes, in Reminders (not in Calendar) | No | Target; not tested yet |
 | **vdirsyncer** 0.21.0 | Yes | Yes | Synced as files | Synced as files | Tested for 0.1.1 (automated) |
 | **python caldav** 3.7.0 | Yes | — | Yes | Yes | Tested for 0.1.1 (automated) |
 | Other standards-compliant clients | Expected | Expected | Client-dependent | Client-dependent | Best effort |
 
-**What was tested** (SQLite, November 2026; recorded on 0.1.0 and unchanged for 0.1.1):
+**What was tested by hand** (0.1.1, PostgreSQL 18 behind Caddy over HTTPS, November 2026):
+
+- **DAVx5 4.5.21** on a Pixel 7 Pro and a Pixel 10 Pro, both on Android 17: calendar, contacts, tasks and notes, the last two through jtx Board.
+- **Thunderbird 159.0** (Snap package on Ubuntu): calendar and contacts. Tasks were not tested.
+- **Not tested yet:** Apple Calendar, Contacts and Reminders, and Tasks.org or OpenTasks with DAVx5.
+
+**What was tested by automated clients** (SQLite, November 2026; recorded on 0.1.0 and unchanged for 0.1.1):
 
 - **vdirsyncer 0.21.0** started from the server URL only, discovered the default calendar and address book, uploaded a local contact and event, synced a server-side edit down and a local delete up.
 - **python caldav 3.7.0** started from `/.well-known/caldav`, found the principal and the default calendar, created a calendar with `MKCALENDAR`, saved a weekly event (expanded by the server to three occurrences), a task that it then completed, and a note, ran an incremental sync that returned only the changed event and then the deletion, and deleted the calendar.
@@ -309,7 +316,7 @@ Use the same steps for every client; only the menu names differ.
 - **Thunderbird:** add a calendar (*New Calendar > On the Network > CalDAV*) and an address book (*New Address Book > CardDAV*).
 - **Apple Calendar / Contacts:** add an account of type *Other* (CalDAV / CardDAV account).
 
-The exact steps will be verified against tested client versions as the project matures.
+The steps for DAVx5 and Thunderbird were checked against the versions in [Client compatibility](#client-compatibility). The Apple steps are not verified yet.
 
 ### DAV endpoints
 
@@ -331,7 +338,7 @@ Creating a user creates the two homes and, inside them, a default calendar and a
 
 ### Supported protocols & extensions
 
-Nothing is released yet; the table shows the target version for each item (see [Roadmap](#roadmap)).
+The table shows the version in which each item arrives (see [Roadmap](#roadmap)). Version 1 items are built; Version 1.x and later items are planned.
 
 | Protocol / extension | Target version |
 |---|---|
@@ -340,7 +347,7 @@ Nothing is released yet; the table shows the target version for each item (see [
 | Tasks (VTODO) via CalDAV | Version 1 |
 | Notes (VJOURNAL) via CalDAV | Version 1 |
 | Collection sync (sync-token), provided by sabre/dav | Version 1 |
-| Sharing (CalDAV/CardDAV Sharing + ACL) | Version 1.x |
+| Sharing of calendars and address books (read-only or read-write, set up in the admin panel; clients do not create shares) | Version 1.x |
 | WebDAV-Push (bitfire draft, on/off in the admin panel; not a sabre/dav plugin) | Version 1.x |
 | CalDAV Scheduling, on-server invitations and free/busy | Version 2 |
 | Outbound email (external invitations, notices, reminders, reports) | Version 2.x |
@@ -356,7 +363,7 @@ These are long-term goals for the project. Implementation will be staged. The ar
 - Focused self-hosted DAV server with a modern admin panel, without the weight of a full groupware suite
 - Admin interface for users, calendars, address books, shares, permissions and server settings
 - Separate user portal for managing personal calendars, contacts, notes (VJOURNAL — limited client support), tasks and files (WebDAV)
-- **Multilingual** admin panel (Version 1.x) and user portal (Version 2+)
+- **Multilingual** admin panel (Version 1.x) and user portal (Version 2.x)
 - Docker-friendly
 - Standards-compliant DAV protocols
 - Search across events and contacts
@@ -520,9 +527,9 @@ Export calendars as `.ics` and contacts as `.vcf` from your current server (Radi
 
 ### Version 1.x
 
-- Basic Sharing and ACL
+- Basic Sharing and ACL: an admin shares a calendar or address book with another user, read-only or read-write
 - WebDAV-Push, with an on/off toggle in the admin panel settings and its subscriptions on the Diagnostics page
-- Multilingual admin panel
+- Multilingual admin panel (English and Russian, more as translation files)
 - Files (WebDAV file storage)
 - Improved sync reliability
 

@@ -1,6 +1,6 @@
 # Admin panel — Settings page (UI draft)
 
-This is a design note. The high-level description lives in [admin.md](../apps/admin.md#settings). The Version 1 page was built in PR 6 of the [implementation plan](../implementation-plan-v1.md); the environment variables and defaults are listed in [Settings in the admin panel](../guide.md#settings-in-the-admin-panel).
+This is a design note. The high-level description lives in [admin.md](../apps/admin.md#settings). The Version 1 page was built in PR 6 of the [implementation plan](../plans/implementation-plan-v1.md); the environment variables and defaults are listed in [Settings in the admin panel](../guide.md#settings-in-the-admin-panel).
 
 ## Purpose
 
@@ -21,23 +21,19 @@ A **Save** button stores the values. A change applies from the next request.
 
 ## Version 1.x
 
-- Enable or disable WebDAV (file storage)
-  When enabled, the following fields become available:
-  - Storage path
+- Enable or disable Sharing (default on; nothing is shared until an admin creates a share)
+- Enable or disable WebDAV (file storage), default off after an upgrade
+  When enabled, the following field becomes available:
   - Max file size upload (MB)
-  - Quota per user (MB)
-  - Deleted user file retention (days)
-  - Trash retention (days)
-- Enable or disable WebDAV-Push
+- Enable or disable WebDAV-Push, default off after an upgrade
   When enabled, the following fields become available:
   - Include WebDAV-Push for file storage
-  - Max push subscriptions per user
-  - Push external URL (HTTPS) — required
+  - Max push subscriptions per user (default 100)
   - Push log level
-- Enable or disable Sharing
-- File size limits and per-user disk space limits (may overlap with WebDAV quota)
+  - Allow push endpoints on private networks
+  Push uses the same `/dav/` URLs as sync, so there is no separate push URL setting.
 
-See [Files](../apps/files.md) and [WebDAV-Push](../guide.md#requirements) for more context.
+File storage is on the data volume, so it has no path setting. Per-user quotas, trash and deleted-user file retention are not part of Version 1.x; quotas are Version 2.x (see [Files](../apps/files.md)). See also [WebDAV-Push](../guide.md#requirements).
 
 ## Version 2
 

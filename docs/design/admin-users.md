@@ -1,6 +1,6 @@
 # Admin panel — Users page (UI draft)
 
-This is a design note, not part of the official documentation. The high-level description lives in [admin.md](../apps/admin.md). The landing page is described in [admin-dashboard.md](admin-dashboard.md). The page was built in PR 2 (users and app passwords) and PR 4 (calendars and address books) of the [implementation plan](../implementation-plan-v1.md); this note describes it as built.
+This is a design note, not part of the official documentation. The high-level description lives in [admin.md](../apps/admin.md). The landing page is described in [admin-dashboard.md](admin-dashboard.md). The page was built in PR 2 (users and app passwords) and PR 4 (calendars and address books) of the [implementation plan](../plans/implementation-plan-v1.md); this note describes it as built.
 
 ## Users page layout
 

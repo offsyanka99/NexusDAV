@@ -10,7 +10,7 @@ Built on top of the [sabre/dav](https://sabre.io/) PHP library.
 
 ## Status
 
-Version 1 is built; the current release is `0.1.1` (first release `0.1.0`). The repository contains a FrankenPHP container, `/health`, the first admin, and user, principal, and app-password management. `/dav/` accepts an app password and serves only that user's own data. Creating a user also creates that user's calendar home (`/dav/calendars/<username>/`) and address book home (`/dav/addressbooks/<username>/`), each with a default collection (`default`). The admin panel lists, creates, edits, and deletes calendars and address books for a user. A client discovers them from `/dav/`. The panel also has a Dashboard, Settings and Configuration pages (DAV services, time, rate limits, sessions), and a Diagnostics page with failed logins, DAV errors and every app password. Every request is logged with an ID that also appears on Diagnostics. Images for amd64 and arm64 are published to `ghcr.io/offsyanka99/nexusdav`, and tested reverse-proxy configurations for Caddy, nginx and Traefik are in [docs/proxy](docs/proxy/). Sync passes automated tests with vdirsyncer and the python caldav client. DAVx5, Thunderbird and Apple clients have not been tried yet.
+Version 1 is built; the current release is `0.1.1` (first release `0.1.0`). The repository contains a FrankenPHP container, `/health`, the first admin, and user, principal, and app-password management. `/dav/` accepts an app password and serves only that user's own data. Creating a user also creates that user's calendar home (`/dav/calendars/<username>/`) and address book home (`/dav/addressbooks/<username>/`), each with a default collection (`default`). The admin panel lists, creates, edits, and deletes calendars and address books for a user. A client discovers them from `/dav/`. The panel also has a Dashboard, Settings and Configuration pages (DAV services, time, rate limits, sessions), and a Diagnostics page with failed logins, DAV errors and every app password. Every request is logged with an ID that also appears on Diagnostics. Images for amd64 and arm64 are published to `ghcr.io/offsyanka99/nexusdav`, and tested reverse-proxy configurations for Caddy, nginx and Traefik are in [docs/proxy](docs/proxy/). Sync passes automated tests with vdirsyncer and the python caldav client. Release 0.1.1 was also tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried yet.
 
 NexusDAV is built for homelabs and small teams. It is not a mail, chat or office-document suite, and it is not a hosted multi-tenant service.
 
@@ -71,7 +71,9 @@ Lost the admin password? Reset it from the container shell, as described in the 
 - [Architecture](docs/architecture.md) — how Laravel, Filament and sabre/dav fit together (Version 1)
 - [Data model](docs/data-model.md) — tables and relationships
 - [DAV endpoints](docs/dav-endpoints.md) — sabre/dav paths used in Version 1
-- [Implementation plan (v1)](docs/implementation-plan-v1.md) — step-by-step PRs with effort levels
+- [Implementation plan (v1)](docs/plans/implementation-plan-v1.md) — step-by-step PRs with effort levels
+- [Implementation plan (v1.x)](docs/plans/implementation-plan-v1x.md) — high-level milestones for the Version 1.x features
+- [Plan for Version 2 and later](docs/plans/version-2-and-later.md) — features for 2.0, 2.x and beyond
 - [Apps](docs/apps/README.md) — Calendar, Contacts, Tasks, Notes, Files and the admin panel
 
 ## Contributing

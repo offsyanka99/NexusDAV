@@ -22,10 +22,10 @@ The Settings page holds system-level controls for services and related options. 
 - A field whose environment variable is set (for example `NEXUSDAV_CALDAV` or `LOG_LEVEL`) is read-only, with a lock. The [guide](../guide.md#settings-in-the-admin-panel) lists every variable.
 
 **Version 1.x.**
-- Enable or disable WebDAV (files) and WebDAV-Push, and configure their options.
+- Enable or disable WebDAV (files) and WebDAV-Push, and configure their options. Both are off after an upgrade until an admin turns them on.
 - Logging for WebDAV-Push.
 - Enable or disable Sharing.
-- File size limits and per-user disk space limits.
+- Maximum file upload size. Per-user disk space limits (quotas) are Version 2.x.
 - Session and portal-related settings appear once the user portal exists (Version 2).
 
 **Version 2.**
@@ -76,7 +76,8 @@ The Diagnostics page shows operational status and recent problems. Its heading g
 - App passwords across all users (user, device, created, last used, revoked or expired; can be revoked)
 
 **Version 1.x**
-- WebDAV-Push subscriptions (user, collection, endpoint, last push, status)
+- WebDAV-Push subscriptions (user, collection, endpoint host, last push, status), with revoke
+- Whether the WebDAV-Push worker is running. Push needs the optional worker service; without it nothing is sent
 
 **Version 2.x**
 - Collections without recent sync (no requests for a configurable period, for example 30 days)
@@ -102,9 +103,9 @@ The Diagnostics page shows operational status and recent problems. Its heading g
 
 **Version 1.x.**
 
-- Share a calendar or an address book and set the ACL.
+- Share a calendar or an address book with another user on the server, read-only or read-write. Shares are made in the panel; a client shows the shared collection but does not create shares.
 - Turn WebDAV-Push on or off, and view its subscriptions on the Diagnostics page. The implementation is the bitfire draft named in the [guide requirements](../guide.md#requirements), not a sabre/dav plugin.
-- Use the panel in more than one language.
+- Use the panel in more than one language: English and Russian, with a language per admin and a server default. More languages can be added as translation files.
 - See that a user's [Files](files.md) home exists, once file storage exists.
 
 **Version 2.**
@@ -130,7 +131,7 @@ The Diagnostics page shows operational status and recent problems. Its heading g
 | Edit an event, contact, task, or note | No | Version 2, only their own | Version 1 |
 | Create an app password | Version 1 | Version 2, for their own devices | No |
 | Change server settings | Version 1 | No | No |
-| Share a collection | Version 1.x | Version 2, their own collections | Version 1.x, if the client supports it |
+| Share a collection | Version 1.x | Version 2, their own collections | No. A client shows collections shared with that user |
 
 Health for Version 1 is the unauthenticated `/health` endpoint, which reports that the app and the database are up and does not reveal details. The richer checks inside the panel are Version 2.x.
 

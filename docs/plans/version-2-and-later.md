@@ -99,6 +99,6 @@ These items appear in the long-term lists in the guide and have not been schedul
 
 ## Notes
 
-- WebDAV-Push and basic Sharing are targeted at Version 1.x and are not repeated here.
+- The Version 1.x features (Sharing, WebDAV-Push, the multilingual admin panel, Files and sync reliability) are in the [Version 1.x plan](implementation-plan-v1x.md) and are not repeated here.
 - Switching between PostgreSQL and SQLite after install is not planned.
 - A web-based admin password reset triggered by an environment variable is deliberately not planned.

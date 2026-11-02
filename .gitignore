@@ -41,4 +41,8 @@ build/
 
 # Internal refactor plans/inventories (local only; not published)
 docs/plans/*.md
+!docs/plans/implementation-plan-v1.md
+!docs/plans/implementation-plan-v1-review.md
+!docs/plans/implementation-plan-v1x.md
+!docs/plans/version-2-and-later.md
 

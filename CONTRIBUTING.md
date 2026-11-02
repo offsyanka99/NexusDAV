@@ -85,7 +85,7 @@ Tags are `v<major>.<minor>.<patch>`, with an optional pre-release suffix such as
 - Follow the Laravel and PSR-12 coding style. Use the project's formatter rather than formatting by hand.
 - Write clear, descriptive commit messages in the imperative mood (for example `Add app password revocation`).
 - Do not commit secrets, real credentials or personal data. Use obviously fake values in tests and examples.
-- User-facing text must be translatable (the admin panel and user portal are planned to be multilingual).
+- User-facing text must be translatable (the admin panel is planned to be multilingual in Version 1.x, the user portal in Version 2.x).
 
 ### Dependencies
 

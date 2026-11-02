@@ -1,6 +1,6 @@
 # Admin panel — Configuration page (UI draft)
 
-This is a design note. The high-level description lives in [admin.md](../apps/admin.md#configuration). The Version 1 page was built in PR 6 of the [implementation plan](../implementation-plan-v1.md); the environment variables and defaults are listed in [Settings in the admin panel](../guide.md#settings-in-the-admin-panel).
+This is a design note. The high-level description lives in [admin.md](../apps/admin.md#configuration). The Version 1 page was built in PR 6 of the [implementation plan](../plans/implementation-plan-v1.md); the environment variables and defaults are listed in [Settings in the admin panel](../guide.md#settings-in-the-admin-panel).
 
 ## Purpose
 
@@ -29,7 +29,7 @@ A **Save** button stores the values. A change applies from the next request.
 
 ## Version 1.x
 
-- Default interface language
+- Default interface language (English or Russian; each admin can choose their own in the user menu)
 - Portal log level (once the user portal exists)
 
 ## Version 2.x

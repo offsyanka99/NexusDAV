@@ -8,7 +8,7 @@ There is no Files feature in Version 1. Calendars, contacts, tasks, and notes do
 
 **Version 1.** Nothing. A client that looks for `/dav/files/` will not find a file home.
 
-**Version 1.x.** Each user has a private file home. A WebDAV client can upload, download, rename, move, and delete files and folders there. The admin panel can see that the home exists. This version does not include sharing a file or a folder with another user.
+**Version 1.x.** Each user has a private file home. A WebDAV client can upload, download, rename, move, and delete files and folders there. The admin panel can see that the home exists, and turns Files on or off (off after an upgrade until an admin turns it on). The user's app passwords also work for the file home; there are no per-service app password scopes. This version does not include sharing a file or a folder with another user.
 
 **Version 2.** The user portal can manage that person's own files. The admin panel remains the operator's view, not a file editor.
 
