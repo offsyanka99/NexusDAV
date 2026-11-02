@@ -95,20 +95,23 @@ services:
         max-file: "3"
 
 # IMPORTANT — PostgreSQL data directory permissions on TrueNAS:
-# The official postgres image runs as UID/GID 999 (user "postgres" inside
-# the container). Before the first start, create the dataset and set
-# ownership on the host:
+# This is the postgres:*-alpine image, whose "postgres" user is UID/GID 70
+# (the Debian-based postgres image uses 999 instead — check with
+# `docker run --rm <image> id postgres` if you change images). Before the
+# first start, create the dataset and set ownership on the host:
 #
-#     chown -R 999:999 /mnt/tank/apps/nexusdav/postgres
+#     chown -R 70:70 /mnt/tank/apps/nexusdav/postgres
 #     chmod -R 0700 /mnt/tank/apps/nexusdav/postgres
 #
 # TrueNAS SCALE datasets default to NFSv4 ACLs, which take precedence over
 # the POSIX mode bits above and are NOT removed by chown/chmod alone. If
 # Postgres still fails with "Permission denied" after the commands above,
-# strip the inherited ACL first, either in the UI (Datasets > Permissions >
-# Edit > Strip ACL, then set owner/group 999 and apply recursively) or via:
+# replace the inherited ACL first, either in the UI (Datasets > Permissions >
+# Edit > Strip ACL, then set owner/group 70 and apply recursively) or via
+# (the bundled nfs4_setfacl has no -b/strip flag, so use -s to replace the
+# whole ACL with a single owner-only entry instead):
 #
-#     nfs4_setfacl -b /mnt/tank/apps/nexusdav/postgres
+#     nfs4_setfacl -R -s A::OWNER@:rwaDxtcy /mnt/tank/apps/nexusdav/postgres
 #
 # The directory must be empty on first launch (remove any old
 # .../postgres/data from a previous PostgreSQL 17 install before switching
