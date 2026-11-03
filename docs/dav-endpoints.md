@@ -19,7 +19,7 @@ Most clients only need the root URL. They discover principals and collections th
 
 | Purpose | Method | Path / Header | Notes |
 |---------|--------|---------------|-------|
-| Collection sync | REPORT | `sync-collection` | Uses sync-token |
+| Collection sync | REPORT | `sync-collection` | Uses sync-token; see [Sync tokens](#sync-tokens) |
 | Calendar query | REPORT | `calendar-query` | Filter events |
 | Address book query | REPORT | `addressbook-query` | Filter contacts |
 | Current user principal | PROPFIND | `current-user-principal` | Discovery |
@@ -66,3 +66,17 @@ Not in Version 1 (later):
 - Clients should prefer discovery over hard-coded paths.
 - All DAV methods required by the protocols must be passed through by the reverse proxy (`PROPFIND`, `REPORT`, `MKCALENDAR`, `MKCOL`, `PUT`, `DELETE`, `MOVE`, `COPY`, etc.). Tested configurations for nginx, Caddy and Traefik are in [docs/proxy](proxy/).
 - Every answer carries an `X-Request-Id` header. The same ID is on the request's log lines and on its Diagnostics row.
+
+## Sync tokens
+
+A calendar or address book token is `http://sabre.io/ns/sync/<collection id>-<change number>`, and `getctag` has the same value. The id is the database id of the collection, which is never reused, so a collection that is deleted and created again with the same URI has a different token and ctag even when the change numbers match. Added in PR 14 of the [Version 1.x plan](plans/implementation-plan-v1x.md).
+
+`sync-collection` answers **403** with `DAV:valid-sync-token` when the token:
+
+- belongs to another collection, for example one deleted and created again with the same URI;
+- is ahead of the collection's current change number;
+- is malformed, or has a prefix other than `http://sabre.io/ns/sync/`.
+
+The client then syncs the collection from the start (an empty `sync-token`), as RFC 6578 describes. A token issued by 0.1.3 or earlier is the bare change number. It is accepted while it is not ahead, and the reply carries a token in the new form.
+
+A home's token is a snapshot of its children and their tokens (`home-1.` and base64 JSON). A child that was created again under the same name is reported as changed, so the client goes on to sync it and gets the 403 above.

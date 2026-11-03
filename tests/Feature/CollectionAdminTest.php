@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\AppPasswordService;
 use App\Services\Dav\CalendarBackend;
 use App\Services\Dav\CollectionService;
+use App\Services\Dav\SyncToken;
 use App\Services\UserService;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -455,18 +456,19 @@ class CollectionAdminTest extends TestCase
 
         $backend = new CalendarBackend(DB::connection()->getPdo());
         $id = [$calendarId, (int) $calendar->getKey()];
-        $quiet = $backend->getChangesForCalendar($id, $token, 1);
+        $clientToken = SyncToken::format($calendarId, $token);
+        $quiet = $backend->getChangesForCalendar($id, $clientToken, 1);
         $this->assertIsArray($quiet);
         $this->assertSame([], $quiet['added']);
-        $this->assertSame($token, (int) $quiet['syncToken']);
+        $this->assertSame($clientToken, $quiet['syncToken']);
 
         $backend->createCalendarObject($id, 'later.ics', $this->event('Later'));
-        $next = $backend->getChangesForCalendar($id, $token, 1);
+        $next = $backend->getChangesForCalendar($id, $clientToken, 1);
         $this->assertIsArray($next);
         $this->assertContains('later.ics', $next['added']);
         $this->assertSame(
-            (int) DB::table('calendars')->where('id', $calendarId)->value('synctoken'),
-            (int) $next['syncToken'],
+            SyncToken::format($calendarId, (int) DB::table('calendars')->where('id', $calendarId)->value('synctoken')),
+            $next['syncToken'],
         );
     }
 

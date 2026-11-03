@@ -250,6 +250,17 @@ The Done when is met except for two gaps: Tasks.org was not run, and step 7 was 
 
 **Done when:** the three bad-token cases get `valid-sync-token` on both databases, legacy tokens keep working, and DAVx5 and Thunderbird recover with a full sync after a calendar is deleted and created again while they are offline.
 
+**Status:** code done; the client check is left. Fixes issue #2 (client pass 1, step 6).
+
+- `App\Services\Dav\SyncToken` holds the rules. `CalendarBackend` and `AddressBookBackend` put `<id>-<number>` in the sync token and the ctag, and check every incoming token before sabre reads the change log, so a malformed token never reaches SQL. The calendar id is `calendars.id`, so a shared calendar (PR 23) gets the owner's tokens, as planned.
+- Ids are never reused: `autoincrement` on SQLite and a sequence on PostgreSQL. A database restored from an older backup goes back in change numbers, so client tokens are ahead and get 403, which is the right answer.
+- Token `0` is refused as malformed: sabre would read it as "no token" and send every item without deletions. No collection issues it, since change numbers start at 1.
+- The homes needed no change: their snapshot holds each child's token, so a re-created child is reported as modified, and the client then gets the 403 on that child.
+- Tests (`SyncTokenTest`, both databases): re-create from the panel and from a client (including the case where the old and new change numbers and ctags were equal), the three bad-token cases with 16 malformed forms, legacy tokens, incremental sync with deletions, PROPFIND values, and both homes. Seven of the eight fail on the code before this PR. [dav-endpoints.md](../dav-endpoints.md#sync-tokens) describes the rules.
+- For the M2 release notes: after the upgrade every collection's ctag and every home's token change form once. Clients sync each collection once more, using their old token, which is still accepted, so this is a small sync and not a full one.
+
+Left: check with DAVx5 and Thunderbird on a build with this change (client checklist step 6), then close #2.
+
 ### PR 15 — Sync history retention (Effort: Medium)
 
 - Migration: a `created_at` column (database default: now) on `calendarchanges` and `addressbookchanges`; existing rows get the migration time. Each calendar and address book records the oldest change number it can still answer for.

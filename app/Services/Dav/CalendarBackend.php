@@ -4,12 +4,14 @@ namespace App\Services\Dav;
 
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use PDO;
 use RuntimeException;
 use Sabre\CalDAV\Backend\PDO as SabreCalendarBackend;
 use Sabre\CalDAV\Xml\Property\SupportedCalendarComponentSet;
 use Sabre\DAV\Exception\Forbidden;
 use Sabre\DAV\PropPatch;
+use Sabre\DAV\Sync\Plugin as SyncPlugin;
 
 /**
  * sabre's PDO calendar backend on Laravel's connection.
@@ -18,10 +20,15 @@ use Sabre\DAV\PropPatch;
  * cannot ask for them, and an existing calendar does not offer them, so a
  * client cannot add or change one. Stored tasks and notes stay readable.
  * A new calendar gets the owner's time zone (or the server's) as its
- * calendar-timezone.
+ * calendar-timezone. Sync tokens and the ctag carry the calendar's id
+ * (SyncToken).
  */
 final class CalendarBackend extends SabreCalendarBackend
 {
+    private const SYNC_TOKEN = '{http://sabredav.org/ns}sync-token';
+
+    private const CTAG = '{http://calendarserver.org/ns/}getctag';
+
     public function __construct(PDO $pdo)
     {
         parent::__construct($pdo);
@@ -82,10 +89,56 @@ final class CalendarBackend extends SabreCalendarBackend
                 )));
             }
 
+            $token = SyncToken::format((int) $calendar['id'][0], (int) $calendar[self::SYNC_TOKEN]);
+            $calendar[self::SYNC_TOKEN] = $token;
+            $calendar[self::CTAG] = SyncPlugin::SYNCTOKEN_PREFIX.$token;
+
             $calendars[] = $calendar;
         }
 
         return $calendars;
+    }
+
+    /**
+     * Checks the client's token against this calendar before sabre reads the
+     * change log, and returns the new token with the calendar's id.
+     *
+     * sabre passes [calendar id, instance id] here.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getChangesForCalendar($calendarId, $syncToken, $syncLevel, $limit = null)
+    {
+        if (! is_array($calendarId)) {
+            throw new InvalidArgumentException('The value passed to $calendarId is expected to be an array with a calendarId and an instanceId');
+        }
+
+        $id = (int) $calendarId[0];
+        $current = DB::table('calendars')->where('id', $id)->value('synctoken');
+
+        if ($current === null) {
+            return null;
+        }
+
+        $from = null;
+
+        if (! SyncToken::isInitial($syncToken)) {
+            $from = SyncToken::resolve($syncToken, $id, (int) $current);
+
+            if ($from === null) {
+                return null;
+            }
+        }
+
+        $result = parent::getChangesForCalendar($calendarId, $from === null ? null : (string) $from, $syncLevel, $limit);
+
+        if (! is_array($result)) {
+            return null;
+        }
+
+        $result['syncToken'] = SyncToken::format($id, (int) $result['syncToken']);
+
+        return $result;
     }
 
     /**

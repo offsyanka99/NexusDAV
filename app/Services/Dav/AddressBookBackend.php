@@ -8,13 +8,19 @@ use RuntimeException;
 use Sabre\CardDAV\Backend\PDO as SabreAddressBookBackend;
 use Sabre\CardDAV\Plugin as CardDavPlugin;
 use Sabre\DAV\PropPatch;
+use Sabre\DAV\Sync\Plugin as SyncPlugin;
 
 /**
  * sabre's PDO address book backend on Laravel's connection.
  * Card bytes are returned as a string on both SQLite and PostgreSQL.
+ * Sync tokens and the ctag carry the address book's id (SyncToken).
  */
 final class AddressBookBackend extends SabreAddressBookBackend
 {
+    private const SYNC_TOKEN = '{http://sabredav.org/ns}sync-token';
+
+    private const CTAG = '{http://calendarserver.org/ns/}getctag';
+
     public function __construct(PDO $pdo)
     {
         parent::__construct($pdo);
@@ -34,6 +40,59 @@ final class AddressBookBackend extends SabreAddressBookBackend
             'principaluri' => $principalUri,
             'synctoken' => 1,
         ]);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function getAddressBooksForUser($principalUri)
+    {
+        $books = [];
+
+        foreach (parent::getAddressBooksForUser($principalUri) as $book) {
+            $token = SyncToken::format((int) $book['id'], (int) $book[self::SYNC_TOKEN]);
+            $book[self::SYNC_TOKEN] = $token;
+            $book[self::CTAG] = SyncPlugin::SYNCTOKEN_PREFIX.$token;
+            $books[] = $book;
+        }
+
+        return $books;
+    }
+
+    /**
+     * Checks the client's token against this address book before sabre reads
+     * the change log, and returns the new token with the address book's id.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getChangesForAddressBook($addressBookId, $syncToken, $syncLevel, $limit = null)
+    {
+        $id = (int) $addressBookId;
+        $current = DB::table('addressbooks')->where('id', $id)->value('synctoken');
+
+        if ($current === null) {
+            return null;
+        }
+
+        $from = null;
+
+        if (! SyncToken::isInitial($syncToken)) {
+            $from = SyncToken::resolve($syncToken, $id, (int) $current);
+
+            if ($from === null) {
+                return null;
+            }
+        }
+
+        $result = parent::getChangesForAddressBook($addressBookId, $from === null ? null : (string) $from, $syncLevel, $limit);
+
+        if (! is_array($result)) {
+            return null;
+        }
+
+        $result['syncToken'] = SyncToken::format($id, (int) $result['syncToken']);
+
+        return $result;
     }
 
     /**
