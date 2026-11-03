@@ -219,7 +219,7 @@ These carry over from Version 1 and add what 1.x needs.
 
 **Done when:** the checklist is merged, the pass is run on the current `main` for both clients and both databases, the results are recorded, and every failure has an issue.
 
-**Status:** in progress. Done:
+**Status:** done, with two gaps (below). Delivered:
 
 - The checklist, [docs/testing/client-checklist.md](../testing/client-checklist.md): setup, steps 1 to 7 with pass criteria, what to put in an `m2-client-pass` issue, and an empty results table for pass 1.
 - The seeder, `php artisan nexusdav:seed-test-data <username> --force` (`App\Console\Commands\SeedTestData`). It creates new `load-test` collections (5,000 events and 2,000 contacts by default, up to 50,000 each) through the sabre backends, so sync tokens and the change log match a client upload. It refuses without `--force`, for an unknown user, or when the collection already exists. The default size takes about 1.3 seconds on SQLite. Tests: `SeedTestDataTest`, which also syncs the result over DAV.
@@ -228,13 +228,13 @@ Tag `v0.1.3` publishes the image with the seeder and the Configuration reload fi
 
 Pass 1 results (3 November 2026, v0.1.3, PostgreSQL; DAVx5 4.5.21 and jtx Board 2.17.00 on a Pixel 7 Pro with Android 17, Thunderbird 159.0 from the Ubuntu Snap), recorded in the checklist:
 
-- **Pass on PostgreSQL, both clients:** discovery, events, recurring events with exceptions, tasks (jtx Board), contacts with a photo, offline edits, and the large collection (5,000 events and 2,000 contacts: 14 s in Thunderbird, 10 min 45 s in DAVx5, no errors, and the second sync fetched only the change). Notes and calendar creation passed in DAVx5.
-- **Pass on SQLite:** only notes and calendar creation in DAVx5. The rest of SQLite was skipped.
-- **Skipped everywhere:** step 5 (two devices, same item), step 6 (calendar deleted and re-created while a client is offline) and Tasks.org. Steps 5 and 6 are the cases PR 14 and PR 16 target, so they have no before-fix result yet.
-- **Failures:** none. One low-priority observation, the DAVx5 first-sync time (#1).
+- **Pass on PostgreSQL, both clients:** discovery, events, recurring events with exceptions, tasks (jtx Board), contacts with a photo, offline edits, two devices editing the same item, and the large collection (5,000 events and 2,000 contacts: 14 s in Thunderbird, 10 min 45 s in DAVx5, no errors, and the second sync fetched only the change). Notes and calendar creation passed in DAVx5.
+- **SQLite:** the maintainer ran the steps with the same results as PostgreSQL, except step 7 (not run).
+- **Skipped:** Tasks.org.
+- **Failure:** step 6 on both clients and both databases (#2): after a calendar is deleted and re-created with the same URI, the old events stay on the client with no error until DAVx5 Refresh list or a new Thunderbird subscription. PR 14 targets exactly this, so it now has a before-fix result.
+- **Observation:** the DAVx5 first-sync time, low priority (#1).
 
-The Done when is therefore not fully met: SQLite is mostly untested, and steps 5 and 6 have no results.
-
+The Done when is met except for two gaps: Tasks.org was not run, and step 7 was not run on SQLite. The one failure has an issue.
 
 ### PR 14 — Sync tokens that cannot be trusted (Effort: High)
 

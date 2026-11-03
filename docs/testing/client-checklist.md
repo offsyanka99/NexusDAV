@@ -138,15 +138,15 @@ The first pass, on the current `main`.
 
 | Step | DAVx5, PostgreSQL | DAVx5, SQLite | Thunderbird, PostgreSQL | Thunderbird, SQLite | Notes |
 |---|---|---|---|---|---|
-| 1 Discovery from the domain | ✅ | skipped | ✅ | skipped | |
-| 2a Event | ✅ | skipped | ✅ | skipped | |
-| 2b Recurring event with exceptions | ✅ | skipped | ✅ | skipped | |
-| 2c Task, completed (jtx Board) | ✅ | skipped | ✅ | skipped | Thunderbird columns: Thunderbird's own tasks |
+| 1 Discovery from the domain | ✅ | ✅ | ✅ | ✅ | |
+| 2a Event | ✅ | ✅ | ✅ | ✅ | |
+| 2b Recurring event with exceptions | ✅ | ✅ | ✅ | ✅ | |
+| 2c Task, completed (jtx Board) | ✅ | ✅ | ✅ | ✅ | Thunderbird columns: Thunderbird's own tasks |
 | 2c Task, completed (Tasks.org) | skipped | skipped | ➖ | ➖ | |
 | 2d Note | ✅ | ✅ | ➖ | ➖ | Thunderbird has no notes |
-| 2e Contact with a photo | ✅ | skipped | ✅ | skipped | |
+| 2e Contact with a photo | ✅ | ✅ | ✅ | ✅ | |
 | 3 Calendar created from the client | ✅ | ✅ | ➖ | ➖ | Thunderbird cannot create a calendar on the server |
-| 4 Offline edits, then sync | ✅ | skipped | ✅ | skipped | |
-| 5 Two devices, same item | ✅ | skipped | ✅ | skipped | |
-| 6 Calendar deleted and re-created while offline | skipped | skipped | skipped | skipped | |
+| 4 Offline edits, then sync | ✅ | ✅ | ✅ | ✅ | |
+| 5 Two devices, same item | ✅ | ✅ | ✅ | ✅ | |
+| 6 Calendar deleted and re-created while offline | ❌ #2 | ❌ #2 | ❌ #2 | ❌ #2 | Old events stayed on both clients, with no error, until DAVx5 Refresh list or a new Thunderbird subscription. PR 14 targets this |
 | 7 Large collection, first sync | ✅ 10 min 45 s (#1, low priority) | ➖ | ✅ 14 s | ➖ | PostgreSQL only; SQLite skipped by the maintainer. 5,000 events and 2,000 contacts, no errors, all items present. Thunderbird on Ethernet (local network), Pixel 7 Pro on Wi-Fi 5. The second sync fetched only the change: about 1 s in Thunderbird, slightly longer in DAVx5 |
