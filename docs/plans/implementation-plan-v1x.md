@@ -286,6 +286,8 @@ Left: check with DAVx5 and Thunderbird on 0.1.4 (client checklist step 6), then 
 
 **Done when:** the concurrency tests pass on both databases, and no write race gives a 500 or a silent overwrite.
 
+Issue #3 has a first case from the client pass: one 500 "database is locked" in 5,000 parallel event uploads on SQLite (none on PostgreSQL).
+
 ### PR 17 — Busy database: retry, then 503 (Effort: Medium)
 
 - An SQLite busy error after the 5-second timeout, or a PostgreSQL serialization failure (`40001`) or deadlock (`40P01`) inside a DAV write: the transaction from PR 16 is retried up to three times after a short random wait. The request body is kept so the write can be replayed; CalDAV and CardDAV bodies are small.
