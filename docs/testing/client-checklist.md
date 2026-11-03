@@ -113,7 +113,7 @@ Delete the `load-test` calendar and address book in the panel when the step is d
 
 ## Results
 
-Legend: ✅ pass · ❌ fail (issue number) · ➖ n/a or skipped · ⬜ not run yet.
+Legend: ✅ pass · ❌ fail (issue number) · ➖ n/a · skipped = not run in pass 1 · ⬜ not run yet.
 
 ### Pass 1 (M2, PR 13)
 
@@ -121,25 +121,25 @@ The first pass, on the current `main`.
 
 | Run log | |
 |---|---|
-| Date | 3 November 2026 (step 7 only so far) |
+| Date | 3 November 2026 |
 | Build (Dashboard version or commit) | 0.1.3 |
-| Tester | ⬜ |
+| Tester | Maintainer |
 | PostgreSQL server | PostgreSQL behind HTTPS, v0.1.3 (nexusdav.vovchenko.org). Test data for step 7 uploaded over DAV, not with the seeder |
 | SQLite server | Not run (skipped by the maintainer) |
-| DAVx5, jtx Board, Tasks.org | DAVx5 4.5.21, jtx Board 2.17.00, Tasks.org ⬜ not used yet. Google Pixel 7 Pro, Android 17 |
+| DAVx5, jtx Board, Tasks.org | DAVx5 4.5.21, jtx Board 2.17.00, Tasks.org not run. Google Pixel 7 Pro, Android 17 |
 | Thunderbird | 159.0, Ubuntu Snap build (ubuntu-snap-build 1.0), on Ethernet |
 
 | Step | DAVx5, PostgreSQL | DAVx5, SQLite | Thunderbird, PostgreSQL | Thunderbird, SQLite | Notes |
 |---|---|---|---|---|---|
-| 1 Discovery from the domain | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 2a Event | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 2b Recurring event with exceptions | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 2c Task, completed (jtx Board) | ⬜ | ⬜ | ⬜ | ⬜ | Thunderbird columns: Thunderbird's own tasks |
-| 2c Task, completed (Tasks.org) | ⬜ | ⬜ | ➖ | ➖ | |
-| 2d Note | ⬜ | ⬜ | ➖ | ➖ | Thunderbird has no notes |
-| 2e Contact with a photo | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 3 Calendar created from the client | ⬜ | ⬜ | ➖ | ➖ | Thunderbird cannot create a calendar on the server |
-| 4 Offline edits, then sync | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 5 Two devices, same item | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 6 Calendar deleted and re-created while offline | ⬜ | ⬜ | ⬜ | ⬜ | |
+| 1 Discovery from the domain | ✅ | skipped | ✅ | skipped | |
+| 2a Event | ✅ | skipped | ✅ | skipped | |
+| 2b Recurring event with exceptions | ✅ | skipped | ✅ | skipped | |
+| 2c Task, completed (jtx Board) | ✅ | skipped | ✅ | skipped | Thunderbird columns: Thunderbird's own tasks |
+| 2c Task, completed (Tasks.org) | skipped | skipped | ➖ | ➖ | |
+| 2d Note | ✅ | ✅ | ➖ | ➖ | Thunderbird has no notes |
+| 2e Contact with a photo | ✅ | skipped | ✅ | skipped | |
+| 3 Calendar created from the client | ✅ | ✅ | ➖ | ➖ | Thunderbird cannot create a calendar on the server |
+| 4 Offline edits, then sync | ✅ | skipped | ✅ | skipped | |
+| 5 Two devices, same item | skipped | skipped | skipped | skipped | |
+| 6 Calendar deleted and re-created while offline | skipped | skipped | skipped | skipped | |
 | 7 Large collection, first sync | ✅ 10 min 45 s (#1, low priority) | ➖ | ✅ 14 s | ➖ | PostgreSQL only; SQLite skipped by the maintainer. 5,000 events and 2,000 contacts, no errors, all items present. Thunderbird on Ethernet (local network), Pixel 7 Pro on Wi-Fi 5. The second sync fetched only the change: about 1 s in Thunderbird, slightly longer in DAVx5 |
