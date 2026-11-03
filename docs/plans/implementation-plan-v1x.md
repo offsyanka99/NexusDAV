@@ -14,7 +14,7 @@ The work is split into five milestones and 31 PRs, listed in the order they are 
 
 Sources: [guide](../guide.md), [apps](../apps/README.md), the [admin panel](../apps/admin.md) description, the design notes for [Settings](../design/admin-settings.md), [Configuration](../design/admin-configuration.md) and the [Dashboard](../design/admin-dashboard.md), the pinned WebDAV-Push draft, and the current code.
 
-**Status:** not started.
+**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 to M5 are not started.
 
 Effort levels are the same as in Version 1:
 - **Low** — small, mostly boilerplate or config
@@ -30,10 +30,10 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 
 | Order | PR | Milestone | Title | Effort | Needs |
 |---|---|---|---|---|---|
-| 1 | PR 9 | M1 | Language foundation and switcher | Medium | — |
-| 2 | PR 10 | M1 | Translate the Users pages and the Dashboard | Medium | 9 |
-| 3 | PR 11 | M1 | Translate Settings, Configuration and Diagnostics; pseudo-locale test | Medium | 9 |
-| 4 | PR 12 | M1 | M1 release | Low | 10, 11 |
+| 1 | PR 9 | M1 | Language foundation and switcher (done) | Medium | — |
+| 2 | PR 10 | M1 | Translate the Users pages and the Dashboard (done) | Medium | 9 |
+| 3 | PR 11 | M1 | Translate Settings, Configuration and Diagnostics; pseudo-locale test (done) | Medium | 9 |
+| 4 | PR 12 | M1 | M1 release (done, 0.1.2) | Low | 10, 11 |
 | 5 | PR 13 | M2 | Client checklist and the first hand-test pass | Medium | — |
 | 6 | PR 14 | M2 | Sync tokens that cannot be trusted | High | — |
 | 7 | PR 15 | M2 | Sync history retention | Medium | 14 |
@@ -135,6 +135,19 @@ These carry over from Version 1 and add what 1.x needs.
 
 **Goal:** the admin panel can be shown in more than one language. English and Russian ship complete, and adding a language means adding one file.
 
+**Status:** done, released as **0.1.2**. What shipped, beyond the PR text below:
+
+- `App\Support\LocaleCatalog` lists the languages from `lang/*.json` (`_language_name`). It is read once per request; a file that is not valid JSON or has no name is skipped and logged, so a bad file cannot stop DAV, and the translation test fails on it in CI.
+- `SetAdminLocale` runs only in the panel middleware and restores the previous locale after the request. `User::resolvedLocale()` ignores a stored code that is no longer shipped.
+- The **Language** user-menu item validates the choice against the catalog and reloads the current panel page, so the whole panel switches at once.
+- The Configuration page has its own **Language** section above Time.
+- Diagnostics shows translated labels for every stored reason, on both the Failed logins and the DAV errors tables (`App\Support\DiagnosticReason`), including the HTTP status texts of DAV errors. The stored value stays English.
+- Messages from services (for example "The email has already been taken.") are translated when shown in the panel (`App\Support\PanelErrorTranslator`); the exception text stays English for logs and the CLI.
+- Laravel's Russian validation, auth, password and pagination messages are in `lang/ru/`, adapted from Laravel-Lang (MIT, license in `lang/ru/LICENSE.Laravel-Lang`). Field names in Russian messages come from `validation.attributes`.
+- Filament's own Russian files lack some keys (skip to content, table loading and result count, Yes/No on boolean icons, select and date picker labels, and others). The ones the panel uses are added in `lang/vendor/<namespace>/ru/`, which Laravel merges over Filament's files.
+- The pseudo-locale test uses `en_XA`: app strings are wrapped in `⟦…⟧`, everything else falls back to Russian, and any Latin text left outside the markers fails, except an allowlist of product and protocol names, sample data and technical values. It renders the login page, Dashboard, Users list, create and edit, Settings, Configuration and Diagnostics over HTTP, plus the three relation tables, the widgets and the language modal.
+- The maintainer review (Decision 19) changed some wording in `ru.json`.
+
 ### PR 9 — Language foundation and switcher (Effort: Medium)
 
 - Translation files: `lang/en.json` and `lang/ru.json`, keyed by the English text that `__()` already uses in the code. Adding a language means adding `lang/<code>.json`. Each file carries the language's own name (for example "Русский") for the picker.
@@ -183,6 +196,8 @@ These carry over from Version 1 and add what 1.x needs.
 - No client checklist: M1 does not change DAV.
 
 **Done when:** the Russian review is done, the docs match the panel, and the release is published.
+
+**Status:** done. The maintainer reviewed `ru.json`. The guide (status, settings table with `NEXUSDAV_LOCALE`, a Language section, compatibility note), the Configuration design note, `apps/admin.md`, the README, SECURITY.md, `data-model.md` and the TrueNAS files are updated. `compose.yaml` pins `0.1.2`, and `v0.1.2` is published.
 
 ## M2 — Sync reliability (Effort: High)
 

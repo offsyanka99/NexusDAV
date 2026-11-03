@@ -461,7 +461,7 @@ What was built:
   - Tags: exact version, `<major>.<minor>`, `<major>` from 1.0, and `latest` for stable versions only.
   - The arm64 build was not run locally (no emulation on the dev machine); the release workflow is its first run.
 - **Compose:**
-  - `compose.yaml` pinned `ghcr.io/offsyanka99/nexusdav:0.1.0` at 0.1.0; it now pins `0.1.1`.
+  - `compose.yaml` pinned `ghcr.io/offsyanka99/nexusdav:0.1.0` at 0.1.0; later releases move it to the newest version (`0.1.2` at the time of writing).
   - `compose.build.yaml` (added last) builds from the checkout as `nexusdav:local`.
   - CI branch pushes no longer run on tags; the release workflow runs the checks instead.
 - **Reverse proxy files in [docs/proxy](../proxy/):**

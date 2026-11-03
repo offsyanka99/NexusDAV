@@ -4,7 +4,7 @@ NexusDAV stores calendars, contacts, notes, tasks and files, and is usually expo
 
 ## Supported versions
 
-NexusDAV is in its 0.x series. The current release is 0.1.1 (first release 0.1.0). Security fixes are provided for the latest released version only. Images are rebuilt from a freshly pulled base for each release, and a base with PHP older than 8.4.27 stops the release.
+NexusDAV is in its 0.x series. The current release is 0.1.2 (first release 0.1.0). Security fixes are provided for the latest released version only. Images are rebuilt from a freshly pulled base for each release, and a base with PHP older than 8.4.27 stops the release.
 
 | Version | Supported |
 |---|---|

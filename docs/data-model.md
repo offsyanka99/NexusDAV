@@ -22,7 +22,7 @@ Decisions:
 | is_admin | boolean | default false |
 | is_active | boolean | default true |
 | timezone | string | nullable, falls back to server default |
-| locale | string | nullable, falls back to server default |
+| locale | string | nullable, falls back to server default. The admin panel language since 0.1.2; an unknown code falls back too |
 | quota_bytes | bigint | nullable, 0 or null = unlimited |
 | collections_provisioned | boolean | default false. Set when the default calendar and address book are inserted. A later prepare does not insert those URIs again |
 | created_at | timestamp | |

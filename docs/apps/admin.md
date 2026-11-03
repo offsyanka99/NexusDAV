@@ -12,6 +12,8 @@ Sign-in lands on the **Dashboard**. The Dashboard shows the server at a glance: 
 
 A menu links to the other admin pages. The items include **Settings**, **Configuration**, **Users** and **Diagnostics**, plus the other pages described below as they arrive. Whether that menu sits on the left or along the top is not decided yet.
 
+The user menu (top right) has a **Language** item (since 0.1.2). Each admin chooses English or Russian there, or **Server default** to follow the Configuration page. The login page uses the server default.
+
 ### Settings
 
 The Settings page holds system-level controls for services and related options. A UI draft is kept in [docs/design/admin-settings.md](../design/admin-settings.md).
@@ -46,7 +48,7 @@ The Configuration page holds server-wide preferences. A UI draft is kept in [doc
 - Changes apply from the next request, with no restart. Locked fields work as on Settings.
 
 **Version 1.x.**
-- Default interface language.
+- Default interface language, built in 0.1.2 (`NEXUSDAV_LOCALE`). Each admin can override it from the user menu.
 
 **Version 2.x.**
 - Backup and restore settings for configuration and data.
@@ -74,6 +76,7 @@ The Diagnostics page shows operational status and recent problems. Its heading g
 - Latest DAV errors (4xx/5xx responses on `/dav/*`, with method, path, status, user and, for rejected logins, the reason such as revoked app password or main password used). A request without credentials is not an error and is not listed
 - A Request ID on each row (shown for DAV errors, optional for failed logins). Searching the container log for it shows that request's log lines, including any error detail
 - App passwords across all users (user, device, created, last used, revoked or expired; can be revoked)
+- Reasons are stored in English, so log searches work in any language. Since 0.1.2 the page shows them in the admin's language
 
 **Version 1.x**
 - WebDAV-Push subscriptions (user, collection, endpoint host, last push, status), with revoke
@@ -105,7 +108,7 @@ The Diagnostics page shows operational status and recent problems. Its heading g
 
 - Share a calendar or an address book with another user on the server, read-only or read-write. Shares are made in the panel; a client shows the shared collection but does not create shares.
 - Turn WebDAV-Push on or off, and view its subscriptions on the Diagnostics page. The implementation is the bitfire draft named in the [guide requirements](../guide.md#requirements), not a sabre/dav plugin.
-- Use the panel in more than one language: English and Russian, with a language per admin and a server default. More languages can be added as translation files.
+- Use the panel in more than one language: English and Russian, with a language per admin and a server default. More languages can be added as translation files. Released in 0.1.2.
 - See that a user's [Files](files.md) home exists, once file storage exists.
 
 **Version 2.**
