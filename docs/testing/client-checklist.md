@@ -121,13 +121,13 @@ The first pass, on the current `main`.
 
 | Run log | |
 |---|---|
-| Date | ⬜ |
-| Build (Dashboard version or commit) | ⬜ |
+| Date | 3 November 2026 (step 7 only so far) |
+| Build (Dashboard version or commit) | 0.1.3 |
 | Tester | ⬜ |
 | PostgreSQL server | PostgreSQL behind HTTPS, v0.1.3 (nexusdav.vovchenko.org). Test data for step 7 uploaded over DAV, not with the seeder |
 | SQLite server | Not run (skipped by the maintainer) |
-| DAVx5, jtx Board, Tasks.org | ⬜ versions, device, Android version |
-| Thunderbird | ⬜ version, distribution |
+| DAVx5, jtx Board, Tasks.org | DAVx5 4.5.21, jtx Board 2.17.00, Tasks.org ⬜ not used yet. Google Pixel 7 Pro, Android 17 |
+| Thunderbird | 159.0, Ubuntu Snap build (ubuntu-snap-build 1.0), on Ethernet |
 
 | Step | DAVx5, PostgreSQL | DAVx5, SQLite | Thunderbird, PostgreSQL | Thunderbird, SQLite | Notes |
 |---|---|---|---|---|---|
