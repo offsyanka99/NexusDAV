@@ -7,7 +7,7 @@ Thank you for your interest in NexusDAV! Contributions of all kinds are welcome:
 ## Ways to contribute
 
 - **Report a bug.** Open an issue with steps to reproduce, the expected and actual behavior, your NexusDAV version, database (PostgreSQL or SQLite) and the client used (for example DAVx5, Thunderbird, Apple Calendar).
-- **Report client compatibility.** Tested a client against NexusDAV? Tell us the client name and version, what works and what does not. This helps fill the [client compatibility table](docs/guide.md#client-compatibility).
+- **Report client compatibility.** Tested a client against NexusDAV? Tell us the client name and version, what works and what does not. The [client checklist](docs/testing/client-checklist.md) lists the steps the project runs; reporting results against its step IDs makes them easy to compare. This helps fill the [client compatibility table](docs/guide.md#client-compatibility).
 - **Suggest a feature.** Check the [Roadmap](docs/guide.md#roadmap) first, then open an issue describing the use case rather than only the solution.
 - **Improve documentation.** Fixes to the README, setup guides and reverse proxy examples are always welcome.
 - **Send code.** See below.

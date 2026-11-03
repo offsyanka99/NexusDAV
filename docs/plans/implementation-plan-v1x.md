@@ -219,6 +219,13 @@ These carry over from Version 1 and add what 1.x needs.
 
 **Done when:** the checklist is merged, the pass is run on the current `main` for both clients and both databases, the results are recorded, and every failure has an issue.
 
+**Status:** in progress. Done:
+
+- The checklist, [docs/testing/client-checklist.md](../testing/client-checklist.md): setup, steps 1 to 7 with pass criteria, what to put in an `m2-client-pass` issue, and an empty results table for pass 1.
+- The seeder, `php artisan nexusdav:seed-test-data <username> --force` (`App\Console\Commands\SeedTestData`). It creates new `load-test` collections (5,000 events and 2,000 contacts by default, up to 50,000 each) through the sabre backends, so sync tokens and the change log match a client upload. It refuses without `--force`, for an unknown user, or when the collection already exists. The default size takes about 1.3 seconds on SQLite. Tests: `SeedTestDataTest`, which also syncs the result over DAV.
+
+Left for the maintainer: run pass 1 on the devices in Decision 15, fill in the results, and open an `m2-client-pass` issue for each failure.
+
 ### PR 14 — Sync tokens that cannot be trusted (Effort: High)
 
 - Calendar and address book sync tokens carry the collection's identity as well as its change number (for example `<collection id>-<number>` after sabre's `http://sabre.io/ns/sync/` prefix). `getctag` follows the same rule, so a client that compares ctags also sees a re-created collection as changed.

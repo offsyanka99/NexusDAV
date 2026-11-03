@@ -7,6 +7,7 @@ Related documents:
 - [Architecture](architecture.md) — components and request flow for Version 1
 - [Data model](data-model.md) — tables and relationships
 - [DAV endpoints](dav-endpoints.md) — sabre/dav paths
+- [Client checklist](testing/client-checklist.md) — the hand test with real clients before a release
 - [Implementation plan (v1)](plans/implementation-plan-v1.md) — step-by-step PRs with effort levels
 - [Implementation plan (v1.x)](plans/implementation-plan-v1x.md) — milestones and PRs for the Version 1.x features
 - [Plan for Version 2 and later](plans/version-2-and-later.md) — features for 2.0, 2.x and beyond
@@ -279,7 +280,7 @@ Every answer from the app carries an `X-Request-Id` header. A proxy can add it t
 
 ### Client compatibility
 
-NexusDAV targets standards-compliant clients. The table shows the Version 1 targets and what has been tested so far. Reports for other clients and versions are welcome (see [CONTRIBUTING.md](../CONTRIBUTING.md)).
+NexusDAV targets standards-compliant clients. The table shows the Version 1 targets and what has been tested so far. Reports for other clients and versions are welcome (see [CONTRIBUTING.md](../CONTRIBUTING.md)). The steps the project runs by hand, and their results per client and database, are in the [client checklist](testing/client-checklist.md).
 
 | Client | CalDAV (events) | CardDAV (contacts) | Tasks (VTODO) | Notes (VJOURNAL) | Status |
 |---|---|---|---|---|---|
