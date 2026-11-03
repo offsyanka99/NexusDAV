@@ -78,12 +78,19 @@ Sync both devices. Take both offline. Edit the same event on both, with a differ
 
 ### 6. A calendar deleted and created again while a client is offline
 
-1. Create a calendar with the URI `recreate` in the admin panel and add two events to it from a client. Sync every client.
-2. Take one client offline.
-3. In the admin panel, delete `recreate`, then create a new calendar with the same URI. Add one different event from the other client.
-4. Bring the offline client back and sync.
+This checks what a client does when the calendar it knows is replaced by a new one with the same address. Use two clients: **client A** is the one being tested and **client B** is any other client. Run it once with the phone as A and Thunderbird as B (the DAVx5 column), then once the other way round (the Thunderbird column).
 
-**Pass:** the returning client shows only the new event in `recreate`, and it does not keep failing to sync. A client that falls back to a full sync passes. Old events left on the client are a failure; PR 14 targets this case.
+1. **Create the calendar.** In the admin panel open **Users**, then the test user, and in the **Calendars** table choose **Add Calendar**. Set the URI to `recreate` and the name to `Recreate`, and save.
+2. **Add two events.** On client A, add `Recreate` (DAVx5: refresh the account and tick it; Thunderbird: add the calendar from its URL, `https://<your domain>/dav/calendars/<user>/recreate/`). Create two events in it, `Old 1` and `Old 2`, and sync. Check that client B shows both (add `Recreate` there too).
+3. **Take client A offline.** Android: airplane mode. Thunderbird: **File → Offline → Work Offline**. Leave the calendar on client A as it is.
+4. **Replace the calendar.** In the admin panel, in the same Calendars table, **Delete** `Recreate`, then **Add Calendar** again with the same URI `recreate` and the name `Recreate`. It is now an empty, new calendar. On client B, refresh so it picks up the new calendar, and create one event, `New 1`.
+5. **Bring client A back online** and sync. Wait for the sync to finish, then sync once more.
+
+**Pass:** client A shows `Recreate` with only `New 1`. `Old 1` and `Old 2` are gone, and syncing does not keep failing. It does not matter whether the client got there by a full re-sync or in some other way.
+
+**Fail:** `Old 1` or `Old 2` stays on client A, or client A reports a sync error, or shows no events at all after two syncs. Write down which, with the client version, and follow [When a step fails](#when-a-step-fails). This is the case PR 14 is meant to fix, so a failure here is a useful result, not a mistake in the test.
+
+Delete `Recreate` in the panel afterwards.
 
 ### 7. First sync of a large collection
 
@@ -140,6 +147,6 @@ The first pass, on the current `main`.
 | 2e Contact with a photo | ✅ | skipped | ✅ | skipped | |
 | 3 Calendar created from the client | ✅ | ✅ | ➖ | ➖ | Thunderbird cannot create a calendar on the server |
 | 4 Offline edits, then sync | ✅ | skipped | ✅ | skipped | |
-| 5 Two devices, same item | skipped | skipped | skipped | skipped | |
+| 5 Two devices, same item | ✅ | skipped | ✅ | skipped | |
 | 6 Calendar deleted and re-created while offline | skipped | skipped | skipped | skipped | |
 | 7 Large collection, first sync | ✅ 10 min 45 s (#1, low priority) | ➖ | ✅ 14 s | ➖ | PostgreSQL only; SQLite skipped by the maintainer. 5,000 events and 2,000 contacts, no errors, all items present. Thunderbird on Ethernet (local network), Pixel 7 Pro on Wi-Fi 5. The second sync fetched only the change: about 1 s in Thunderbird, slightly longer in DAVx5 |
