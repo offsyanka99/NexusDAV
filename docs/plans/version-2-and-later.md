@@ -16,6 +16,7 @@ A basic user portal beside the admin panel. People manage their own data there; 
 - Sharing their own calendars and address books with other users on this server
 - Their own time zone and language (the `users.timezone` and `users.locale` columns already exist)
 - Session settings for the portal, and a portal log level on the Configuration page
+- **User dashboard** — a landing page that shows upcoming events, overdue tasks, recently modified files and current quota usage so the user sees what needs attention without navigating into each app.
 
 ### Server features
 
@@ -56,6 +57,12 @@ A basic user portal beside the admin panel. People manage their own data there; 
 - Trash and restore of deleted items
 - Trash for files in the user portal
 - Direct import from Radicale, Baïkal and Nextcloud
+- **File versioning** — keep a limited history of previous versions of a file (for example the last N versions or versions from the last 30 days) so a user can restore an earlier copy after an accidental overwrite.
+- **Public share links** — generate a link to a file, folder or calendar that can be protected with a password, an expiry date and read-only or download-only access. Useful for sharing with people who do not have an account on the server.
+- **In-browser preview** — view images, PDFs, office documents and common video formats directly in the portal without downloading them first.
+- **Activity / Recent** — a feed of recent changes across the user's own calendars, contacts, tasks and files.
+- **Favorites / Starred** — mark files, calendars or contacts as favorites so they appear in a quick-access list.
+- **Bulk operations** — select multiple files and download them as a zip, move them, or delete them in one action.
 
 ### Admin and operations
 
@@ -68,6 +75,11 @@ A basic user portal beside the admin panel. People manage their own data there; 
   - The file has no users, calendars or contacts
 - Optional two-factor authentication for the admin panel
 - Multilingual user portal
+- **Multi-admin roles** — at least two roles: a full administrator and a user manager who can create and disable users but cannot change server settings, SMTP or backups.
+- **Impersonation** — an administrator can open the user portal as a specific user to reproduce a problem, with a clear audit log entry and a visible banner that impersonation is active.
+- **Session management** — show the active sessions of a user (device, IP, last activity) and allow an administrator or the user themselves to revoke a session.
+- **Passkeys / WebAuthn** — support for passkeys on both the admin panel and the user portal as a stronger alternative or complement to TOTP-based 2FA.
+- **Password policy** — optional rules for minimum length, complexity and password lifetime, applied when a user sets or changes their password.
 
 ### Accessibility
 
@@ -103,11 +115,14 @@ These items appear in the long-term lists of the guide and the app pages, or wer
 
 - Public read-only calendar links / ICS subscriptions
 - Birthdays calendar generated from contacts
+- **Recurrence expansion on the server** — expand recurring events on the server so clients receive individual occurrences instead of having to expand the series themselves. Improves compatibility with simpler clients.
+- **Improved VALARM support** — better handling of reminders, including relative alarms and multiple alarms per event.
 
 ### Contacts
 
 - Share a contact by email (requires the Version 2.x mailer)
 - A server-wide, read-only address book listing the users on this server
+- **CardDAV multi-get and large address book optimisations** — reduce the number of round-trips when a client synchronises a large address book.
 
 ### Tasks and notes
 
@@ -120,6 +135,9 @@ These items appear in the long-term lists of the guide and the app pages, or wer
 ### Files
 
 - Sharing a file or a folder with another user
+- **Storage backends** — an abstraction layer so file storage can use a local filesystem or an S3-compatible object store. Allows the data volume to stay small while files live in external storage.
+- **Comments on files** — users can leave comments on a shared file or folder.
+- **Tags / labels** — attach free-form tags to files and events for better organisation and search.
 
 ### Sharing
 
@@ -132,16 +150,31 @@ These items appear in the long-term lists of the guide and the app pages, or wer
 - Users synced from LDAP
 - App password scopes (for example calendars and contacts only, without files)
 - Secrets supplied as files (`*_FILE`, for Docker secrets)
+- **OAuth2 / device flow** — allow third-party clients to obtain tokens through a standard OAuth2 device or authorisation code flow instead of (or in addition to) app passwords.
+- **IP allowlist / geo-restriction** — optional restriction of admin panel or DAV access to specific IP ranges or countries.
+- **Antivirus scanning** — scan uploaded files with ClamAV or a similar engine before they become available.
+- **Audit log export and retention** — export the audit log as CSV or JSON and configure how long entries are kept.
 
 ### Integration
 
 - Webhooks and API tokens for automation
+- **Admin API** — a documented JSON API that lets external tools create users, set quotas, list collections and perform other administrative tasks without using the web interface.
+- **Webhook signing and retry** — sign webhook payloads and automatically retry failed deliveries.
 
 ### Infrastructure and operations
 
 - Prometheus metrics endpoint
 - Maintenance mode and read-only mode for upgrades
 - A listing in the official TrueNAS SCALE Apps catalog
+- **Point-in-time recovery** — more granular backups that allow restoring the database and files to a specific moment rather than only the last full backup.
+- **Feature flags** — enable or disable experimental or optional features for individual users or groups without a server restart.
+- **Timezone database updates** — a way to update the timezone data used by the server without rebuilding the whole image.
+
+### User portal (later)
+
+- **PWA / basic offline support** — the portal can be installed as a Progressive Web App and can show a limited offline view of the calendar and tasks.
+- **Keyboard shortcuts** — common actions in the portal can be triggered from the keyboard.
+- **Improved accessibility** — better ARIA labels, screen-reader support and keyboard navigation beyond the basic responsive layout.
 
 ### Testing and performance
 
