@@ -12,6 +12,7 @@ use App\Filament\Resources\Users\RelationManagers\CalendarsRelationManager;
 use App\Models\Principal;
 use App\Models\User;
 use App\Services\UserService;
+use App\Support\PanelErrorTranslator;
 use BackedEnum;
 use Closure;
 use Filament\Actions\Action;
@@ -44,23 +45,38 @@ class UserResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
+    public static function getNavigationLabel(): string
+    {
+        return __('Users');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('User');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Users');
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema
             ->components([
-                Section::make('User')
+                Section::make(__('User'))
                     ->visible(fn (string $operation): bool => $operation === 'edit')
                     ->compact()
                     ->gap(false)
                     ->columnSpan(1)
                     ->schema([
                         TextEntry::make('username_summary')
-                            ->label('Username')
+                            ->label(__('Username'))
                             ->inlineLabel()
                             ->saved(false)
                             ->state(fn (?User $record): string => (string) $record?->username),
                         TextEntry::make('principal_uri')
-                            ->label('Principal')
+                            ->label(__('Principal'))
                             ->inlineLabel()
                             ->saved(false)
                             ->state(function (?User $record): string {
@@ -69,14 +85,14 @@ class UserResource extends Resource
                                 return $principal instanceof Principal ? $principal->uri : '—';
                             }),
                         TextEntry::make('calendars_count')
-                            ->label('Calendars')
+                            ->label(__('Calendars'))
                             ->inlineLabel()
                             ->saved(false)
                             ->state(fn (?User $record): string => $record instanceof User
                                 ? (string) $record->calendarInstances()->count()
                                 : '0'),
                         TextEntry::make('objects_count')
-                            ->label('Events/Objects')
+                            ->label(__('Events/Objects'))
                             ->inlineLabel()
                             ->saved(false)
                             ->state(function (?User $record): string {
@@ -89,14 +105,14 @@ class UserResource extends Resource
                                     ->count();
                             }),
                         TextEntry::make('address_books_count')
-                            ->label('Address Books')
+                            ->label(__('Address Books'))
                             ->inlineLabel()
                             ->saved(false)
                             ->state(fn (?User $record): string => $record instanceof User
                                 ? (string) $record->addressBooks()->count()
                                 : '0'),
                         TextEntry::make('contacts_count')
-                            ->label('Contacts')
+                            ->label(__('Contacts'))
                             ->inlineLabel()
                             ->saved(false)
                             ->state(function (?User $record): string {
@@ -114,17 +130,19 @@ class UserResource extends Resource
                     ->columnSpan(fn (string $operation): int|string => $operation === 'edit' ? 1 : 'full')
                     ->schema([
                         TextInput::make('username')
+                            ->label(__('Username'))
                             ->visible(fn (string $operation): bool => $operation === 'create')
                             ->required()
                             ->maxLength(63)
                             ->regex(User::USERNAME_PATTERN)
                             ->unique()
-                            ->helperText('Lowercase letters, numbers, underscores, and hyphens.'),
+                            ->helperText(__('Lowercase letters, numbers, underscores, and hyphens.')),
                         TextInput::make('display_name')
-                            ->label('Display name')
+                            ->label(__('Display name'))
                             ->required()
                             ->maxLength(255),
                         TextInput::make('email')
+                            ->label(__('Email'))
                             ->email()
                             ->required()
                             ->maxLength(255)
@@ -132,7 +150,7 @@ class UserResource extends Resource
                                 $exceptId = $record instanceof User ? (int) $record->getKey() : null;
 
                                 if (is_string($value) && app(UserService::class)->emailTaken($value, $exceptId)) {
-                                    $fail(UserService::EMAIL_TAKEN);
+                                    $fail(PanelErrorTranslator::translate(UserService::EMAIL_TAKEN));
                                 }
                             }),
                         Grid::make()
@@ -140,6 +158,7 @@ class UserResource extends Resource
                             ->columnSpanFull()
                             ->schema([
                                 TextInput::make('password')
+                                    ->label(__('Password'))
                                     ->password()
                                     ->revealable()
                                     ->dehydrated(fn (mixed $state): bool => filled($state))
@@ -159,22 +178,22 @@ class UserResource extends Resource
                                     ->minLength(UserService::MIN_PASSWORD_LENGTH)
                                     ->confirmed(),
                                 TextInput::make('password_confirmation')
-                                    ->label('Confirm password')
+                                    ->label(__('Confirm password'))
                                     ->password()
                                     ->revealable()
                                     ->dehydrated(false)
                                     ->required(fn (Get $get): bool => filled($get('password'))),
-                                Text::make('At least '.UserService::MIN_PASSWORD_LENGTH.' characters. Required for admins. Optional for everyone else. Only the admin panel accepts this password.')
+                                Text::make(__('At least :count characters. Required for admins. Optional for everyone else. Only the admin panel accepts this password.', ['count' => UserService::MIN_PASSWORD_LENGTH]))
                                     ->columnSpanFull(),
                             ]),
                         Toggle::make('is_admin')
-                            ->label('Admin')
+                            ->label(__('Admin'))
                             ->default(false)
                             ->helperText(fn (?User $record): ?string => $record instanceof User && app(UserService::class)->isLastActiveAdmin($record)
-                                ? LastActiveAdminException::CANNOT_CHANGE
+                                ? __(LastActiveAdminException::CANNOT_CHANGE)
                                 : null),
                         Toggle::make('is_active')
-                            ->label('Active')
+                            ->label(__('Active'))
                             ->default(true),
                     ]),
             ]);
@@ -198,20 +217,22 @@ class UserResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('username')
+                    ->label(__('Username'))
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('display_name')
-                    ->label('Display name')
+                    ->label(__('Display name'))
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('email')
+                    ->label(__('Email'))
                     ->searchable()
                     ->sortable(),
                 IconColumn::make('is_admin')
-                    ->label('Admin')
+                    ->label(__('Admin'))
                     ->boolean(),
                 IconColumn::make('is_active')
-                    ->label('Active')
+                    ->label(__('Active'))
                     ->boolean(),
             ])
             ->recordActions([
@@ -225,22 +246,22 @@ class UserResource extends Resource
     public static function disableAction(): Action
     {
         return Action::make('disable')
-            ->label('Disable')
+            ->label(__('Disable'))
             ->icon(Heroicon::OutlinedNoSymbol)
             ->color('danger')
             ->visible(fn (User $record): bool => $record->is_active)
             ->requiresConfirmation()
             ->modalDescription(fn (User $record): string => app(UserService::class)->isLastActiveAdmin($record)
-                ? LastActiveAdminException::CANNOT_CHANGE
-                : 'This user will not be able to sign in.')
+                ? __(LastActiveAdminException::CANNOT_CHANGE)
+                : __('This user will not be able to sign in.'))
             ->action(function (User $record, Action $action): void {
                 try {
                     app(UserService::class)->update($record, ['is_active' => false]);
                 } catch (LastActiveAdminException $exception) {
                     Notification::make()
                         ->danger()
-                        ->title('Cannot disable the last active admin')
-                        ->body($exception->getMessage())
+                        ->title(__('Cannot disable the last active admin'))
+                        ->body(PanelErrorTranslator::translate($exception->getMessage()))
                         ->send();
 
                     $action->halt();
@@ -251,12 +272,12 @@ class UserResource extends Resource
     public static function enableAction(): Action
     {
         return Action::make('enable')
-            ->label('Enable')
+            ->label(__('Enable'))
             ->icon(Heroicon::OutlinedCheck)
             ->color('success')
             ->visible(fn (User $record): bool => ! $record->is_active)
             ->requiresConfirmation()
-            ->modalDescription('This user will be able to sign in again.')
+            ->modalDescription(__('This user will be able to sign in again.'))
             ->action(function (User $record): void {
                 app(UserService::class)->update($record, ['is_active' => true]);
             });
@@ -266,16 +287,16 @@ class UserResource extends Resource
     {
         return DeleteAction::make()
             ->modalDescription(fn (User $record): string => app(UserService::class)->isLastActiveAdmin($record)
-                ? LastActiveAdminException::CANNOT_DELETE
-                : 'The user, their principal, calendars, events, address books, contacts, and app passwords will be deleted.')
+                ? __(LastActiveAdminException::CANNOT_DELETE)
+                : __('The user, their principal, calendars, events, address books, contacts, and app passwords will be deleted.'))
             ->using(function (User $record): bool {
                 try {
                     app(UserService::class)->delete($record);
                 } catch (LastActiveAdminException $exception) {
                     Notification::make()
                         ->danger()
-                        ->title('Cannot delete the last active admin')
-                        ->body($exception->getMessage())
+                        ->title(__('Cannot delete the last active admin'))
+                        ->body(PanelErrorTranslator::translate($exception->getMessage()))
                         ->send();
 
                     return false;

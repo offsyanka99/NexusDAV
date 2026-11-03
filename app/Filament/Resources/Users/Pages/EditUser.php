@@ -6,6 +6,7 @@ use App\Exceptions\LastActiveAdminException;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\User;
 use App\Services\UserService;
+use App\Support\PanelErrorTranslator;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Notifications\Notification;
@@ -21,7 +22,7 @@ class EditUser extends EditRecord
 
     public function getTitle(): string
     {
-        return 'Edit User';
+        return __('Edit User');
     }
 
     public function getFormActionsAlignment(): Alignment
@@ -54,16 +55,16 @@ class EditUser extends EditRecord
         } catch (LastActiveAdminException $exception) {
             Notification::make()
                 ->danger()
-                ->title('Cannot change the last active admin')
-                ->body($exception->getMessage())
+                ->title(__('Cannot change the last active admin'))
+                ->body(PanelErrorTranslator::translate($exception->getMessage()))
                 ->send();
 
             throw new Halt;
         } catch (InvalidArgumentException $exception) {
             Notification::make()
                 ->danger()
-                ->title('Could not save the user')
-                ->body($exception->getMessage())
+                ->title(__('Could not save the user'))
+                ->body(PanelErrorTranslator::translate($exception->getMessage()))
                 ->send();
 
             throw new Halt;

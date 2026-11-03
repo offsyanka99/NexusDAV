@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Services\SettingsService;
+use App\Support\LocaleCatalog;
 use BackedEnum;
 use Closure;
 use Filament\Forms\Components\Select;
@@ -41,6 +42,7 @@ class Configuration extends SettingsPage
     {
         return [
             'timezone',
+            'default_locale',
             'time_format',
             'week_start',
             'rate_limit_max_attempts',
@@ -61,6 +63,18 @@ class Configuration extends SettingsPage
     {
         return $schema
             ->components([
+                Section::make(__('Language'))
+                    ->schema([
+                        $this->lockable(
+                            Select::make('default_locale')
+                                ->label(__('Server default language'))
+                                ->options(app(LocaleCatalog::class)->all())
+                                ->required()
+                                ->selectablePlaceholder(false)
+                                ->helperText(__('Used on the login page and for admins who have not chosen a language in the user menu.')),
+                            'default_locale',
+                        ),
+                    ]),
                 Section::make(__('Time'))
                     ->columns(3)
                     ->schema([

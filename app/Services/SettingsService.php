@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Setting;
+use App\Support\LocaleCatalog;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
@@ -30,6 +31,7 @@ final class SettingsService
         'carddav' => ['config' => 'nexusdav.features.carddav', 'env' => 'NEXUSDAV_CARDDAV', 'type' => 'bool', 'default' => true],
         'tasks' => ['config' => 'nexusdav.features.tasks', 'env' => 'NEXUSDAV_TASKS', 'type' => 'bool', 'default' => true],
         'notes' => ['config' => 'nexusdav.features.notes', 'env' => 'NEXUSDAV_NOTES', 'type' => 'bool', 'default' => true],
+        'default_locale' => ['config' => 'nexusdav.default_locale', 'env' => 'NEXUSDAV_LOCALE', 'type' => 'locale', 'default' => 'en'],
         'log_level' => ['config' => 'logging.channels.stderr.level', 'env' => 'LOG_LEVEL', 'type' => 'choice', 'options' => self::LOG_LEVELS, 'default' => 'debug'],
         'timezone' => ['config' => 'nexusdav.default_timezone', 'env' => 'NEXUSDAV_TIMEZONE', 'type' => 'timezone', 'default' => 'UTC'],
         'time_format' => ['config' => 'nexusdav.time_format', 'env' => 'NEXUSDAV_TIME_FORMAT', 'type' => 'choice', 'options' => ['24', '12'], 'default' => '24'],
@@ -245,6 +247,11 @@ final class SettingsService
 
             case 'timezone':
                 return is_string($raw) && in_array($raw, timezone_identifiers_list(), true) ? $raw : null;
+
+            case 'locale':
+                $locale = is_string($raw) ? trim($raw) : '';
+
+                return app(LocaleCatalog::class)->supports($locale) ? $locale : null;
         }
 
         return null;

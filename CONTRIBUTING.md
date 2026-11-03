@@ -85,7 +85,18 @@ Tags are `v<major>.<minor>.<patch>`, with an optional pre-release suffix such as
 - Follow the Laravel and PSR-12 coding style. Use the project's formatter rather than formatting by hand.
 - Write clear, descriptive commit messages in the imperative mood (for example `Add app password revocation`).
 - Do not commit secrets, real credentials or personal data. Use obviously fake values in tests and examples.
-- User-facing text must be translatable (the admin panel is planned to be multilingual in Version 1.x, the user portal in Version 2.x).
+- User-facing admin-panel text must use Laravel's translation helpers. Keep English and Russian entries in `lang/en.json` and `lang/ru.json`; the translation test rejects missing and unused keys.
+
+### Translations
+
+The admin panel is translated; DAV responses, `/health`, the container log and the reasons stored for Diagnostics stay in English.
+
+- Use the English text as the key with `__()` or `trans_choice()`, and add the English and Russian values to `lang/en.json` and `lang/ru.json` in the same change. A Russian plural needs three forms, `one|few|many` (for 1, 2 and 5: `ошибка|ошибки|ошибок`).
+- To add a language, add `lang/<code>.json` with every key and `_language_name` set to the language's own name. The user menu and the Configuration page pick it up from the file. Add `lang/<code>/` for Laravel's validation and auth messages (`php artisan lang:publish` gives the English ones), and `lang/vendor/<namespace>/<code>/` for any Filament string missing from Filament's own files.
+- A stored diagnostic reason gets its label in `App\Support\DiagnosticReason`; a service exception shown in a notification gets one in `App\Support\PanelErrorTranslator`. The stored and logged value stays English.
+- `tests/Feature/LocalizationTest.php` fails on a key that is missing or unused, on Russian framework messages that do not cover the English ones, and, in the `en_XA` pseudo-locale, on any visible panel text that is not translated.
+- Russian Laravel validation messages are adapted from [Laravel-Lang/lang](https://github.com/Laravel-Lang/lang) under MIT; see [its license](lang/ru/LICENSE.Laravel-Lang).
+- User-portal text is not part of this catalog; the portal arrives in Version 2.
 
 ### Dependencies
 

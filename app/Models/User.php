@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Services\Dav\DavDataCleaner;
 use App\Services\UserService;
+use App\Support\LocaleCatalog;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasName;
@@ -186,15 +187,15 @@ class User extends Authenticatable implements FilamentUser, HasName
         return (string) config('nexusdav.default_timezone');
     }
 
+    /**
+     * The admin panel language: the user's own choice while it is still a
+     * shipped language, else the server default, else English.
+     */
     public function resolvedLocale(): string
     {
-        $locale = $this->locale;
+        $catalog = app(LocaleCatalog::class);
 
-        if (is_string($locale) && $locale !== '') {
-            return $locale;
-        }
-
-        return (string) config('nexusdav.default_locale');
+        return $catalog->supports($this->locale) ? (string) $this->locale : $catalog->default();
     }
 
     /**

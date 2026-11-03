@@ -6,6 +6,7 @@ use App\Services\AuthThrottle;
 use App\Services\Dav\DavAuthBackend;
 use App\Services\DiagnosticEventWriter;
 use App\Services\SettingsService;
+use App\Support\LocaleCatalog;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Schemas\Schema;
 use Filament\Support\Facades\FilamentTimezone;
@@ -23,6 +24,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(DavAuthBackend::class);
         $this->app->singleton(SettingsService::class);
+        $this->app->singleton(LocaleCatalog::class);
     }
 
     /**

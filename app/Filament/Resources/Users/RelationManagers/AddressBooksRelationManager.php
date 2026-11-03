@@ -6,6 +6,7 @@ use App\Models\AddressBook;
 use App\Models\User;
 use App\Services\Dav\CollectionService;
 use App\Services\UserService;
+use App\Support\PanelErrorTranslator;
 use Closure;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
@@ -17,6 +18,7 @@ use Filament\Support\Exceptions\Halt;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -24,21 +26,24 @@ class AddressBooksRelationManager extends RelationManager
 {
     protected static string $relationship = 'addressBooks';
 
-    protected static ?string $title = 'Address books';
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
+    {
+        return __('Address books');
+    }
 
     public function table(Table $table): Table
     {
         return $table
             ->columns([
                 TextColumn::make('uri')
-                    ->label('URI'),
+                    ->label(__('URI')),
                 TextColumn::make('displayname')
-                    ->label('Name'),
+                    ->label(__('Name')),
                 TextColumn::make('cards_count')
-                    ->label('Contacts')
+                    ->label(__('Contacts'))
                     ->counts('cards'),
                 TextColumn::make('dav_path')
-                    ->label('DAV path')
+                    ->label(__('DAV path'))
                     ->fontFamily(FontFamily::Mono)
                     ->state(function (AddressBook $record): string {
                         $owner = $this->getOwnerRecord();
@@ -49,9 +54,9 @@ class AddressBooksRelationManager extends RelationManager
             ])
             ->headerActions([
                 Action::make('create')
-                    ->label('Add address book')
+                    ->label(__('Add address book'))
                     ->icon(Heroicon::OutlinedPlus)
-                    ->modalSubmitActionLabel('Save')
+                    ->modalSubmitActionLabel(__('Save'))
                     ->schema([
                         $this->uriField(false),
                         $this->displayNameField(),
@@ -68,8 +73,8 @@ class AddressBooksRelationManager extends RelationManager
                         } catch (InvalidArgumentException $exception) {
                             Notification::make()
                                 ->danger()
-                                ->title('Could not create the address book')
-                                ->body($exception->getMessage())
+                                ->title(__('Could not create the address book'))
+                                ->body(PanelErrorTranslator::translate($exception->getMessage()))
                                 ->send();
 
                             throw new Halt;
@@ -77,15 +82,15 @@ class AddressBooksRelationManager extends RelationManager
 
                         Notification::make()
                             ->success()
-                            ->title('Address book created')
+                            ->title(__('Address book created'))
                             ->send();
                     }),
             ])
             ->recordActions([
                 Action::make('edit')
-                    ->label('Edit')
+                    ->label(__('Edit'))
                     ->icon(Heroicon::OutlinedPencilSquare)
-                    ->modalSubmitActionLabel('Save')
+                    ->modalSubmitActionLabel(__('Save'))
                     ->fillForm(fn (AddressBook $record): array => [
                         'uri' => (string) $record->uri,
                         'display_name' => (string) $record->displayname,
@@ -107,8 +112,8 @@ class AddressBooksRelationManager extends RelationManager
                         } catch (InvalidArgumentException $exception) {
                             Notification::make()
                                 ->danger()
-                                ->title('Could not save the address book')
-                                ->body($exception->getMessage())
+                                ->title(__('Could not save the address book'))
+                                ->body(PanelErrorTranslator::translate($exception->getMessage()))
                                 ->send();
 
                             throw new Halt;
@@ -116,21 +121,21 @@ class AddressBooksRelationManager extends RelationManager
 
                         Notification::make()
                             ->success()
-                            ->title('Address book saved')
+                            ->title(__('Address book saved'))
                             ->send();
                     }),
                 Action::make('delete')
-                    ->label('Delete')
+                    ->label(__('Delete'))
                     ->icon(Heroicon::OutlinedTrash)
                     ->color('danger')
                     ->requiresConfirmation()
-                    ->modalDescription('The address book and its contacts will be deleted.')
+                    ->modalDescription(__('The address book and its contacts will be deleted.'))
                     ->action(function (AddressBook $record): void {
                         app(CollectionService::class)->deleteAddressBook($this->owner(), $record);
 
                         Notification::make()
                             ->success()
-                            ->title('Address book deleted')
+                            ->title(__('Address book deleted'))
                             ->send();
                     }),
             ]);
@@ -139,7 +144,7 @@ class AddressBooksRelationManager extends RelationManager
     private function uriField(bool $editing): TextInput
     {
         $field = TextInput::make('uri')
-            ->label('URI')
+            ->label(__('URI'))
             ->maxLength(200);
 
         if ($editing) {
@@ -152,7 +157,7 @@ class AddressBooksRelationManager extends RelationManager
             ->required()
             ->trim()
             ->regex(CollectionService::SLUG_PATTERN)
-            ->helperText('Lowercase letters, numbers, underscores, and hyphens. Unique for this user.')
+            ->helperText(__('Lowercase letters, numbers, underscores, and hyphens. Unique for this user.'))
             ->default(function (): string {
                 $owner = $this->getOwnerRecord();
 
@@ -162,7 +167,7 @@ class AddressBooksRelationManager extends RelationManager
             })
             ->rule(fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
                 if (! is_string($value)) {
-                    $fail('The URI must be lowercase and URL-safe.');
+                    $fail(__('The URI must be lowercase and URL-safe.'));
 
                     return;
                 }
@@ -170,7 +175,7 @@ class AddressBooksRelationManager extends RelationManager
                 $owner = $this->getOwnerRecord();
 
                 if ($owner instanceof User && app(CollectionService::class)->addressBookUriTaken($owner, $value)) {
-                    $fail('That URI is already used.');
+                    $fail(__('That URI is already used.'));
                 }
             });
     }
@@ -178,7 +183,7 @@ class AddressBooksRelationManager extends RelationManager
     private function displayNameField(): TextInput
     {
         return TextInput::make('display_name')
-            ->label('Display name')
+            ->label(__('Display name'))
             ->required()
             ->maxLength(255);
     }
@@ -186,7 +191,7 @@ class AddressBooksRelationManager extends RelationManager
     private function descriptionField(): Textarea
     {
         return Textarea::make('description')
-            ->label('Description')
+            ->label(__('Description'))
             ->rows(3)
             ->maxLength(2000);
     }

@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\Dav\CalendarHome;
 use App\Services\Dav\CollectionService;
 use App\Services\UserService;
+use App\Support\PanelErrorTranslator;
 use Closure;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Checkbox;
@@ -20,6 +21,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -27,7 +29,10 @@ class CalendarsRelationManager extends RelationManager
 {
     protected static string $relationship = 'calendarInstances';
 
-    protected static ?string $title = 'Calendars';
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
+    {
+        return __('Calendars');
+    }
 
     public function table(Table $table): Table
     {
@@ -35,28 +40,28 @@ class CalendarsRelationManager extends RelationManager
             ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('calendar')->withCount('objects'))
             ->columns([
                 TextColumn::make('uri')
-                    ->label('URI'),
+                    ->label(__('URI')),
                 TextColumn::make('displayname')
-                    ->label('Name'),
+                    ->label(__('Name')),
                 TextColumn::make('object_summary')
-                    ->label('Objects')
+                    ->label(__('Objects'))
                     ->state(function (CalendarInstance $record): string {
                         $count = (int) ($record->getAttribute('objects_count') ?? 0);
                         $components = (string) $record->calendar->components;
                         $marks = [];
 
                         if (str_contains($components, 'VTODO')) {
-                            $marks[] = 'TASKS';
+                            $marks[] = __('TASKS');
                         }
 
                         if (str_contains($components, 'VJOURNAL')) {
-                            $marks[] = 'NOTES';
+                            $marks[] = __('NOTES');
                         }
 
                         return $marks === [] ? (string) $count : $count.' '.implode(' ', $marks);
                     }),
                 TextColumn::make('dav_path')
-                    ->label('DAV path')
+                    ->label(__('DAV path'))
                     ->fontFamily(FontFamily::Mono)
                     ->state(function (CalendarInstance $record): string {
                         $owner = $this->getOwnerRecord();
@@ -67,9 +72,9 @@ class CalendarsRelationManager extends RelationManager
             ])
             ->headerActions([
                 Action::make('create')
-                    ->label('Add Calendar')
+                    ->label(__('Add Calendar'))
                     ->icon(Heroicon::OutlinedPlus)
-                    ->modalSubmitActionLabel('Save')
+                    ->modalSubmitActionLabel(__('Save'))
                     ->schema([
                         $this->uriField(false),
                         $this->displayNameField(),
@@ -94,8 +99,8 @@ class CalendarsRelationManager extends RelationManager
                         } catch (InvalidArgumentException $exception) {
                             Notification::make()
                                 ->danger()
-                                ->title('Could not create the calendar')
-                                ->body($exception->getMessage())
+                                ->title(__('Could not create the calendar'))
+                                ->body(PanelErrorTranslator::translate($exception->getMessage()))
                                 ->send();
 
                             throw new Halt;
@@ -103,15 +108,15 @@ class CalendarsRelationManager extends RelationManager
 
                         Notification::make()
                             ->success()
-                            ->title('Calendar created')
+                            ->title(__('Calendar created'))
                             ->send();
                     }),
             ])
             ->recordActions([
                 Action::make('edit')
-                    ->label('Edit')
+                    ->label(__('Edit'))
                     ->icon(Heroicon::OutlinedPencilSquare)
-                    ->modalSubmitActionLabel('Save')
+                    ->modalSubmitActionLabel(__('Save'))
                     ->fillForm(function (CalendarInstance $record): array {
                         $record->loadMissing('calendar');
                         $components = (string) $record->calendar->components;
@@ -147,8 +152,8 @@ class CalendarsRelationManager extends RelationManager
                         } catch (InvalidArgumentException $exception) {
                             Notification::make()
                                 ->danger()
-                                ->title('Could not save the calendar')
-                                ->body($exception->getMessage())
+                                ->title(__('Could not save the calendar'))
+                                ->body(PanelErrorTranslator::translate($exception->getMessage()))
                                 ->send();
 
                             throw new Halt;
@@ -156,21 +161,21 @@ class CalendarsRelationManager extends RelationManager
 
                         Notification::make()
                             ->success()
-                            ->title('Calendar saved')
+                            ->title(__('Calendar saved'))
                             ->send();
                     }),
                 Action::make('delete')
-                    ->label('Delete')
+                    ->label(__('Delete'))
                     ->icon(Heroicon::OutlinedTrash)
                     ->color('danger')
                     ->requiresConfirmation()
-                    ->modalDescription('The calendar and its events, tasks, and notes will be deleted.')
+                    ->modalDescription(__('The calendar and its events, tasks, and notes will be deleted.'))
                     ->action(function (CalendarInstance $record): void {
                         app(CollectionService::class)->deleteCalendar($this->owner(), $record);
 
                         Notification::make()
                             ->success()
-                            ->title('Calendar deleted')
+                            ->title(__('Calendar deleted'))
                             ->send();
                     }),
             ]);
@@ -179,7 +184,7 @@ class CalendarsRelationManager extends RelationManager
     private function uriField(bool $editing): TextInput
     {
         $field = TextInput::make('uri')
-            ->label('URI')
+            ->label(__('URI'))
             ->maxLength(200);
 
         if ($editing) {
@@ -192,7 +197,7 @@ class CalendarsRelationManager extends RelationManager
             ->required()
             ->trim()
             ->regex(CollectionService::SLUG_PATTERN)
-            ->helperText('Lowercase letters, numbers, underscores, and hyphens. Unique for this user.')
+            ->helperText(__('Lowercase letters, numbers, underscores, and hyphens. Unique for this user.'))
             ->default(function (): string {
                 $owner = $this->getOwnerRecord();
 
@@ -202,13 +207,13 @@ class CalendarsRelationManager extends RelationManager
             })
             ->rule(fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
                 if (! is_string($value)) {
-                    $fail('The URI must be lowercase and URL-safe.');
+                    $fail(__('The URI must be lowercase and URL-safe.'));
 
                     return;
                 }
 
                 if (in_array($value, CalendarHome::RESERVED_NAMES, true)) {
-                    $fail('This name is reserved.');
+                    $fail(__('This name is reserved.'));
 
                     return;
                 }
@@ -216,7 +221,7 @@ class CalendarsRelationManager extends RelationManager
                 $owner = $this->getOwnerRecord();
 
                 if ($owner instanceof User && app(CollectionService::class)->calendarUriTaken($owner, $value)) {
-                    $fail('That URI is already used.');
+                    $fail(__('That URI is already used.'));
                 }
             });
     }
@@ -224,7 +229,7 @@ class CalendarsRelationManager extends RelationManager
     private function displayNameField(): TextInput
     {
         return TextInput::make('display_name')
-            ->label('Display name')
+            ->label(__('Display name'))
             ->required()
             ->maxLength(255);
     }
@@ -232,7 +237,7 @@ class CalendarsRelationManager extends RelationManager
     private function descriptionField(): Textarea
     {
         return Textarea::make('description')
-            ->label('Description')
+            ->label(__('Description'))
             ->rows(3)
             ->maxLength(2000);
     }
@@ -240,22 +245,22 @@ class CalendarsRelationManager extends RelationManager
     private function colorField(): TextInput
     {
         return TextInput::make('color')
-            ->label('Color')
+            ->label(__('Color'))
             ->required()
             ->trim()
             ->regex(CollectionService::COLOR_PATTERN)
             ->default(fn (): string => UserService::DEFAULT_CALENDAR_COLOR)
-            ->helperText('Use #RRGGBB.');
+            ->helperText(__('Use #RRGGBB.'));
     }
 
     private function tasksField(): Checkbox
     {
-        return $this->componentField('tasks', 'Tasks (VTODO)', 'VTODO');
+        return $this->componentField('tasks', __('Tasks (VTODO)'), 'VTODO');
     }
 
     private function notesField(): Checkbox
     {
-        return $this->componentField('notes', 'Notes (VJOURNAL)', 'VJOURNAL');
+        return $this->componentField('notes', __('Notes (VJOURNAL)'), 'VJOURNAL');
     }
 
     private function componentField(string $name, string $label, string $component): Checkbox

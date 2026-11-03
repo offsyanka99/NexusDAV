@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Users\RelationManagers;
 use App\Models\AppPassword;
 use App\Models\User;
 use App\Services\AppPasswordService;
+use App\Support\PanelErrorTranslator;
 use DateTimeInterface;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
@@ -20,6 +21,7 @@ use Filament\Support\Exceptions\Halt;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -27,7 +29,10 @@ class AppPasswordsRelationManager extends RelationManager
 {
     protected static string $relationship = 'appPasswords';
 
-    protected static ?string $title = 'App passwords';
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
+    {
+        return __('App passwords');
+    }
 
     public ?string $plainTextToken = null;
 
@@ -35,12 +40,12 @@ class AppPasswordsRelationManager extends RelationManager
     {
         return $schema
             ->components([
-                Section::make('New app password')
-                    ->description('Copy this password now. It is shown once and is not stored.')
+                Section::make(__('New app password'))
+                    ->description(__('Copy this password now. It is shown once and is not stored.'))
                     ->visible(fn (): bool => filled($this->plainTextToken))
                     ->schema([
                         TextEntry::make('plain_text_token')
-                            ->label('Password')
+                            ->label(__('Password'))
                             ->state(fn (): ?string => $this->plainTextToken)
                             ->copyable()
                             ->wrap()
@@ -54,39 +59,40 @@ class AppPasswordsRelationManager extends RelationManager
     {
         return $table
             ->columns([
-                TextColumn::make('name'),
+                TextColumn::make('name')->label(__('Name')),
                 TextColumn::make('public_id')
-                    ->label('Public id'),
+                    ->label(__('Public id')),
                 TextColumn::make('expires_at')
-                    ->label('Expires')
+                    ->label(__('Expires'))
                     ->dateTime()
-                    ->placeholder('Never'),
+                    ->placeholder(__('Never')),
                 TextColumn::make('revoked_at')
-                    ->label('Revoked')
+                    ->label(__('Revoked'))
                     ->dateTime()
                     ->placeholder('—'),
                 TextColumn::make('last_used_at')
-                    ->label('Last used')
+                    ->label(__('Last used'))
                     ->dateTime()
-                    ->placeholder('Never'),
+                    ->placeholder(__('Never')),
                 TextColumn::make('created_at')
+                    ->label(__('Created'))
                     ->dateTime()
                     ->sortable(),
             ])
             ->defaultSort('created_at', 'desc')
             ->headerActions([
                 Action::make('generate')
-                    ->label('Generate app password')
+                    ->label(__('Generate app password'))
                     ->icon(Heroicon::OutlinedKey)
                     ->schema([
                         TextInput::make('name')
-                            ->label('Name')
+                            ->label(__('Name'))
                             ->required()
                             ->maxLength(255)
-                            ->helperText('A label for this device, such as "Pixel 7".'),
+                            ->helperText(__('A label for this device, such as "Pixel 7".')),
                         DateTimePicker::make('expires_at')
-                            ->label('Expires')
-                            ->helperText('Optional.'),
+                            ->label(__('Expires'))
+                            ->helperText(__('Optional.')),
                     ])
                     ->action(function (array $data): void {
                         $owner = $this->getOwnerRecord();
@@ -106,8 +112,8 @@ class AppPasswordsRelationManager extends RelationManager
                         } catch (InvalidArgumentException $exception) {
                             Notification::make()
                                 ->danger()
-                                ->title('Could not create the app password')
-                                ->body($exception->getMessage())
+                                ->title(__('Could not create the app password'))
+                                ->body(PanelErrorTranslator::translate($exception->getMessage()))
                                 ->send();
 
                             throw new Halt;
@@ -117,26 +123,26 @@ class AppPasswordsRelationManager extends RelationManager
 
                         Notification::make()
                             ->success()
-                            ->title('App password created')
-                            ->body('Copy the password shown on this page. It will not be shown again.')
+                            ->title(__('App password created'))
+                            ->body(__('Copy the password shown on this page. It will not be shown again.'))
                             ->persistent()
                             ->send();
                     }),
             ])
             ->recordActions([
                 Action::make('revoke')
-                    ->label('Revoke')
+                    ->label(__('Revoke'))
                     ->icon(Heroicon::OutlinedNoSymbol)
                     ->color('danger')
                     ->requiresConfirmation()
-                    ->modalDescription('Revoking keeps this password but it can no longer be used.')
+                    ->modalDescription(__('Revoking keeps this password but it can no longer be used.'))
                     ->visible(fn (AppPassword $record): bool => $record->revoked_at === null)
                     ->action(function (AppPassword $record): void {
                         app(AppPasswordService::class)->revoke($record);
 
                         Notification::make()
                             ->success()
-                            ->title('App password revoked')
+                            ->title(__('App password revoked'))
                             ->send();
                     }),
             ]);

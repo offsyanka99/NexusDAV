@@ -4,6 +4,7 @@ namespace App\Filament\Widgets\Diagnostics;
 
 use App\Models\DiagnosticEvent;
 use App\Services\DiagnosticsSummary;
+use App\Support\DiagnosticReason;
 use Filament\Support\Enums\FontFamily;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -38,7 +39,9 @@ class FailedLoginsTable extends TableWidget
                     ->formatStateUsing(fn (string $state): string => $state === DiagnosticEvent::SOURCE_DAV ? 'DAV' : __('Admin panel')),
                 TextColumn::make('ip')->label(__('Address')),
                 TextColumn::make('username')->label(__('User'))->searchable(),
-                TextColumn::make('reason')->label(__('Reason')),
+                TextColumn::make('reason')
+                    ->label(__('Reason'))
+                    ->formatStateUsing(fn (string $state): string => DiagnosticReason::label($state)),
                 TextColumn::make('repeat_count')->label(__('Count'))->numeric(),
                 TextColumn::make('request_id')
                     ->label(__('Request ID'))

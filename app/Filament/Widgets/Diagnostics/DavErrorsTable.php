@@ -4,6 +4,7 @@ namespace App\Filament\Widgets\Diagnostics;
 
 use App\Models\DiagnosticEvent;
 use App\Services\DiagnosticsSummary;
+use App\Support\DiagnosticReason;
 use Filament\Support\Enums\FontFamily;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -42,6 +43,7 @@ class DavErrorsTable extends TableWidget
                     ->searchable(),
                 TextColumn::make('reason')
                     ->label(__('Reason'))
+                    ->formatStateUsing(fn (string $state): string => DiagnosticReason::label($state))
                     ->description(fn (DiagnosticEvent $record): ?string => $record->kind === DiagnosticEvent::KIND_AUTH_FAILED ? __('Rejected login') : null),
                 TextColumn::make('repeat_count')->label(__('Count'))->numeric(),
                 TextColumn::make('request_id')

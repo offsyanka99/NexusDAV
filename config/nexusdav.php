@@ -39,7 +39,7 @@ return [
 
     'week_start' => env('NEXUSDAV_WEEK_START', 1),
 
-    'default_locale' => 'en',
+    'default_locale' => env('NEXUSDAV_LOCALE', 'en'),
 
     /*
     |--------------------------------------------------------------------------

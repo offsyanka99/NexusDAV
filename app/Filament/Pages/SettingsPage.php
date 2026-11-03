@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Services\SettingsService;
+use App\Support\PanelErrorTranslator;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Field;
 use Filament\Notifications\Notification;
@@ -72,7 +73,7 @@ abstract class SettingsPage extends Page
             Notification::make()
                 ->danger()
                 ->title(__('Could not save'))
-                ->body($exception->getMessage())
+                ->body(PanelErrorTranslator::translate($exception->getMessage()))
                 ->send();
 
             return;

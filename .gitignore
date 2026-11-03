@@ -46,3 +46,6 @@ docs/plans/*.md
 !docs/plans/implementation-plan-v1x.md
 !docs/plans/version-2-and-later.md
 
+
+# VS Code Local History
+/.history
