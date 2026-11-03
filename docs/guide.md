@@ -12,7 +12,7 @@ Related documents:
 - [Implementation plan (v1.x)](plans/implementation-plan-v1x.md) — milestones and PRs for the Version 1.x features
 - [Plan for Version 2 and later](plans/version-2-and-later.md) — features for 2.0, 2.x and beyond
 
-Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `0.1.3` (first release `0.1.0`). 0.1.2 added the first Version 1.x milestone, an admin panel in English and Russian. The server passes automated sync tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
+Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `0.1.4` (first release `0.1.0`). 0.1.2 added the first Version 1.x milestone, an admin panel in English and Russian. The server passes automated sync tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
 
 NexusDAV is built for homelabs and small teams that want calendars, contacts, tasks, notes and files without running a full groupware suite.
 
@@ -30,7 +30,7 @@ Current limitations:
 
 ## Quick start
 
-1. Get the Compose files and create your environment file. The Compose files pull the published image, `ghcr.io/offsyanka99/nexusdav:0.1.3`:
+1. Get the Compose files and create your environment file. The Compose files pull the published image, `ghcr.io/offsyanka99/nexusdav:0.1.4`:
 
    ```bash
    git clone https://github.com/offsyanka99/NexusDAV.git
@@ -154,7 +154,7 @@ The variables used in this guide are listed in `.env.example` with safe placehol
 | `LOG_CHANNEL` | No | `stderr` in the image | No | Set by the Dockerfile so logs reach `docker compose logs`. Leave it unset in `.env`. |
 | `TRUSTED_PROXIES` | No | private ranges | No | Peers whose `X-Forwarded-For`, `-Proto` and `-Host` are trusted. Unset or empty means the private ranges `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.1`, `::1` and `fc00::/7`, which covers a reverse proxy in the same Docker network or LAN. Otherwise list your proxy's address or subnet. `*` trusts every peer: the brute-force limit then sees every client as the proxy's address, the per-address limit is turned off, and `nexusdav:prepare` prints a warning. A device inside the private ranges can set `X-Forwarded-For` itself; list only your proxy if that matters. |
 | `PUID`, `PGID` | No | `568` | No | User and group that own `/data` inside the container. |
-| `NEXUSDAV_VERSION` | No | set at build | No | Shown on the Dashboard. The image sets it from the `NEXUSDAV_VERSION` build argument: a release uses its version (for example `0.1.3`), CI uses `ci+<commit>`, and a local build shows `dev`. |
+| `NEXUSDAV_VERSION` | No | set at build | No | Shown on the Dashboard. The image sets it from the `NEXUSDAV_VERSION` build argument: a release uses its version (for example `0.1.4`), CI uses `ci+<commit>`, and a local build shows `dev`. |
 
 Secrets can also be supplied as files (for example `DB_PASSWORD_FILE`) for use with Docker secrets; this is planned. The application stops at start with a clear message if a required variable is missing.
 
@@ -297,7 +297,7 @@ NexusDAV targets standards-compliant clients. The table shows the Version 1 targ
 - **Thunderbird 159.0** (Snap package on Ubuntu): calendar and contacts. Tasks were not tested.
 - **Not tested yet:** Apple Calendar, Contacts and Reminders, and Tasks.org or OpenTasks with DAVx5.
 
-0.1.2 and 0.1.3 change only the admin panel (languages) and a test tool; DAV behavior is the same as in 0.1.1, so the results above still apply.
+0.1.2 and 0.1.3 changed only the admin panel (languages) and a test tool. The full [client checklist](testing/client-checklist.md) was run on 0.1.3 with the same clients on PostgreSQL and SQLite: everything passed except a calendar deleted and created again with the same name while a client was offline (the client kept the old events). 0.1.4 fixes that in the server's sync tokens (see [DAV endpoints](dav-endpoints.md#sync-tokens)); the re-check with the clients is pending.
 
 **What was tested by automated clients** (SQLite, November 2026; recorded on 0.1.0 and unchanged for 0.1.1 to 0.1.3):
 
@@ -468,7 +468,7 @@ Export the settings before an upgrade and keep the file with your other backups.
 **Upgrade**
 
 1. Back up first.
-2. Read the release notes, then change the tag on the `image:` line in `compose.yaml` (for example from `0.1.2` to `0.1.3`). Keep an exact version rather than `latest`, so an upgrade happens only when you choose it.
+2. Read the release notes, then change the tag on the `image:` line in `compose.yaml` (for example from `0.1.3` to `0.1.4`). Keep an exact version rather than `latest`, so an upgrade happens only when you choose it.
 3. Run `docker compose pull` and `docker compose up -d`, with the same `-f` files as at install. Database migrations run automatically on start. With `compose.build.yaml`, update the checkout instead and run `up -d --build`.
 4. Upgrade one minor version at a time. There is no rollback other than restoring the backup.
 

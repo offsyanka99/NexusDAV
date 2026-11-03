@@ -259,7 +259,9 @@ The Done when is met except for two gaps: Tasks.org was not run, and step 7 was 
 - Tests (`SyncTokenTest`, both databases): re-create from the panel and from a client (including the case where the old and new change numbers and ctags were equal), the three bad-token cases with 16 malformed forms, legacy tokens, incremental sync with deletions, PROPFIND values, and both homes. Seven of the eight fail on the code before this PR. [dav-endpoints.md](../dav-endpoints.md#sync-tokens) describes the rules.
 - For the M2 release notes: after the upgrade every collection's ctag and every home's token change form once. Clients sync each collection once more, using their old token, which is still accepted, so this is a small sync and not a full one.
 
-Left: check with DAVx5 and Thunderbird on a build with this change (client checklist step 6), then close #2.
+Tag `v0.1.4` publishes the image with this change (no GitHub Release page).
+
+Left: check with DAVx5 and Thunderbird on 0.1.4 (client checklist step 6), then close #2.
 
 ### PR 15 — Sync history retention (Effort: Medium)
 
