@@ -150,7 +150,7 @@ class LocalizationTest extends TestCase
             'status' => 401,
             'reason' => 'bad secret',
             'repeat_count' => 1,
-            'bucket' => now()->timestamp,
+            'bucket' => intdiv(now()->getTimestamp(), 60),
         ]);
 
         Livewire::test(DavErrorsTable::class)->assertSee('неверный секрет');
@@ -472,7 +472,7 @@ class LocalizationTest extends TestCase
             'status' => $status,
             'reason' => $reason,
             'repeat_count' => 1,
-            'bucket' => now()->timestamp.$status,
+            'bucket' => intdiv(now()->getTimestamp(), 60),
         ]);
     }
 }
