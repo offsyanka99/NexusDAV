@@ -1,6 +1,6 @@
 # NexusDAV
 
-![NexusDAV logo](docs/images/NexusDAV%20-%20logo.jpg)
+![NexusDAV logo](docs/images/NexusDAV_new_logo.jpg)
 
 **Self-hosted CalDAV / CardDAV / WebDAV server** with a dedicated admin panel and user portal.
 
