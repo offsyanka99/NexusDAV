@@ -226,6 +226,8 @@ These carry over from Version 1 and add what 1.x needs.
 
 Tag `v0.1.3` publishes the image with the seeder and the Configuration reload fix (no GitHub Release page). Pass 1 runs against that image.
 
+Pass 1 so far (v0.1.3, PostgreSQL only; the maintainer skipped SQLite, so the "both databases" part of Done when is not met): step 7 first sync of 5,000 events and 2,000 contacts took 14 s in Thunderbird and 10 min 45 s in DAVx5 on a Pixel 7 Pro. Both passed with all items and no errors, and the second sync fetched only the change; the DAVx5 time is tracked as a low-priority issue (#1). The other steps are not recorded yet.
+
 Left for the maintainer: run pass 1 on the devices in Decision 15, fill in the results, and open an `m2-client-pass` issue for each failure.
 
 ### PR 14 — Sync tokens that cannot be trusted (Effort: High)

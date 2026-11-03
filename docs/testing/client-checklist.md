@@ -113,7 +113,7 @@ Delete the `load-test` calendar and address book in the panel when the step is d
 
 ## Results
 
-Legend: ✅ pass · ❌ fail (issue number) · ➖ n/a · ⬜ not run yet.
+Legend: ✅ pass · ❌ fail (issue number) · ➖ n/a or skipped · ⬜ not run yet.
 
 ### Pass 1 (M2, PR 13)
 
@@ -124,8 +124,8 @@ The first pass, on the current `main`.
 | Date | ⬜ |
 | Build (Dashboard version or commit) | ⬜ |
 | Tester | ⬜ |
-| PostgreSQL server | PostgreSQL 18 behind Caddy, HTTPS |
-| SQLite server | SQLite behind Caddy, HTTPS |
+| PostgreSQL server | PostgreSQL behind HTTPS, v0.1.3 (nexusdav.vovchenko.org). Test data for step 7 uploaded over DAV, not with the seeder |
+| SQLite server | Not run (skipped by the maintainer) |
 | DAVx5, jtx Board, Tasks.org | ⬜ versions, device, Android version |
 | Thunderbird | ⬜ version, distribution |
 
@@ -142,4 +142,4 @@ The first pass, on the current `main`.
 | 4 Offline edits, then sync | ⬜ | ⬜ | ⬜ | ⬜ | |
 | 5 Two devices, same item | ⬜ | ⬜ | ⬜ | ⬜ | |
 | 6 Calendar deleted and re-created while offline | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 7 Large collection, first sync | ⬜ | ⬜ | ⬜ | ⬜ | Record the times |
+| 7 Large collection, first sync | ✅ 10 min 45 s (#1, low priority) | ➖ | ✅ 14 s | ➖ | PostgreSQL only; SQLite skipped by the maintainer. 5,000 events and 2,000 contacts, no errors, all items present. Thunderbird on Ethernet (local network), Pixel 7 Pro on Wi-Fi 5. The second sync fetched only the change: about 1 s in Thunderbird, slightly longer in DAVx5 |
