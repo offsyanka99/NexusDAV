@@ -2,9 +2,12 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\User;
 use App\Services\SettingsService;
+use App\Support\LocaleCatalog;
 use App\Support\PanelErrorTranslator;
 use Filament\Actions\Action;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\Field;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -60,6 +63,7 @@ abstract class SettingsPage extends Page
         $settings = app(SettingsService::class);
         $state = $this->form->getState();
         $values = [];
+        $localeBefore = $this->panelLocale();
 
         foreach ($this->settingKeys() as $key) {
             if (array_key_exists($key, $state) && ! $settings->isLocked($key)) {
@@ -81,11 +85,31 @@ abstract class SettingsPage extends Page
 
         $this->fillForm();
 
+        // A new server default language changes this admin's panel only if they
+        // have no language of their own; reload so the whole panel switches, and
+        // word the notification in the language it will be shown in.
+        $localeAfter = $this->panelLocale();
+
+        if ($localeAfter !== $localeBefore) {
+            app()->setLocale($localeAfter);
+        }
+
         Notification::make()
             ->success()
             ->title(__('Saved'))
             ->body(__('The change applies from the next request. No restart is needed.'))
             ->send();
+
+        if ($localeAfter !== $localeBefore) {
+            $this->redirect(static::getUrl(), navigate: false);
+        }
+    }
+
+    private function panelLocale(): string
+    {
+        $user = Filament::auth()->user();
+
+        return $user instanceof User ? $user->resolvedLocale() : app(LocaleCatalog::class)->default();
     }
 
     protected function fillForm(): void

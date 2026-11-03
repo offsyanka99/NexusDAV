@@ -148,7 +148,7 @@ These carry over from Version 1 and add what 1.x needs.
 - The pseudo-locale test uses `en_XA`: app strings are wrapped in `⟦…⟧`, everything else falls back to Russian, and any Latin text left outside the markers fails, except an allowlist of product and protocol names, sample data and technical values. It renders the login page, Dashboard, Users list, create and edit, Settings, Configuration and Diagnostics over HTTP, plus the three relation tables, the widgets and the language modal.
 - The maintainer review (Decision 19) changed some wording in `ru.json`.
 
-### PR 9 — Language foundation and switcher (Effort: Medium)
+### PR 9 — Language foundation and switcher (Effort: Medium) — ✅ done
 
 - Translation files: `lang/en.json` and `lang/ru.json`, keyed by the English text that `__()` already uses in the code. Adding a language means adding `lang/<code>.json`. Each file carries the language's own name (for example "Русский") for the picker.
 - The list of languages is built from the files in `lang/`.
@@ -163,7 +163,7 @@ These carry over from Version 1 and add what 1.x needs.
 
 **Done when:** an admin can switch the panel between English and Russian from the user menu (pages not yet translated stay in English), the server default applies to admins without their own choice and to the login page, `NEXUSDAV_LOCALE` locks the field, and the translation check runs in CI.
 
-### PR 10 — Translate the Users pages and the Dashboard (Effort: Medium)
+### PR 10 — Translate the Users pages and the Dashboard (Effort: Medium) — ✅ done
 
 - Every string on the Users list, create and edit pages: columns, filters, row actions, confirmations (including the list of what a delete removes) and notifications.
 - The three tables on the edit page: Calendars, Address books and App passwords, including the one-time app password message.
@@ -176,7 +176,7 @@ These carry over from Version 1 and add what 1.x needs.
 
 **Done when:** the Users pages and the Dashboard show no English text in Russian, apart from names, user data and technical terms (CalDAV, URI), and the translation check passes.
 
-### PR 11 — Translate Settings, Configuration and Diagnostics; pseudo-locale test (Effort: Medium)
+### PR 11 — Translate Settings, Configuration and Diagnostics; pseudo-locale test (Effort: Medium) — ✅ done
 
 - The Settings, Configuration and Diagnostics pages, including the "Set by <VARIABLE>" text on locked fields.
 - Diagnostics reasons: the stored value stays English (`bad secret`, `revoked`); the page shows a translated label for each known reason.
@@ -188,7 +188,7 @@ These carry over from Version 1 and add what 1.x needs.
 
 **Done when:** every panel page passes the pseudo-locale test, the translation check passes for English and Russian, and validation errors show in Russian.
 
-### PR 12 — M1 release (Effort: Low)
+### PR 12 — M1 release (Effort: Low) — ✅ done
 
 - The maintainer reviews the Russian text (Decision 19); corrections go into `ru.json`.
 - Docs: the guide's settings table (`NEXUSDAV_LOCALE`), the [Configuration design note](../design/admin-configuration.md), [apps/admin.md](../apps/admin.md), and the README status line.

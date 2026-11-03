@@ -262,6 +262,38 @@ class LocalizationTest extends TestCase
             ->assertSee('Значение поля время жизни сеанса должно быть не меньше 5.');
     }
 
+    public function test_saving_a_new_server_default_language_reloads_the_page_when_it_applies(): void
+    {
+        config(['nexusdav.default_locale' => 'en']);
+        $follower = User::factory()->create(['is_admin' => true, 'is_active' => true, 'locale' => null]);
+        $this->actingAs($follower);
+
+        Livewire::test(Configuration::class)
+            ->fillForm(['default_locale' => 'ru'])
+            ->call('save')
+            ->assertHasNoFormErrors()
+            ->assertNotified('Сохранено')
+            ->assertRedirect(Configuration::getUrl());
+
+        $this->assertSame('ru', app(SettingsService::class)->get('default_locale'));
+
+        Livewire::test(Configuration::class)
+            ->fillForm(['session_lifetime' => 60])
+            ->call('save')
+            ->assertNoRedirect();
+
+        $own = User::factory()->create(['is_admin' => true, 'is_active' => true, 'locale' => 'en']);
+        $this->actingAs($own);
+        // Livewire::test() skips the panel middleware that sets this per request.
+        App::setLocale($own->resolvedLocale());
+
+        Livewire::test(Configuration::class)
+            ->fillForm(['default_locale' => 'en'])
+            ->call('save')
+            ->assertNotified('Saved')
+            ->assertNoRedirect();
+    }
+
     public function test_user_menu_can_save_and_clear_an_individual_language(): void
     {
         config(['nexusdav.default_locale' => 'en']);
