@@ -11,7 +11,9 @@ namespace App\Services\Dav;
  * differs even when the change numbers match.
  *
  * A token the collection cannot use resolves to null, which sabre answers with
- * 403 and DAV:valid-sync-token; the client then syncs from scratch.
+ * 403 and DAV:valid-sync-token; the client then syncs from scratch. That
+ * includes a token older than synctoken_min, the oldest change number the
+ * collection still has after history pruning.
  */
 final class SyncToken
 {
@@ -28,12 +30,13 @@ final class SyncToken
 
     /**
      * The change number to read changes from, or null when the token belongs
-     * to another collection, is ahead of the collection's current number, or
-     * is malformed. A plain number is a token issued before the id was added
-     * (implementation plan v1.x, Decision 20): it is accepted while it is not
-     * ahead, and the reply carries a token in the new form.
+     * to another collection, is ahead of the collection's current number, is
+     * older than the oldest change number still kept, or is malformed. A plain
+     * number is a token issued before the id was added (implementation plan
+     * v1.x, Decision 20): it is accepted while it is not ahead and not older
+     * than the kept history, and the reply carries a token in the new form.
      */
-    public static function resolve(mixed $token, int $collectionId, int $current): ?int
+    public static function resolve(mixed $token, int $collectionId, int $current, int $oldest = 1): ?int
     {
         if (! is_string($token)) {
             return null;
@@ -51,7 +54,11 @@ final class SyncToken
             return null;
         }
 
-        return $number <= $current ? $number : null;
+        if ($number > $current || $number < $oldest) {
+            return null;
+        }
+
+        return $number;
     }
 
     /**

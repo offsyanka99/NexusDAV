@@ -114,16 +114,16 @@ final class CalendarBackend extends SabreCalendarBackend
         }
 
         $id = (int) $calendarId[0];
-        $current = DB::table('calendars')->where('id', $id)->value('synctoken');
+        $row = DB::table('calendars')->where('id', $id)->first(['synctoken', 'synctoken_min']);
 
-        if ($current === null) {
+        if ($row === null) {
             return null;
         }
 
         $from = null;
 
         if (! SyncToken::isInitial($syncToken)) {
-            $from = SyncToken::resolve($syncToken, $id, (int) $current);
+            $from = SyncToken::resolve($syncToken, $id, (int) $row->synctoken, (int) $row->synctoken_min);
 
             if ($from === null) {
                 return null;
@@ -139,6 +139,13 @@ final class CalendarBackend extends SabreCalendarBackend
         $result['syncToken'] = SyncToken::format($id, (int) $result['syncToken']);
 
         return $result;
+    }
+
+    protected function addChange($calendarId, $objectUri, $operation)
+    {
+        parent::addChange($calendarId, $objectUri, $operation);
+
+        app(SyncHistoryPruner::class)->afterWrite();
     }
 
     /**

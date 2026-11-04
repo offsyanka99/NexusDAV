@@ -21,6 +21,7 @@ A **Save** button stores the values. A change applies from the next request.
 
 ## Version 1.x
 
+- Keep sync history for, in days (`NEXUSDAV_SYNC_HISTORY_DAYS`, default `90`). Change rows older than this are deleted on a later DAV write. A client whose token is older than the rows still kept is told to sync that collection from the start.
 - Enable or disable Sharing (default on; nothing is shared until an admin creates a share)
 - Enable or disable WebDAV (file storage), default off after an upgrade
   When enabled, the following field becomes available:

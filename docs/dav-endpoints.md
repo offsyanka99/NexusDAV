@@ -75,6 +75,7 @@ A calendar or address book token is `http://sabre.io/ns/sync/<collection id>-<ch
 
 - belongs to another collection, for example one deleted and created again with the same URI;
 - is ahead of the collection's current change number;
+- is older than the change history the collection still keeps (`NEXUSDAV_SYNC_HISTORY_DAYS`, default 90 days);
 - is malformed, or has a prefix other than `http://sabre.io/ns/sync/`.
 
 The client then syncs the collection from the start (an empty `sync-token`), as RFC 6578 describes. A token issued by 0.1.3 or earlier is the bare change number. It is accepted while it is not ahead, and the reply carries a token in the new form.

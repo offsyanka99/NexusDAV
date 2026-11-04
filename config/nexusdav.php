@@ -121,6 +121,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Sync history
+    |--------------------------------------------------------------------------
+    |
+    | Change rows for calendars and address books are deleted on a later DAV
+    | write, at most once per prune interval, one batch per table. A client
+    | whose token is older than the rows still kept is told to sync again.
+    |
+    */
+
+    'sync_history' => [
+        'retention_days' => env('NEXUSDAV_SYNC_HISTORY_DAYS', 90),
+        'prune_interval_seconds' => 3600,
+        'prune_batch' => 1000,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Panel settings
     |--------------------------------------------------------------------------
     |

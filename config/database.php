@@ -97,6 +97,10 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // Columns that default to the database clock (sync history
+            // created_at) must match the app's UTC; a PostgreSQL container
+            // started with TZ would otherwise stamp them in its local time.
+            'timezone' => 'UTC',
         ],
 
         'sqlsrv' => [

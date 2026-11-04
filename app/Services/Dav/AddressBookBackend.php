@@ -68,16 +68,16 @@ final class AddressBookBackend extends SabreAddressBookBackend
     public function getChangesForAddressBook($addressBookId, $syncToken, $syncLevel, $limit = null)
     {
         $id = (int) $addressBookId;
-        $current = DB::table('addressbooks')->where('id', $id)->value('synctoken');
+        $row = DB::table('addressbooks')->where('id', $id)->first(['synctoken', 'synctoken_min']);
 
-        if ($current === null) {
+        if ($row === null) {
             return null;
         }
 
         $from = null;
 
         if (! SyncToken::isInitial($syncToken)) {
-            $from = SyncToken::resolve($syncToken, $id, (int) $current);
+            $from = SyncToken::resolve($syncToken, $id, (int) $row->synctoken, (int) $row->synctoken_min);
 
             if ($from === null) {
                 return null;
@@ -93,6 +93,13 @@ final class AddressBookBackend extends SabreAddressBookBackend
         $result['syncToken'] = SyncToken::format($id, (int) $result['syncToken']);
 
         return $result;
+    }
+
+    protected function addChange($addressBookId, $objectUri, $operation)
+    {
+        parent::addChange($addressBookId, $objectUri, $operation);
+
+        app(SyncHistoryPruner::class)->afterWrite();
     }
 
     /**

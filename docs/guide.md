@@ -171,6 +171,7 @@ These settings are changed on the **Settings** and **Configuration** pages. A ch
 | Tasks (VTODO) on or off | Settings | `NEXUSDAV_TASKS` | on |
 | Notes (VJOURNAL) on or off | Settings | `NEXUSDAV_NOTES` | on |
 | Log level | Settings | `LOG_LEVEL` | `debug` |
+| Keep sync history for (days) | Settings | `NEXUSDAV_SYNC_HISTORY_DAYS` | `90` |
 | Default panel language (`en` or `ru`) | Configuration | `NEXUSDAV_LOCALE` | `en` |
 | Server time zone | Configuration | `NEXUSDAV_TIMEZONE` | `UTC` |
 | Time format (`24` or `12`) | Configuration | `NEXUSDAV_TIME_FORMAT` | `24` |

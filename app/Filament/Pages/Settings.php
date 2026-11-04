@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Services\SettingsService;
 use BackedEnum;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -36,7 +37,7 @@ class Settings extends SettingsPage
      */
     protected function settingKeys(): array
     {
-        return ['caldav', 'carddav', 'tasks', 'notes', 'log_level'];
+        return ['caldav', 'carddav', 'tasks', 'notes', 'log_level', 'sync_history_days'];
     }
 
     public function form(Schema $schema): Schema
@@ -83,7 +84,28 @@ class Settings extends SettingsPage
                             'log_level',
                         ),
                     ]),
+                Section::make(__('Sync'))
+                    ->schema([
+                        $this->lockable(
+                            $this->number('sync_history_days', __('Keep sync history for'))
+                                ->suffix(__('days'))
+                                ->helperText(__('Changes older than this are dropped. A client that was offline longer has to sync that collection from the start.')),
+                            'sync_history_days',
+                        ),
+                    ]),
             ])
             ->statePath('data');
+    }
+
+    private function number(string $key, string $label): TextInput
+    {
+        $definition = SettingsService::DEFINITIONS[$key];
+
+        return TextInput::make($key)
+            ->label($label)
+            ->integer()
+            ->required()
+            ->minValue($definition['min'] ?? null)
+            ->maxValue($definition['max'] ?? null);
     }
 }

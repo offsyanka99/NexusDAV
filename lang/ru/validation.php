@@ -176,5 +176,6 @@ return [
         'rate_limit_decay_seconds' => 'период блокировки',
         'session_lifetime' => 'время жизни сеанса',
         'diagnostics_retention_days' => 'срок хранения диагностики',
+        'sync_history_days' => 'срок хранения истории синхронизации',
     ],
 ];

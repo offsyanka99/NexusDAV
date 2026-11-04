@@ -36,7 +36,7 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 | 4 | PR 12 | M1 | M1 release (done, 0.1.2) | Low | 10, 11 |
 | 5 | PR 13 | M2 | Client checklist and the first hand-test pass (done) | Medium | — |
 | 6 | PR 14 | M2 | Sync tokens that cannot be trusted (done, 0.1.4) | High | — |
-| 7 | PR 15 | M2 | Sync history retention | Medium | 14 |
+| 7 | PR 15 | M2 | Sync history retention (done) | Medium | 14 |
 | 8 | PR 16 | M2 | Atomic conditional writes | High | — |
 | 9 | PR 17 | M2 | Busy database: retry, then 503 | Medium | 16 |
 | 10 | PR 18 | M2 | Fixes from the client pass | Medium, re-rated after PR 13 | 13 |
@@ -262,7 +262,7 @@ Tag `v0.1.4` publishes the image with this change (no GitHub Release page).
 
 Done on 0.1.4: Thunderbird got a 403 and then synced in full; DAVx5 dropped the old events too (it was listing the calendar in full because of its past-events limit). #2 is closed.
 
-### PR 15 — Sync history retention (Effort: Medium)
+### PR 15 — Sync history retention (Effort: Medium) — ✅ done
 
 - Migration: a `created_at` column (database default: now) on `calendarchanges` and `addressbookchanges`; existing rows get the migration time. Each calendar and address book records the oldest change number it can still answer for.
 - **Keep sync history for (days)** on the Settings page: `NEXUSDAV_SYNC_HISTORY_DAYS`, default `90`.
@@ -272,6 +272,19 @@ Done on 0.1.4: Thunderbird got a 403 and then synced in full; DAVx5 dropped the 
 **Tests (both databases):** rows at the retention boundary; a token older than the pruned history; batch pruning; no pruning while the history is shorter than the setting.
 
 **Done when:** history older than the setting is removed on both databases, a token older than the history gets `valid-sync-token`, and a newer token still gets exactly the changes since it.
+
+**Status:** done.
+
+- Migration adds `created_at` (database default now) on `calendarchanges` and `addressbookchanges`, and `synctoken_min` (default 1) on `calendars` and `addressbooks`. Existing change rows take the migration time.
+- **Keep sync history for** on the Settings page, `NEXUSDAV_SYNC_HISTORY_DAYS`, default 90, minimum 1, maximum 3650. The variable locks the field.
+- `SyncHistoryPruner` runs from a calendar or address book write, at most once an hour, one batch of 1000 rows per table. In the same transaction it deletes the oldest expired rows and moves `synctoken_min` forward to one past the newest change number it deleted. A token below that number gets `valid-sync-token`. A token at or above it still returns only the changes since that token.
+- Tests (`SyncHistoryTest`, SQLite and PostgreSQL): the retention boundary, no pruning while every row is inside the window, batch pruning, both collections' old and new tokens, pruning triggered by a write, and the Settings field.
+- Fixed in review:
+  - **Upgrade:** SQLite cannot add a column with a `CURRENT_TIMESTAMP` default to a table that has rows, so the migration stopped every SQLite server that already had sync history. It now adds the column empty, stamps the existing rows, then sets the default. Tested by upgrading a database with history, on both databases.
+  - **Floor:** `synctoken_min` was the oldest change number still stored. On PostgreSQL `created_at` is the start of the writing transaction, so a later change number can carry an earlier time and be deleted first; a token that needed it was then accepted, and the client silently missed that change. The floor is now one past the newest deleted number.
+  - **Time zone:** the PostgreSQL session is set to UTC (`config/database.php`). A PostgreSQL container started with `TZ` stamped `created_at` in its local time, so history was pruned hours early or late.
+  - **Errors:** a failure while pruning is logged and no longer turns the client's write into a 500.
+- Not changed: one batch of 1,000 rows per table per hour removes up to 24,000 rows a day per table. A server that writes more than that keeps more history than the setting until writes slow down.
 
 ### PR 16 — Atomic conditional writes (Effort: High)
 
