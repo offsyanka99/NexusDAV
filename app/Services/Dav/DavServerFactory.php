@@ -97,9 +97,10 @@ final class DavServerFactory
 
         // sabre turns any exception into a response. Its own DAV exceptions
         // are expected client errors; anything else is a server bug that
-        // would otherwise leave no trace.
+        // would otherwise leave no trace. DavController logs a busy
+        // database itself, once it has retried or given up.
         $server->on('exception', function (Throwable $exception): void {
-            if (! $exception instanceof DavException) {
+            if (! $exception instanceof DavException && ! BusyDatabase::caused($exception)) {
                 Log::error('DAV request failed', ['exception' => $exception]);
             }
         });

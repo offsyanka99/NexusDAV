@@ -38,7 +38,9 @@ return [
             'database' => env('DB_DATABASE', database_path('database.sqlite')),
             'prefix' => '',
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
-            'busy_timeout' => 5000,
+            // Milliseconds a statement waits for another writer before SQLite
+            // reports "database is locked"; DavController then retries.
+            'busy_timeout' => (int) env('DB_BUSY_TIMEOUT', 5000),
             'journal_mode' => 'WAL',
             'synchronous' => null,
             // IMMEDIATE takes the write lock at BEGIN, where busy_timeout applies.

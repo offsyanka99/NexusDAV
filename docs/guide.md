@@ -523,6 +523,7 @@ Automatic backups are a long-term goal (see [Roadmap](#roadmap)).
 | A DAV error is listed on Diagnostics and you need more detail | Search the log for its Request ID: `docker compose logs nexusdav \| grep <id>`. |
 | Tasks or notes are not visible | The client app does not display them (see [Client compatibility](#client-compatibility)). |
 | The first contact sync in DAVx5 takes many minutes | DAVx5 saves each contact into Android's contacts storage one at a time, about 0.5 s per contact on a Pixel 7 Pro: roughly 10 minutes for 2,000 contacts. The server's part is a few seconds. Later syncs fetch only changes and are quick. Calendars and other clients (Thunderbird, iPhone, iPad) are not affected ([#1](https://github.com/offsyanka99/NexusDAV/issues/1)). |
+| A client reports 503 "The server is busy" during a large import | Many writes arrived at once, and one waited for the database longer than the server retries (about 5 s per try, four tries). Nothing was saved for that item; the client sends it again later (`Retry-After: 5`). It happens mostly on SQLite with many parallel uploads; PostgreSQL handles them better. |
 | A calendar or address book deleted and created again with the same name still shows its old name in the client | Clients keep the name they first saw. Refresh the collection list (DAVx5: **Refresh list**) or add the calendar again in Thunderbird. The contents are already the new ones. |
 
 ### Migrating from another server

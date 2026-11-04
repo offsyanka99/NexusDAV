@@ -4,9 +4,12 @@ namespace App\Services;
 
 use App\Models\AppPassword;
 use App\Models\User;
+use App\Services\Dav\BusyDatabase;
 use DateTimeInterface;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
+use Throwable;
 
 final class AppPasswordService
 {
@@ -149,20 +152,32 @@ final class AppPasswordService
     }
 
     /**
-     * Record use at most once per LAST_USED_INTERVAL_SECONDS.
+     * Record use at most once per LAST_USED_INTERVAL_SECONDS. This is only
+     * bookkeeping: a busy database skips it instead of failing the request
+     * that signed in, and the next request records it.
      */
     public function markUsed(AppPassword $appPassword): void
     {
         $now = now();
         $cutoff = $now->copy()->subSeconds(self::LAST_USED_INTERVAL_SECONDS);
 
-        $updated = AppPassword::query()
-            ->whereKey($appPassword->getKey())
-            ->where(function ($query) use ($cutoff): void {
-                $query->whereNull('last_used_at')
-                    ->orWhere('last_used_at', '<=', $cutoff);
-            })
-            ->update(['last_used_at' => $now]);
+        try {
+            $updated = AppPassword::query()
+                ->whereKey($appPassword->getKey())
+                ->where(function ($query) use ($cutoff): void {
+                    $query->whereNull('last_used_at')
+                        ->orWhere('last_used_at', '<=', $cutoff);
+                })
+                ->update(['last_used_at' => $now]);
+        } catch (Throwable $exception) {
+            if (! BusyDatabase::caused($exception)) {
+                throw $exception;
+            }
+
+            Log::info('Database busy, app password last use not recorded', ['app_password_id' => $appPassword->getKey()]);
+
+            return;
+        }
 
         if ($updated > 0) {
             $appPassword->refresh();

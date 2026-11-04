@@ -153,6 +153,44 @@ class ConcurrentWritesTest extends TestCase
     }
 
     /**
+     * PR 17: another connection holds the SQLite write lock longer than
+     * busy_timeout. The write is retried and succeeds once the lock is
+     * released; while it is held for good, the client gets 503.
+     */
+    public function test_a_write_behind_a_held_sqlite_lock_is_retried_then_answered_503(): void
+    {
+        if ($this->file === null) {
+            $this->markTestSkipped('Holds the SQLite database lock.');
+        }
+
+        $env = ['DB_BUSY_TIMEOUT' => '100'];
+
+        $holder = $this->lockDatabase();
+        $released = $this->together([$this->job('PUT', 'late.ics', $this->event('late', 'Late'), [], 0)], $env, function (int $start) use ($holder): void {
+            usleep(max(0, $start + 400_000 - (int) (microtime(true) * 1_000_000)));
+            $holder->exec('COMMIT');
+        });
+        $this->assertSame([201], array_column($released, 'status'), json_encode($released));
+
+        $holder = $this->lockDatabase();
+        $held = $this->together([$this->job('PUT', 'never.ics', $this->event('never', 'Never'), [], 0)], $env);
+        $holder->exec('COMMIT');
+
+        $this->assertSame([503], array_column($held, 'status'), json_encode($held));
+        $this->assertSame('5', $held[0]['retry_after']);
+        $this->assertSame(0, DB::table('calendarobjects')->where('uri', 'never.ics')->count());
+        $this->assertSame(1, DB::table('calendarobjects')->where('uri', 'late.ics')->count());
+    }
+
+    private function lockDatabase(): \PDO
+    {
+        $pdo = new \PDO('sqlite:'.$this->file);
+        $pdo->exec('BEGIN IMMEDIATE');
+
+        return $pdo;
+    }
+
+    /**
      * @param  array<string, string>  $headers
      * @return array<string, mixed>
      */
@@ -177,15 +215,17 @@ class ConcurrentWritesTest extends TestCase
      * Starts one worker per job and has them send at the same moment.
      *
      * @param  list<array<string, mixed>>  $jobs
-     * @return list<array{status: int, etag: string|null}>
+     * @param  array<string, string>  $extraEnv
+     * @param  (callable(int): void)|null  $during  runs once the workers are started, with their start time
+     * @return list<array{status: int, etag: string|null, retry_after: string|null}>
      */
-    private function together(array $jobs): array
+    private function together(array $jobs, array $extraEnv = [], ?callable $during = null): array
     {
         $start = (int) (microtime(true) * 1_000_000) + 2_500_000;
         $env = array_merge(getenv(), [
             'DB_CONNECTION' => $this->driver,
             'DB_DATABASE' => $this->file ?? (string) $this->database,
-        ]);
+        ], $extraEnv);
         $processes = [];
 
         foreach ($jobs as $job) {
@@ -201,6 +241,10 @@ class ConcurrentWritesTest extends TestCase
             $processes[] = [$process, $pipes];
         }
 
+        if ($during !== null) {
+            $during($start);
+        }
+
         $results = [];
 
         foreach ($processes as [$process, $pipes]) {
@@ -212,14 +256,14 @@ class ConcurrentWritesTest extends TestCase
 
             $decoded = json_decode($out, true);
             $this->assertIsArray($decoded, 'Worker failed: '.$out.$err);
-            $results[] = ['status' => (int) $decoded['status'], 'etag' => $decoded['etag'] ?? null];
+            $results[] = ['status' => (int) $decoded['status'], 'etag' => $decoded['etag'] ?? null, 'retry_after' => $decoded['retry_after'] ?? null];
         }
 
         return $results;
     }
 
     /**
-     * @param  list<array{status: int, etag: string|null}>  $results
+     * @param  list<array{status: int, etag: string|null, retry_after: string|null}>  $results
      * @return list<int>
      */
     private function statuses(array $results): array

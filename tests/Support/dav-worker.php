@@ -7,7 +7,7 @@
  * unix time in microseconds to wait for, so several workers send together)
  * and hold_ms (a pause just before sabre writes, after the precondition
  * check, so concurrent requests overlap in that window). Prints the status
- * and ETag as JSON.
+ * ETag and Retry-After as JSON.
  */
 
 use App\Events\DavServerCreated;
@@ -52,6 +52,7 @@ $response = $kernel->handle($request);
 echo json_encode([
     'status' => $response->getStatusCode(),
     'etag' => $response->headers->get('ETag'),
+    'retry_after' => $response->headers->get('Retry-After'),
 ]);
 
 $kernel->terminate($request, $response);

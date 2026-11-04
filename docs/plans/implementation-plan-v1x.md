@@ -320,6 +320,18 @@ Issue #3 has a first case from the client pass: one 500 "database is locked" in 
 
 **Done when:** lock contention never produces a 500 on either database; the client gets its result after a retry, or a 503 with `Retry-After`.
 
+Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, all 201; 16 at a time, 3 and then 6 of 5,000 got 500 "database is locked" after waiting 5.2 to 9.7 s. Six of the nine were on the app password "last used" update during sign-in, not on the write itself, and every 500 body showed the SQL and the database file path.
+
+**Status:** done.
+
+- `DavController` keeps the request body and runs sabre again, with a fresh server and transaction, when the answer was caused by a busy database (`App\Services\Dav\BusyDatabase`: SQLite "database is locked", PostgreSQL `40001`, `40P01` and `55P03`, the `lock_timeout` from PR 16). Up to three retries, after a random wait of 50–250 ms times the attempt number. A failed commit counts as busy too: the answer sabre built is then discarded.
+- After the retries, and at once for a read (only writes are replayed): 503 with `Retry-After: 5` and the request ID in the body. The 503 is stored on Diagnostics like other DAV errors when the database lets it be written. Each retry is a warning in the log, the 503 an error.
+- **Found while testing:** the app password "last used" update is skipped when the database is busy instead of failing the request; the next request records it.
+- **Found while testing:** a 500 from an unexpected exception no longer shows its text (SQL, file paths): the body says "Internal server error." with the request ID, and the details are in the log. sabre's own DAV errors (4xx) keep their messages.
+- `busy_timeout` reads `DB_BUSY_TIMEOUT` (default 5000 ms) so tests can shorten it; it is not documented as a setting.
+- Tests: `BusyDatabaseTest` (retry then success, 503 after four tries with its Diagnostics row, the three PostgreSQL states, a read answered 503 at once, a 500 without the exception text, a busy "last used" update). `ConcurrentWritesTest` holds a real SQLite write lock from a second connection: released after 0.4 s the write succeeds through a retry (and gets 503 with retries switched off), held for good it gets 503.
+- Tag `v0.1.6` (no GitHub Release page), also with the expiry date picker that follows Time format and Week starts on.
+
 ### PR 18 — Fixes from the client pass (Effort: Medium, re-rated after PR 13)
 
 - One fix and one regression test for each `m2-client-pass` issue that PR 14 to PR 17 did not already fix, or a documented limitation in the guide's Troubleshooting.

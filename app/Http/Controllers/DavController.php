@@ -5,14 +5,17 @@ namespace App\Http\Controllers;
 use App\Events\DavServerCreated;
 use App\Http\Middleware\RequestLog;
 use App\Services\AuthThrottle;
+use App\Services\Dav\BusyDatabase;
 use App\Services\Dav\DavServerFactory;
 use App\Services\Dav\DavWriteLock;
 use App\Services\DiagnosticEventWriter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Sabre\DAV\Auth\Plugin as AuthPlugin;
+use Sabre\DAV\Exception as DavException;
 use Sabre\DAV\Server;
 use Sabre\HTTP\Request as SabreRequest;
+use Sabre\HTTP\Response as SabreResponse;
 use Sabre\HTTP\ResponseInterface;
 use Sabre\HTTP\Sapi;
 use Sabre\Uri;
@@ -22,17 +25,80 @@ use Throwable;
 
 class DavController extends Controller
 {
+    /**
+     * Retries after a busy database, on top of the first attempt.
+     */
+    public const RETRIES = 3;
+
+    public const RETRY_AFTER_SECONDS = 5;
+
     public function __invoke(
         Request $request,
         DavServerFactory $factory,
         DiagnosticEventWriter $events,
         AuthThrottle $throttle,
     ): Response {
+        // Kept as a string so a write can be replayed. CalDAV and CardDAV
+        // bodies are small.
+        $body = $request->getContent();
+        $replayable = in_array(strtoupper($request->getMethod()), DavWriteLock::METHODS, true);
+
+        for ($attempt = 1; ; $attempt++) {
+            [$server, $failure] = $this->attempt($factory, $request, $body);
+
+            if ($failure === null || ! BusyDatabase::caused($failure)) {
+                break;
+            }
+
+            if ($replayable && $attempt <= self::RETRIES) {
+                Log::warning('Database busy, retrying the DAV write', ['attempt' => $attempt, 'error' => $failure->getMessage()]);
+                usleep(random_int(50_000, 250_000) * $attempt);
+
+                continue;
+            }
+
+            Log::error('Database busy, answered 503', ['attempts' => $attempt, 'exception' => $failure]);
+            $server->httpResponse = $this->errorResponse(503, 'The server is busy. Try again shortly.', ['Retry-After' => (string) self::RETRY_AFTER_SECONDS]);
+            $failure = null;
+
+            break;
+        }
+
+        if ($failure !== null && ! $failure instanceof DavException && $server->httpResponse->getStatus() === 500) {
+            // sabre puts the exception text in the body: SQL, file paths.
+            // The details are in the log under the request ID.
+            $server->httpResponse = $this->errorResponse(500, 'Internal server error.');
+        }
+
+        $this->restoreChallenge($server);
+
+        $status = $server->httpResponse->getStatus();
+        $username = $this->username($server);
+        $request->attributes->set(RequestLog::USER_ATTRIBUTE, $username);
+        $this->recordError($events, $throttle, $request, $status, $username);
+
+        return $this->laravelResponse($server);
+    }
+
+    /**
+     * One run of sabre with its own write transaction. Returns the server and
+     * the exception sabre answered, if any.
+     *
+     * @return array{0: Server, 1: Throwable|null}
+     */
+    private function attempt(DavServerFactory $factory, Request $request, string $body): array
+    {
         $server = $factory->make();
         $writeLock = new DavWriteLock;
         $writeLock->attach($server);
         event(new DavServerCreated($server));
-        $server->httpRequest = $this->sabreRequest($request);
+
+        $failure = null;
+        $server->on('exception', function (Throwable $exception) use (&$failure): void {
+            $failure = $exception;
+        });
+
+        $server->httpRequest = $this->sabreRequest($request, $body);
         $server->sapi = new class extends Sapi
         {
             public static function sendResponse(ResponseInterface $response) {}
@@ -48,15 +114,36 @@ class DavController extends Controller
             throw $exception;
         }
 
-        $writeLock->finish();
-        $this->restoreChallenge($server);
+        try {
+            $writeLock->finish();
+        } catch (Throwable $exception) {
+            if (! BusyDatabase::caused($exception)) {
+                throw $exception;
+            }
 
-        $status = $server->httpResponse->getStatus();
-        $username = $this->username($server);
-        $request->attributes->set(RequestLog::USER_ATTRIBUTE, $username);
-        $this->recordError($events, $throttle, $request, $status, $username);
+            // The answer sabre built was never committed.
+            $failure = $exception;
+        }
 
-        return $this->laravelResponse($server);
+        return [$server, $failure];
+    }
+
+    /**
+     * @param  array<string, string>  $headers
+     */
+    private function errorResponse(int $status, string $message, array $headers = []): SabreResponse
+    {
+        $id = RequestLog::id();
+        $text = htmlspecialchars($id === null ? $message : $message.' Request ID: '.$id, ENT_XML1, 'UTF-8');
+        $xml = '<?xml version="1.0" encoding="utf-8"?>'."\n"
+            .'<d:error xmlns:d="DAV:" xmlns:s="http://sabredav.org/ns">'."\n"
+            .'  <s:message>'.$text.'</s:message>'."\n"
+            .'</d:error>'."\n";
+
+        $response = new SabreResponse($status, ['Content-Type' => 'application/xml; charset=utf-8'] + $headers);
+        $response->setBody($xml);
+
+        return $response;
     }
 
     /**
@@ -77,13 +164,13 @@ class DavController extends Controller
         }
     }
 
-    private function sabreRequest(Request $request): SabreRequest
+    private function sabreRequest(Request $request, string $body): SabreRequest
     {
         $sabre = new SabreRequest(
             $request->getMethod(),
             $request->getRequestUri(),
             $request->headers->all(),
-            $request->getContent(true),
+            $body,
         );
         $sabre->setAbsoluteUrl($request->getSchemeAndHttpHost().$request->getRequestUri());
         $version = $request->getProtocolVersion();
