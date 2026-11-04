@@ -26,7 +26,7 @@ How clients show tasks:
 - **Thunderbird** is a target for tasks.
 - **Apple** shows them in Reminders, not in Calendar.
 
-Automated tests with vdirsyncer and the python caldav client pass. DAVx⁵ with jtx Board was tested by hand with 0.1.1. Thunderbird tasks and Apple Reminders have not been tried yet. See [Client compatibility](../guide.md#client-compatibility).
+Automated tests with vdirsyncer and the python caldav client pass. DAVx⁵ with jtx Board and Thunderbird passed the [client checklist](../testing/client-checklist.md) by hand on 0.1.3 and 0.1.4 (a task created, then completed). Apple Reminders has not been tried yet. See [Client compatibility](../guide.md#client-compatibility).
 
 ## Not in the plan yet
 

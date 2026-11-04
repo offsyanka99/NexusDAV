@@ -25,7 +25,7 @@ The collection URL looks like `/dav/calendars/<username>/<calendar-id>/`. The ad
 | Invite someone who has no account | Version 2.x, by email | No | Version 2.x |
 | Turn WebDAV-Push on or off | No | Version 1.x | No |
 
-Target clients for events are DAVx⁵, Thunderbird, and Apple Calendar. Automated tests with vdirsyncer and the python caldav client pass, and 0.1.1 was tested by hand with DAVx⁵ and Thunderbird; Apple Calendar has not been tried yet. See [Client compatibility](../guide.md#client-compatibility).
+Target clients for events are DAVx⁵, Thunderbird, and Apple Calendar. Automated tests with vdirsyncer and the python caldav client pass, and the [client checklist](../testing/client-checklist.md) passed by hand on 0.1.3 and 0.1.4 with DAVx⁵ and Thunderbird, including recurring events with exceptions, offline edits, and a calendar deleted and created again with the same name (fixed in 0.1.4). Apple Calendar has not been tried yet. See [Client compatibility](../guide.md#client-compatibility).
 
 ## Not in the plan yet
 

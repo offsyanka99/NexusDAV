@@ -14,7 +14,7 @@ The work is split into five milestones and 31 PRs, listed in the order they are 
 
 Sources: [guide](../guide.md), [apps](../apps/README.md), the [admin panel](../apps/admin.md) description, the design notes for [Settings](../design/admin-settings.md), [Configuration](../design/admin-configuration.md) and the [Dashboard](../design/admin-dashboard.md), the pinned WebDAV-Push draft, and the current code.
 
-**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 to M5 are not started.
+**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is in progress: PR 13 and PR 14 are done (PR 14 is in 0.1.4); PR 15 to PR 19 are next. M3 to M5 are not started.
 
 Effort levels are the same as in Version 1:
 - **Low** — small, mostly boilerplate or config
@@ -34,7 +34,7 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 | 2 | PR 10 | M1 | Translate the Users pages and the Dashboard (done) | Medium | 9 |
 | 3 | PR 11 | M1 | Translate Settings, Configuration and Diagnostics; pseudo-locale test (done) | Medium | 9 |
 | 4 | PR 12 | M1 | M1 release (done, 0.1.2) | Low | 10, 11 |
-| 5 | PR 13 | M2 | Client checklist and the first hand-test pass | Medium | — |
+| 5 | PR 13 | M2 | Client checklist and the first hand-test pass (done) | Medium | — |
 | 6 | PR 14 | M2 | Sync tokens that cannot be trusted (done, 0.1.4) | High | — |
 | 7 | PR 15 | M2 | Sync history retention | Medium | 14 |
 | 8 | PR 16 | M2 | Atomic conditional writes | High | — |
@@ -110,7 +110,7 @@ Why this order:
 | 12 | WebDAV-Push URL | The same `/dav/` URLs as sync, for calendars, address books and files. No separate push URL or setting |
 | 13 | Address book sharing | Required in M3, together with calendar sharing. sabre/dav has no address book sharing, so the spike picks the design, not whether to build it. M3 is not released without both |
 | 14 | App password scope | No scoping in 1.x. An app password reaches calendars, contacts and, from M4, the user's files. The docs say so. Scopes per app password can be planned later |
-| 15 | Real-client testing | The maintainer runs the client checklist by hand on **Android** (DAVx5 with jtx Board and Tasks.org) and **Linux** (Thunderbird, GNOME Files, rclone). It is a release step, and the results go in the guide's client compatibility table. Apple, macOS and Windows clients are not tested by the project; the guide marks them "not tested", and user reports are welcome |
+| 15 | Real-client testing | The maintainer runs the client checklist by hand on **Android** (DAVx5 with jtx Board) and **Linux** (Thunderbird, GNOME Files, rclone). It is a release step, and the results go in the guide's client compatibility table. Apple, macOS and Windows clients are not tested by the project; the guide marks them "not tested", and user reports are welcome |
 | 16 | Upgrade defaults | Files and WebDAV-Push are **off** after an upgrade. An admin switches them on. Sharing is on, but nothing is shared until an admin creates a share |
 | 17 | Name of a shared collection | The sharee's copy starts as "<name> (<owner's display name>)", for example "Calendar (Ada)". The sharee can rename their copy; the owner's name does not change |
 | 18 | PR numbering | Continues from Version 1: PR 9 onward |
@@ -203,7 +203,7 @@ These carry over from Version 1 and add what 1.x needs.
 
 **Goal:** clients stay in sync after long offline periods, concurrent edits and busy databases, and the client compatibility table reflects real tests.
 
-### PR 13 — Client checklist and the first hand-test pass (Effort: Medium)
+### PR 13 — Client checklist and the first hand-test pass (Effort: Medium) — ✅ done
 
 - A written checklist in `docs/testing/client-checklist.md`, reused by every later release:
   - Discovery from the domain only
@@ -214,12 +214,12 @@ These carry over from Version 1 and add what 1.x needs.
   - A calendar deleted and created again with the same name while a client is offline
   - A first sync of a large collection
 - A test-data seeder for the large-collection step (for example 5,000 events and 2,000 contacts for one user). It refuses to run without a named user and `--force`.
-- The pass, on the devices in Decision 15: DAVx5 with jtx Board and Tasks.org on Android; Thunderbird on Linux, including tasks. PostgreSQL behind Caddy over HTTPS, and SQLite.
+- The pass, on the devices in Decision 15: DAVx5 with jtx Board on Android; Thunderbird on Linux, including tasks. PostgreSQL behind Caddy over HTTPS, and SQLite.
 - The results: one row per step, client and database, kept in the checklist file. Each failure becomes a GitHub issue with the label `m2-client-pass`.
 
 **Done when:** the checklist is merged, the pass is run on the current `main` for both clients and both databases, the results are recorded, and every failure has an issue.
 
-**Status:** done, with two gaps (below). Delivered:
+**Status:** done. Delivered:
 
 - The checklist, [docs/testing/client-checklist.md](../testing/client-checklist.md): setup, steps 1 to 7 with pass criteria, what to put in an `m2-client-pass` issue, and an empty results table for pass 1.
 - The seeder, `php artisan nexusdav:seed-test-data <username> --force` (`App\Console\Commands\SeedTestData`). It creates new `load-test` collections (5,000 events and 2,000 contacts by default, up to 50,000 each) through the sabre backends, so sync tokens and the change log match a client upload. It refuses without `--force`, for an unknown user, or when the collection already exists. The default size takes about 1.3 seconds on SQLite. Tests: `SeedTestDataTest`, which also syncs the result over DAV.
@@ -230,11 +230,10 @@ Pass 1 results (3 November 2026, v0.1.3, PostgreSQL; DAVx5 4.5.21 and jtx Board 
 
 - **Pass on PostgreSQL, both clients:** discovery, events, recurring events with exceptions, tasks (jtx Board), contacts with a photo, offline edits, two devices editing the same item, and the large collection (5,000 events and 2,000 contacts: 14 s in Thunderbird, 10 min 45 s in DAVx5, no errors, and the second sync fetched only the change). Notes and calendar creation passed in DAVx5.
 - **SQLite:** the maintainer ran the same steps with the same results as PostgreSQL, including step 7 (on 0.1.4): calendar 29 s in DAVx5 and 22 s in Thunderbird, contacts about 10 min in DAVx5 and about 2 s in Thunderbird. The DAVx5 contacts time is the same on both databases and the server answers the requests in about 2.5 s in total, so it is client-side (#1, medium priority; an iPad loaded the same 2,000 contacts in 74 s). The load test uploaded in parallel and got one 500 "database is locked" on SQLite (#3, for PR 16).
-- **Skipped:** Tasks.org.
 - **Failure:** step 6 on both clients and both databases (#2): after a calendar is deleted and re-created with the same URI, the old events stay on the client with no error until DAVx5 Refresh list or a new Thunderbird subscription. PR 14 targets exactly this, so it now has a before-fix result.
 - **Observation:** the DAVx5 first-sync time, low priority (#1).
 
-The Done when is met except for one gap: Tasks.org was not run. The one failure has an issue.
+The Done when is met: both clients and both databases are covered, and every failure has an issue. Tasks.org was dropped from the test devices (the maintainer uses jtx Board).
 
 ### PR 14 — Sync tokens that cannot be trusted (Effort: High) — ✅ done
 

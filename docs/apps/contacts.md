@@ -23,7 +23,7 @@ The address book URL looks like `/dav/addressbooks/<username>/<addressbook-id>/`
 | Share the address book with another local user | No. A client shows an address book shared with that user | Version 1.x | Version 2 |
 | Email the sharee about a new share | No | Version 2.x | Version 2.x |
 
-Target clients are DAVx⁵, Thunderbird, and Apple Contacts. Automated tests with vdirsyncer and the python caldav client pass, and 0.1.1 was tested by hand with DAVx⁵ and Thunderbird; Apple Contacts has not been tried yet. See [Client compatibility](../guide.md#client-compatibility).
+Target clients are DAVx⁵, Thunderbird, and Apple Contacts. Automated tests with vdirsyncer and the python caldav client pass, and the [client checklist](../testing/client-checklist.md) passed by hand on 0.1.3 and 0.1.4 with DAVx⁵ and Thunderbird, including contacts with a photo. The native Contacts app on an iPad synced 2,000 contacts on 0.1.4. In DAVx⁵ a first sync of a few thousand contacts takes minutes, on the phone side ([#1](https://github.com/offsyanka99/NexusDAV/issues/1)). See [Client compatibility](../guide.md#client-compatibility).
 
 ## Not in the plan yet
 

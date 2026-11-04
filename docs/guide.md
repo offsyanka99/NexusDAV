@@ -284,9 +284,9 @@ NexusDAV targets standards-compliant clients. The table shows the Version 1 targ
 
 | Client | CalDAV (events) | CardDAV (contacts) | Tasks (VTODO) | Notes (VJOURNAL) | Status |
 |---|---|---|---|---|---|
-| **DAVx5** (Android) | Yes | Yes | Yes, via **jtx Board** | Yes, via **jtx Board** | Primary target. Tested with DAVx⁵ 4.5.21 + jtx Board: calendar, contacts, tasks and notes |
-| **Thunderbird** | Yes | Yes | Yes | No (not supported by the client) | Target; tested for 0.1.1 (159.0): calendar and contacts. Tasks not tested |
-| **Apple Calendar / Contacts** (macOS, iOS) | Yes | Yes | Yes, in Reminders (not in Calendar) | No | Target; not tested yet |
+| **DAVx5** (Android) | Yes | Yes | Yes, via **jtx Board** | Yes, via **jtx Board** | Primary target. Client checklist passed on 0.1.3 and 0.1.4 with DAVx⁵ 4.5.21 + jtx Board 2.17.00: calendar, contacts, tasks and notes. A first sync of 2,000 contacts takes about 10 minutes on the phone ([#1](https://github.com/offsyanka99/NexusDAV/issues/1)) |
+| **Thunderbird** | Yes | Yes | Yes | No (not supported by the client) | Target. Client checklist passed on 0.1.3 and 0.1.4 with 159.0: calendar, contacts and tasks |
+| **Apple Calendar / Contacts** (macOS, iOS) | Yes | Yes | Yes, in Reminders (not in Calendar) | No | Contacts on iPad synced 2,000 contacts on 0.1.4 (native app). Calendar and Reminders not tested yet |
 | **vdirsyncer** 0.21.0 | Yes | Yes | Synced as files | Synced as files | Tested for 0.1.1 (automated) |
 | **python caldav** 3.7.0 | Yes | — | Yes | Yes | Tested for 0.1.1 (automated) |
 | Other standards-compliant clients | Expected | Expected | Client-dependent | Client-dependent | Best effort |
@@ -294,19 +294,20 @@ NexusDAV targets standards-compliant clients. The table shows the Version 1 targ
 **Recommended clients for testing**
 
 - **Android:** DAVx⁵ (Google Play) + jtx Board — events, contacts, tasks and notes
-- **Desktop:** Thunderbird — events and contacts
-- **iOS / macOS:** Apple Calendar, Contacts and Reminders
+- **Desktop:** Thunderbird — events, contacts and tasks
+- **iOS / macOS:** Apple Calendar, Contacts and Reminders (not part of the project's own test pass; reports welcome)
 - **Automation:** vdirsyncer and python caldav (already used in CI)
 
-**What was tested by hand** (0.1.1, PostgreSQL 18 behind Caddy over HTTPS, November 2026):
+**What was tested by hand** (0.1.3 and 0.1.4, PostgreSQL and SQLite behind HTTPS, November 2026; every step with its result is in the [client checklist](testing/client-checklist.md#results)):
 
-- **DAVx⁵ 4.5.21** (Google Play) + **jtx Board** on a Pixel 7 Pro and a Pixel 10 Pro (Android 17): calendar, contacts, tasks and notes.
-- **Thunderbird 159.0** (Snap package on Ubuntu): calendar and contacts. Tasks were not tested.
-- **Not tested yet:** Apple Calendar, Contacts and Reminders.
+- **DAVx⁵ 4.5.21** (Google Play) + **jtx Board 2.17.00** on a Pixel 7 Pro (Android 17): discovery, events, recurring events with exceptions, tasks, notes, contacts with a photo, a calendar created from the client, offline edits, two devices editing the same event, and a first sync of 5,000 events and 2,000 contacts. 0.1.1 was also tested on a Pixel 10 Pro.
+- **Thunderbird 159.0** (Snap package on Ubuntu): the same steps except notes and creating a calendar, which Thunderbird does not do.
+- **iPad, native Contacts:** a first sync of 2,000 contacts (74 s) on 0.1.4.
+- **Not tested yet:** Apple Calendar and Reminders.
 
-0.1.2 and 0.1.3 changed only the admin panel (languages) and a test tool. The full [client checklist](testing/client-checklist.md) was run on 0.1.3 with the same clients on PostgreSQL and SQLite: everything passed except a calendar deleted and created again with the same name while a client was offline (the client kept the old events). 0.1.4 fixes that in the server's sync tokens (see [DAV endpoints](dav-endpoints.md#sync-tokens)); re-checked with both clients on 0.1.4.
+0.1.2 and 0.1.3 changed only the admin panel (languages) and a test tool. On 0.1.3 everything passed except a calendar deleted and created again with the same name while a client was offline: the client kept the old events. 0.1.4 fixes that in the server's sync tokens (see [DAV endpoints](dav-endpoints.md#sync-tokens)), and both clients passed that step on 0.1.4.
 
-**What was tested by automated clients** (SQLite, November 2026; recorded on 0.1.0 and unchanged for 0.1.1 to 0.1.3):
+**What was tested by automated clients** (SQLite, November 2026; recorded on 0.1.0 and unchanged up to 0.1.4, whose sync-token change is covered by its own tests):
 
 - **vdirsyncer 0.21.0** started from the server URL only, discovered the default calendar and address book, uploaded a local contact and event, synced a server-side edit down and a local delete up.
 - **python caldav 3.7.0** started from `/.well-known/caldav`, found the principal and the default calendar, created a calendar with `MKCALENDAR`, saved a weekly event (expanded by the server to three occurrences), a task that it then completed, and a note, ran an incremental sync that returned only the changed event and then the deletion, and deleted the calendar.

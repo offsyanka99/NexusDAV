@@ -152,7 +152,6 @@ The first pass, on the current `main`.
 | 2a Event | ✅ | ✅ | ✅ | ✅ | |
 | 2b Recurring event with exceptions | ✅ | ✅ | ✅ | ✅ | |
 | 2c Task, completed (jtx Board) | ✅ | ✅ | ✅ | ✅ | Thunderbird columns: Thunderbird's own tasks |
-
 | 2d Note | ✅ | ✅ | ➖ | ➖ | Thunderbird has no notes |
 | 2e Contact with a photo | ✅ | ✅ | ✅ | ✅ | |
 | 3 Calendar created from the client | ✅ | ✅ | ➖ | ➖ | Thunderbird cannot create a calendar on the server |

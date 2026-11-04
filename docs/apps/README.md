@@ -1,6 +1,6 @@
 # Apps
 
-NexusDAV is one server. The pages below describe the parts a person uses. The Version 1 parts are built; they pass automated tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx⁵ (calendar, contacts, tasks and notes through jtx Board) and Thunderbird (calendar and contacts). Apple clients have not been tried yet. Versions match the [roadmap](../guide.md#roadmap).
+NexusDAV is one server. The pages below describe the parts a person uses. The Version 1 parts are built; they pass automated tests with the vdirsyncer and python caldav clients, and the [client checklist](../testing/client-checklist.md) passed by hand on 0.1.3 and 0.1.4 with DAVx⁵ (calendar, contacts, tasks and notes through jtx Board) and Thunderbird (calendar, contacts and tasks). Of the Apple clients, only Contacts on an iPad has been tried. Versions match the [roadmap](../guide.md#roadmap).
 
 | App | What it stores | First version |
 |---|---|---|
