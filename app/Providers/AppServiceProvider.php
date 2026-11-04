@@ -68,7 +68,11 @@ class AppServiceProvider extends ServiceProvider
         });
 
         DateTimePicker::configureUsing(function (DateTimePicker $picker) use ($twelveHour): void {
+            // The browser's own picker (Filament's default) follows the browser's
+            // language, not these settings.
             $picker
+                ->native(false)
+                ->seconds(false)
                 ->defaultDateTimeDisplayFormat(fn (): string => $twelveHour() ? 'M j, Y g:i A' : 'M j, Y H:i')
                 ->defaultDateTimeWithSecondsDisplayFormat(fn (): string => $twelveHour() ? 'M j, Y g:i:s A' : 'M j, Y H:i:s')
                 ->defaultTimeDisplayFormat(fn (): string => $twelveHour() ? 'g:i A' : 'H:i')

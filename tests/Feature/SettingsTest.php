@@ -279,6 +279,9 @@ class SettingsTest extends TestCase
 
         $this->assertSame('America/New_York', FilamentTimezone::get());
         $this->assertSame(0, DateTimePicker::make('when')->getFirstDayOfWeek());
+        $picker = DateTimePicker::make('when');
+        $this->assertFalse($picker->isNative());
+        $this->assertFalse($picker->hasSeconds());
 
         $this->travelTo(Carbon::parse('2026-07-01 18:30:05', 'UTC'));
         app(AppPasswordService::class)->issue($this->makeUser('ada'), 'phone');
