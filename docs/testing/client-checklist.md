@@ -160,6 +160,16 @@ The first pass, on the current `main`.
 | 6 Calendar deleted and re-created while offline | ✅ #2 | ✅ #2 | ✅ #2 | ✅ #2 | Old events stayed on both clients, with no error, until DAVx5 Refresh list or a new Thunderbird subscription. PR 14 targets this |
 | 7 Large collection, first sync | PostgreSQL: ✅ 10 min 45 s for both collections (#1) | SQLite: ✅ calendar 29 s, contacts 10 min (#1) | PostgreSQL: ✅ 14 s for both | SQLite: ✅ calendar 22 s, contacts about 2 s | 5,000 events and 2,000 contacts, no errors, all items present. Thunderbird on Ethernet, Pixel 7 Pro on Wi-Fi 5. The second sync fetched only the change: about 1 s in Thunderbird, slightly longer in DAVx5. SQLite run on 0.1.4, contacts and calendar timed separately. The slow part is DAVx5 contacts on both databases (about 300 ms per contact, against 6 ms per event); the server answers its 200 requests in about 2.5 s, so it is the client (#1). An iPad (native Contacts) loaded all 2,000 contacts in 74 s, and the server log stayed quiet for 5 minutes afterwards |
 
+**Step 7 split by collection on 0.1.4, PostgreSQL** (4 November 2026, times from the server log):
+
+| Client | Calendar (5,000 events) | Contacts (2,000) |
+|---|---|---|
+| Thunderbird | 27 s | not run |
+| DAVx5, Pixel 7 Pro | not run | 9 min 47 s |
+| iPad, native app | 2 min 3 s | not run |
+
+DAVx5's debug log of that contacts sync shows 153 requests to the server taking **12 s in total**, and the phone saving contacts at about **130 per minute** (about 0.45 s each). So about 98 % of the time is on the phone, writing into Android's Contacts storage; see #1.
+
 **Re-check of step 6 on 0.1.4** (after the fix for #2, PR 14): ✅ both clients.
 
 - **Thunderbird:** the sync with the old token got **403** `valid-sync-token`, and the next sync (207) was a full one. The old events were gone, and the calendar was the new one.
