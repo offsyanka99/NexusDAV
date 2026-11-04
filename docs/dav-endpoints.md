@@ -81,3 +81,12 @@ A calendar or address book token is `http://sabre.io/ns/sync/<collection id>-<ch
 The client then syncs the collection from the start (an empty `sync-token`), as RFC 6578 describes. A token issued by 0.1.3 or earlier is the bare change number. It is accepted while it is not ahead, and the reply carries a token in the new form.
 
 A home's token is a snapshot of its children and their tokens (`home-1.` and base64 JSON). A child that was created again under the same name is reported as changed, so the client goes on to sync it and gets the 403 above.
+
+## Concurrent writes
+
+`PUT`, `DELETE`, `MOVE`, `COPY`, `PROPPATCH`, `MKCOL` and `MKCALENDAR` on a calendar or address book run in one database transaction, and writes to the same collection wait for each other (SQLite: the database write lock; PostgreSQL: a lock per collection). `If-Match` and `If-None-Match` are checked inside that transaction:
+
+- Two clients sending the same `If-Match`: the first one wins, the second gets **412 Precondition Failed** and should fetch the item again. The client does not tell the user; it shows the winning version after its next sync.
+- Two creates of the same new item with `If-None-Match: *`: the second gets **412**. Without the header the second replaces the first, as `PUT` normally does.
+- The `ETag` returned by `PUT` is the one a later `GET` returns. When the server changes the data (for example it adds a missing `UID` to a vCard), `PUT` returns no `ETag`, and the client fetches the stored version (RFC 4791, 5.3.4).
+- A writer waits at most 5 seconds for the lock; after that the request fails.

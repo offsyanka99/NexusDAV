@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\DavServerCreated;
 use App\Http\Middleware\RequestLog;
 use App\Services\AuthThrottle;
 use App\Services\Dav\DavServerFactory;
+use App\Services\Dav\DavWriteLock;
 use App\Services\DiagnosticEventWriter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -27,12 +29,26 @@ class DavController extends Controller
         AuthThrottle $throttle,
     ): Response {
         $server = $factory->make();
+        $writeLock = new DavWriteLock;
+        $writeLock->attach($server);
+        event(new DavServerCreated($server));
         $server->httpRequest = $this->sabreRequest($request);
         $server->sapi = new class extends Sapi
         {
             public static function sendResponse(ResponseInterface $response) {}
         };
-        $server->start();
+
+        try {
+            $server->start();
+        } catch (Throwable $exception) {
+            // sabre answers every exception itself; this covers one that
+            // escaped it, so the transaction never outlives the request.
+            $writeLock->abort();
+
+            throw $exception;
+        }
+
+        $writeLock->finish();
         $this->restoreChallenge($server);
 
         $status = $server->httpResponse->getStatus();

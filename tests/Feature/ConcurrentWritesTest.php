@@ -1,0 +1,262 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\User;
+use App\Services\AppPasswordService;
+use App\Services\UserService;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Testing\TestResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Tests\TestCase;
+
+/**
+ * PR 16: writes to one collection from separate processes at the same time,
+ * against a real database file on SQLite (not :memory:) and a separate
+ * database on PostgreSQL. Each worker is a full app instance; the database is
+ * shared, so this test does not use RefreshDatabase.
+ */
+class ConcurrentWritesTest extends TestCase
+{
+    private const HOLD_MS = 400;
+
+    private string $previousDefault;
+
+    private string $driver;
+
+    private ?string $file = null;
+
+    private ?string $database = null;
+
+    private User $ada;
+
+    private string $password;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->previousDefault = (string) config('database.default');
+        $base = config('database.connections.'.$this->previousDefault);
+        $this->driver = (string) $base['driver'];
+
+        if ($this->driver === 'sqlite') {
+            $this->file = tempnam(sys_get_temp_dir(), 'nexusdav-concurrency-').'.sqlite';
+            touch($this->file);
+            $base['database'] = $this->file;
+        } else {
+            $this->database = $base['database'].'_concurrency';
+            DB::statement('DROP DATABASE IF EXISTS "'.$this->database.'" WITH (FORCE)');
+            DB::statement('CREATE DATABASE "'.$this->database.'"');
+            $base['database'] = $this->database;
+        }
+
+        config(['database.connections.concurrency' => $base, 'database.default' => 'concurrency']);
+        Artisan::call('migrate', ['--database' => 'concurrency', '--force' => true]);
+
+        $this->ada = app(UserService::class)->create(['username' => 'ada', 'display_name' => 'Ada', 'email' => 'ada@example.com']);
+        $this->password = app(AppPasswordService::class)->issue($this->ada, 'phone')['token'];
+    }
+
+    protected function tearDown(): void
+    {
+        config(['database.default' => $this->previousDefault]);
+        DB::purge('concurrency');
+
+        if ($this->file !== null) {
+            @unlink($this->file);
+            @unlink(substr($this->file, 0, -strlen('.sqlite')));
+            @unlink($this->file.'-wal');
+            @unlink($this->file.'-shm');
+        }
+
+        if ($this->database !== null) {
+            DB::connection($this->previousDefault)->statement('DROP DATABASE IF EXISTS "'.$this->database.'" WITH (FORCE)');
+        }
+
+        parent::tearDown();
+    }
+
+    public function test_two_writes_with_the_same_if_match_one_wins_and_the_other_gets_412(): void
+    {
+        $etag = $this->store('shared.ics', $this->event('shared', 'Original'))->assertCreated()->headers->get('ETag');
+        $this->assertNotNull($etag);
+
+        $results = $this->together([
+            $this->job('PUT', 'shared.ics', $this->event('shared', 'Title A'), ['If-Match' => $etag]),
+            $this->job('PUT', 'shared.ics', $this->event('shared', 'Title B'), ['If-Match' => $etag]),
+        ]);
+
+        $this->assertSame([204, 412], $this->statuses($results), json_encode($results));
+
+        $winner = $results[0]['status'] === 204 ? 'Title A' : 'Title B';
+        $stored = $this->fetch('shared.ics')->assertOk();
+        $this->assertStringContainsString('SUMMARY:'.$winner, $this->body($stored));
+        $this->assertSame($results[0]['status'] === 204 ? $results[0]['etag'] : $results[1]['etag'], $stored->headers->get('ETag'));
+    }
+
+    public function test_two_creates_of_the_same_uri_with_if_none_match_one_wins_and_the_other_gets_412(): void
+    {
+        $results = $this->together([
+            $this->job('PUT', 'new.ics', $this->event('new', 'Title A'), ['If-None-Match' => '*']),
+            $this->job('PUT', 'new.ics', $this->event('new', 'Title B'), ['If-None-Match' => '*']),
+        ]);
+
+        $this->assertSame([201, 412], $this->statuses($results), json_encode($results));
+        $this->assertSame(1, DB::table('calendarobjects')->where('uri', 'new.ics')->count());
+    }
+
+    public function test_two_creates_of_the_same_uri_without_a_precondition_the_second_replaces_the_first(): void
+    {
+        $results = $this->together([
+            $this->job('PUT', 'plain.ics', $this->event('plain', 'Title A')),
+            $this->job('PUT', 'plain.ics', $this->event('plain', 'Title B')),
+        ]);
+
+        $this->assertSame([201, 204], $this->statuses($results), json_encode($results));
+        $this->assertSame(1, DB::table('calendarobjects')->where('uri', 'plain.ics')->count());
+
+        $last = $results[0]['status'] === 204 ? 'Title A' : 'Title B';
+        $this->assertStringContainsString('SUMMARY:'.$last, $this->body($this->fetch('plain.ics')->assertOk()));
+    }
+
+    public function test_a_delete_and_an_update_of_the_same_item_do_not_both_succeed(): void
+    {
+        $etag = $this->store('gone.ics', $this->event('gone', 'Original'))->assertCreated()->headers->get('ETag');
+
+        $results = $this->together([
+            $this->job('DELETE', 'gone.ics', null, ['If-Match' => (string) $etag]),
+            $this->job('PUT', 'gone.ics', $this->event('gone', 'Edited'), ['If-Match' => (string) $etag]),
+        ]);
+
+        $statuses = $this->statuses($results);
+        $this->assertContains($statuses, [[204, 412]], json_encode($results));
+    }
+
+    /**
+     * Issue #3: parallel uploads of different items on SQLite got
+     * "database is locked" (500).
+     */
+    public function test_parallel_uploads_of_different_items_all_succeed(): void
+    {
+        $jobs = [];
+
+        for ($n = 1; $n <= 8; $n++) {
+            $jobs[] = $this->job('PUT', 'item-'.$n.'.ics', $this->event('item-'.$n, 'Item '.$n), [], 0);
+        }
+
+        $results = $this->together($jobs);
+
+        $this->assertSame(array_fill(0, 8, 201), array_column($results, 'status'), json_encode($results));
+        $this->assertSame(8, DB::table('calendarobjects')->where('uri', 'like', 'item-%')->count());
+    }
+
+    /**
+     * @param  array<string, string>  $headers
+     * @return array<string, mixed>
+     */
+    private function job(string $method, string $name, ?string $body, array $headers = [], int $hold = self::HOLD_MS): array
+    {
+        if ($body !== null) {
+            $headers['Content-Type'] = 'text/calendar';
+        }
+
+        return [
+            'method' => $method,
+            'uri' => '/dav/calendars/ada/default/'.$name,
+            'user' => 'ada',
+            'password' => $this->password,
+            'headers' => $headers,
+            'body' => $body,
+            'hold_ms' => $hold,
+        ];
+    }
+
+    /**
+     * Starts one worker per job and has them send at the same moment.
+     *
+     * @param  list<array<string, mixed>>  $jobs
+     * @return list<array{status: int, etag: string|null}>
+     */
+    private function together(array $jobs): array
+    {
+        $start = (int) (microtime(true) * 1_000_000) + 2_500_000;
+        $env = array_merge(getenv(), [
+            'DB_CONNECTION' => $this->driver,
+            'DB_DATABASE' => $this->file ?? (string) $this->database,
+        ]);
+        $processes = [];
+
+        foreach ($jobs as $job) {
+            $job['start'] = $start;
+            $process = proc_open(
+                [PHP_BINARY, base_path('tests/Support/dav-worker.php'), json_encode($job, JSON_THROW_ON_ERROR)],
+                [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+                $pipes,
+                base_path(),
+                $env,
+            );
+            $this->assertIsResource($process);
+            $processes[] = [$process, $pipes];
+        }
+
+        $results = [];
+
+        foreach ($processes as [$process, $pipes]) {
+            $out = (string) stream_get_contents($pipes[1]);
+            $err = (string) stream_get_contents($pipes[2]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            proc_close($process);
+
+            $decoded = json_decode($out, true);
+            $this->assertIsArray($decoded, 'Worker failed: '.$out.$err);
+            $results[] = ['status' => (int) $decoded['status'], 'etag' => $decoded['etag'] ?? null];
+        }
+
+        return $results;
+    }
+
+    /**
+     * @param  list<array{status: int, etag: string|null}>  $results
+     * @return list<int>
+     */
+    private function statuses(array $results): array
+    {
+        $statuses = array_column($results, 'status');
+        sort($statuses);
+
+        return $statuses;
+    }
+
+    private function store(string $name, string $body): TestResponse
+    {
+        return $this->dav('PUT', $name, ['CONTENT_TYPE' => 'text/calendar'], $body);
+    }
+
+    private function fetch(string $name): TestResponse
+    {
+        return $this->dav('GET', $name);
+    }
+
+    /**
+     * @param  array<string, string>  $server
+     */
+    private function dav(string $method, string $name, array $server = [], ?string $body = null): TestResponse
+    {
+        $server['HTTP_AUTHORIZATION'] = 'Basic '.base64_encode('ada:'.$this->password);
+
+        return $this->call($method, '/dav/calendars/ada/default/'.$name, [], [], [], $server, $body);
+    }
+
+    private function event(string $uid, string $summary): string
+    {
+        return "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//NexusDAV//test//EN\r\nBEGIN:VEVENT\r\nUID:$uid\r\nDTSTAMP:20260101T000000Z\r\nDTSTART:20260101T100000Z\r\nSUMMARY:$summary\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+    }
+
+    private function body(TestResponse $response): string
+    {
+        return $response->baseResponse instanceof StreamedResponse ? $response->streamedContent() : (string) $response->getContent();
+    }
+}

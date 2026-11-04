@@ -41,7 +41,10 @@ return [
             'busy_timeout' => 5000,
             'journal_mode' => 'WAL',
             'synchronous' => null,
-            'transaction_mode' => 'DEFERRED',
+            // IMMEDIATE takes the write lock at BEGIN, where busy_timeout applies.
+            // A DEFERRED transaction that reads and then writes gets SQLITE_BUSY
+            // at once when another connection is writing (issue #3).
+            'transaction_mode' => 'IMMEDIATE',
         ],
 
         'mysql' => [

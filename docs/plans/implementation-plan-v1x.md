@@ -37,7 +37,7 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 | 5 | PR 13 | M2 | Client checklist and the first hand-test pass (done) | Medium | — |
 | 6 | PR 14 | M2 | Sync tokens that cannot be trusted (done, 0.1.4) | High | — |
 | 7 | PR 15 | M2 | Sync history retention (done) | Medium | 14 |
-| 8 | PR 16 | M2 | Atomic conditional writes | High | — |
+| 8 | PR 16 | M2 | Atomic conditional writes (done) | High | — |
 | 9 | PR 17 | M2 | Busy database: retry, then 503 | Medium | 16 |
 | 10 | PR 18 | M2 | Fixes from the client pass | Medium, re-rated after PR 13 | 13 |
 | 11 | PR 19 | M2 | M2 release | Medium | 12, 13–18 |
@@ -286,7 +286,7 @@ Done on 0.1.4: Thunderbird got a 403 and then synced in full; DAVx5 dropped the 
   - **Errors:** a failure while pruning is logged and no longer turns the client's write into a 500.
 - Not changed: one batch of 1,000 rows per table per hour removes up to 24,000 rows a day per table. A server that writes more than that keeps more history than the setting until writes slow down.
 
-### PR 16 — Atomic conditional writes (Effort: High)
+### PR 16 — Atomic conditional writes (Effort: High) — ✅ done
 
 - `PUT`, `DELETE`, `MOVE` and `PROPPATCH` on calendars and address books run in one database transaction. It starts in sabre's `beforeMethod` event, which runs before sabre checks `If-Match` and `If-None-Match`, and ends after the write. Writes to the same collection wait for each other: SQLite takes the write lock at the start (`BEGIN IMMEDIATE`), PostgreSQL a transaction-level advisory lock on the collection.
 - Two writes with the same `If-Match`: one succeeds, the other gets 412.
@@ -299,6 +299,16 @@ Done on 0.1.4: Thunderbird got a 403 and then synced in full; DAVx5 dropped the 
 **Done when:** the concurrency tests pass on both databases, and no write race gives a 500 or a silent overwrite.
 
 Issue #3 has a first case from the client pass: one 500 "database is locked" in 5,000 parallel event uploads on SQLite (none on PostgreSQL).
+
+**Status:** done.
+
+- `App\Services\Dav\DavWriteLock` opens the transaction for `PUT`, `DELETE`, `MOVE`, `COPY`, `PROPPATCH`, `MKCOL` and `MKCALENDAR` on a calendar or address book path. It runs at `beforeMethod` priority 110: after authentication (10), the ACL check (20) and the service switches (100), so a refused request never takes the lock. `MOVE` and `COPY` lock the source and the destination collection, in sorted order.
+- SQLite: every Laravel transaction is now `BEGIN IMMEDIATE` (`transaction_mode` in `config/database.php`), so the write lock is taken first and `busy_timeout` applies. PostgreSQL: `pg_advisory_xact_lock` per collection, with `lock_timeout` 5 s like SQLite's busy wait.
+- **Found while testing:** sabre's ACL check loads the target node before the lock, and sabre's tree keeps that node with its ETag. The precondition check then used the stale ETag, so the lock alone did not stop a silent overwrite. The tree cache is cleared once the lock is held.
+- The transaction ends in `DavController` after sabre answers: committed, or rolled back when sabre reported an exception. sabre answers a failed precondition (412) without `afterMethod`, so ending in a sabre event would leave it open.
+- `App\Events\DavServerCreated` fires when a request's DAV server is built; the concurrency test uses it to hold a write open.
+- Tests: `ConcurrentWritesTest` runs separate PHP processes that send at the same moment, against a real SQLite file and a separate PostgreSQL database: same `If-Match` (204 and 412), two creates with `If-None-Match: *` (201 and 412), two creates without (201 and 204), a delete racing an update (204 and 412), and eight parallel uploads (all 201). Without the lock four of the five fail on both databases (two 204s, a 500 from the unique index, or a delete and an update both succeeding). `PutEtagTest` checks the `PUT` ETag against `GET` for an event, a task, a note and a contact, and that no ETag is returned when the server changes the data.
+- #3 stays open: the lab error was a plain `INSERT` that waited the full 5 s for the lock, which this PR does not shorten. PR 17 (retry, then 503) covers that. The race that this PR removes, a read followed by a write in a deferred transaction, could not be reproduced locally either before or after.
 
 ### PR 17 — Busy database: retry, then 503 (Effort: Medium)
 
