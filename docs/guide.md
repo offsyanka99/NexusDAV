@@ -492,11 +492,13 @@ Automatic backups are a long-term goal (see [Roadmap](#roadmap)).
 - **Health check:** `GET /health` is unauthenticated. It returns `{"status":"ok"}` when the application and the database are up, and `{"status":"unavailable"}` with HTTP 503 otherwise. It does not include versions, paths, or SQL. Compose uses it as the container healthcheck. A healthy check is not logged, so the log does not fill with a line every 30 seconds; a failing one is. The admin Dashboard shows the same database check. Richer checks inside the admin panel are Version 2+.
 - **Logs:** written to stderr, so `docker compose logs` works. The image sets `LOG_CHANNEL=stderr`. Nothing is written to `storage/logs` inside the container. `LOG_LEVEL` defaults to `debug` when unset. Use `info` or higher in production.
 - **What is logged:**
-  - **One line per request,** at `info`, with the method, the path without the query string, the status, the signed-in user (DAV or admin panel, otherwise `null`), the client address and the duration. For example:
+  - **One line per request,** with the method, the path without the query string, the status, the signed-in user (DAV or admin panel, otherwise `null`), the client address and the duration. The level follows the status: `ERROR` for 5xx, `WARNING` for 4xx, and `INFO` for the rest. A 401 is `INFO`, because clients get one on every first contact before they send the password; a rejected password has its own `WARNING` line. For example:
 
     ```text
-    [2026-11-01 12:49:55] production.INFO: Request {"method":"REPORT","path":"/dav/calendars/ada/default/","status":207,"user":"ada","ip":"192.168.1.20","duration_ms":5.5} {"request_id":"1d451d2e7b720a2b"}
+    2026-11-01 12:49:55 INFO Request {"method":"REPORT","path":"/dav/calendars/ada/default/","status":207,"user":"ada","ip":"192.168.1.20","duration_ms":5.5} {"request_id":"1d451d2e7b720a2b"}
     ```
+
+    Every line starts with the time and the level, so log viewers such as Dozzle show errors and warnings in their own color and can filter by level. Up to 0.1.4 the line started with `[time] production.INFO:`, which those viewers could not read. Set `LOG_STDERR_FORMATTER` to a Monolog formatter class, for example `Monolog\Formatter\JsonFormatter`, for a different format.
 
     `/health` and `/up` get a line only when they fail. Static files (CSS, fonts) are served without PHP and are not logged.
   - **A request ID** on every line written during the request, in the `X-Request-Id` response header, and on the request's Diagnostics row (the **Request ID** column). To see what happened around a DAV error, copy its ID from Diagnostics and search for it: `docker compose logs nexusdav | grep <id>`. A Diagnostics row that counts repeats keeps the ID of the first one.

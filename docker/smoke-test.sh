@@ -80,7 +80,7 @@ ok "PROPFIND with an app password returns 207"
 request_id=$(printf '%s\n' "$headers" | sed -n 's/^[Xx]-[Rr]equest-[Ii]d: //p')
 [ -n "$request_id" ] || fail "the answer has no X-Request-Id"
 sleep 1
-line=$(docker logs "$NAME" 2>&1 | grep -F "\"request_id\":\"$request_id\"" | grep -F 'INFO: Request {') \
+line=$(docker logs "$NAME" 2>&1 | grep -F "\"request_id\":\"$request_id\"" | grep -F ' INFO Request {') \
     || fail "no request log line for $request_id"
 printf '%s\n' "$line" | grep -qF '"method":"PROPFIND","path":"/dav/","status":207,"user":"smoke"' \
     || fail "unexpected request log line: $line"

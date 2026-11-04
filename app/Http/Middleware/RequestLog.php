@@ -69,14 +69,22 @@ final class RequestLog
             return;
         }
 
-        Log::info('Request', [
+        $context = [
             'method' => substr((string) preg_replace('/[^A-Z0-9_-]/', '', $request->getRealMethod()), 0, 16),
             'path' => $path,
             'status' => $status,
             'user' => $this->user($request),
             'ip' => $this->throttle->clientIp(),
             'duration_ms' => round((hrtime(true) - $started) / 1_000_000, 1),
-        ]);
+        ];
+
+        // 401 is the normal challenge before a client sends its password;
+        // a rejected password has its own warning line.
+        match (true) {
+            $status >= 500 => Log::error('Request', $context),
+            $status >= 400 && $status !== 401 => Log::warning('Request', $context),
+            default => Log::info('Request', $context),
+        };
     }
 
     private function user(Request $request): ?string

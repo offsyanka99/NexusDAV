@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Filament\Widgets\Diagnostics\DavErrorsTable;
+use App\Logging\ContainerLineFormatter;
 use App\Models\DiagnosticEvent;
 use App\Models\User;
 use App\Services\AppPasswordService;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Testing\TestResponse;
 use Livewire\Livewire;
 use Monolog\Handler\TestHandler;
+use Monolog\Level;
+use Monolog\LogRecord;
 use Tests\TestCase;
 
 /**
@@ -47,6 +50,48 @@ class RequestLogTest extends TestCase
         $this->assertSame('127.0.0.1', $line['ip']);
         $this->assertIsFloat($line['duration_ms']);
         $this->assertStringNotContainsString(explode('.', $token, 2)[1], (string) json_encode($logged->lines));
+    }
+
+    public function test_the_request_line_level_follows_the_status(): void
+    {
+        $ada = $this->makeUser('ada');
+        $token = app(AppPasswordService::class)->issue($ada, 'phone')['token'];
+        $handler = $this->captureRecords();
+
+        $this->dav('PROPFIND', '/dav/', 'ada', $token)->assertStatus(207);
+        $this->call('PROPFIND', '/dav/')->assertStatus(401);
+        $this->dav('PROPFIND', '/dav/calendars/ada/missing/', 'ada', $token)->assertStatus(404);
+        $this->app['router']->get('/test-failure', fn () => abort(503));
+        $this->get('/test-failure')->assertStatus(503);
+
+        $levels = [];
+
+        foreach ($handler->getRecords() as $record) {
+            if ($record->message === 'Request') {
+                $levels[$record->context['status']] = $record->level->getName();
+            }
+        }
+
+        $this->assertSame([207 => 'INFO', 401 => 'INFO', 404 => 'WARNING', 503 => 'ERROR'], $levels);
+    }
+
+    /**
+     * Log viewers such as Dozzle read the level from a word at the start of
+     * the line, after the timestamp.
+     */
+    public function test_the_container_line_starts_with_the_time_and_the_level(): void
+    {
+        $formatter = new ContainerLineFormatter;
+        $record = new LogRecord(new \DateTimeImmutable('2026-11-04 14:04:44'), 'production', Level::Error, 'DAV request failed',
+            ['exception' => new \RuntimeException('database is locked')], ['request_id' => 'fc2f93e8491d35f3']);
+
+        $line = $formatter->format($record);
+
+        $this->assertStringStartsWith('2026-11-04 14:04:44 ERROR DAV request failed {"exception":', $line);
+        $this->assertStringContainsString('{"request_id":"fc2f93e8491d35f3"}', $line);
+        $this->assertStringContainsString('[stacktrace]', $line, 'The stack trace stays with the error.');
+        $this->assertStringNotContainsString('production', strtok($line, "\n"));
+        $this->assertSame(ContainerLineFormatter::class, config('logging.channels.stderr.formatter'));
     }
 
     public function test_other_log_lines_of_the_request_carry_its_id(): void

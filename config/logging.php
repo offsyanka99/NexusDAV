@@ -1,5 +1,6 @@
 <?php
 
+use App\Logging\ContainerLineFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -109,7 +110,8 @@ return [
             'handler_with' => [
                 'stream' => 'php://stderr',
             ],
-            'formatter' => env('LOG_STDERR_FORMATTER'),
+            // A level word at the start of each line, so log viewers can read it.
+            'formatter' => env('LOG_STDERR_FORMATTER', ContainerLineFormatter::class),
             'processors' => [PsrLogMessageProcessor::class],
         ],
 
