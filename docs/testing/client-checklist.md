@@ -72,9 +72,17 @@ Take a client offline (airplane mode, or **File → Offline → Work Offline** i
 
 ### 5. Two devices editing the same item
 
-Sync both devices. Take both offline. Edit the same event on both, with a different title on each. Bring device A online and sync, then device B.
+Sync both devices. Take both offline. Edit the same event on both, with a different title on each (`Title A` on device A, `Title B` on device B). Bring device A online and sync, then device B.
 
-**Pass:** no server error. The second write is refused with 412 (Precondition Failed), which shows on Diagnostics, and the client then fetches the server's version. Both devices end with the same event, and no edit is lost without the client saying so. Record which title won and what the client showed.
+**Expected:** the first device to reach the server wins. The server refuses the second device's write with **412 (Precondition Failed)**, because the event changed after that device last synced. The clients show no message: device B keeps showing `Title B` until its next sync, then shows `Title A`, and its own edit is lost. This is how CalDAV works (RFC 4791). Only a client sync updates what an app shows; WebDAV-Push (Version 1.x, M5) will make the refresh faster.
+
+**Pass:**
+- Diagnostics, under **Latest DAV errors**, has a `PUT` with status **412** for that event, and no 5xx.
+- After both devices sync again, both show the same title, the first writer's (`Title A`).
+
+**Fail:** no 412 and the first writer's title is gone (the second write silently replaced it), or the devices still show different titles after two syncs, or a 5xx. Record which title won and whether the 412 was there.
+
+Run it a second time with both devices online, saving within a second of each other. The result is the same: one wins, the other gets a 412.
 
 ### 6. A calendar deleted and created again while a client is offline
 
