@@ -98,6 +98,8 @@ This checks what a client does when the calendar it knows is replaced by a new o
 
 **Fail:** `Old 1` or `Old 2` stays on client A, or client A reports a sync error, or shows no events at all after two syncs. Write down which, with the client version, and follow [When a step fails](#when-a-step-fails). This is the case PR 14 is meant to fix, so a failure here is a useful result, not a mistake in the test.
 
+The clients keep the calendar's old display name: Thunderbird uses the name chosen when the calendar was added, and DAVx5 updates names only on **Refresh list**. The URL is what identifies the calendar, so the name does not affect the result.
+
 Delete `Recreate` in the panel afterwards.
 
 ### 7. First sync of a large collection
@@ -158,3 +160,9 @@ The first pass, on the current `main`.
 | 5 Two devices, same item | ✅ | ✅ | ✅ | ✅ | |
 | 6 Calendar deleted and re-created while offline | ❌ #2 | ❌ #2 | ❌ #2 | ❌ #2 | Old events stayed on both clients, with no error, until DAVx5 Refresh list or a new Thunderbird subscription. PR 14 targets this |
 | 7 Large collection, first sync | PostgreSQL: ✅ 10 min 45 s for both collections (#1) | SQLite: ✅ calendar 29 s, contacts 10 min (#1) | PostgreSQL: ✅ 14 s for both | SQLite: ✅ calendar 22 s, contacts about 2 s | 5,000 events and 2,000 contacts, no errors, all items present. Thunderbird on Ethernet, Pixel 7 Pro on Wi-Fi 5. The second sync fetched only the change: about 1 s in Thunderbird, slightly longer in DAVx5. SQLite run on 0.1.4, contacts and calendar timed separately. The slow part is DAVx5 contacts on both databases (about 300 ms per contact, against 6 ms per event); the server answers its 200 requests in about 2.5 s, so it is the client (#1). An iPad (native Contacts) loaded all 2,000 contacts in 74 s, and the server log stayed quiet for 5 minutes afterwards |
+
+**Re-check of step 6 on 0.1.4** (after the fix for #2, PR 14): ✅ both clients.
+
+- **Thunderbird:** the sync with the old token got **403** `valid-sync-token`, and the next sync (207) was a full one. The old events were gone, and the calendar was the new one.
+- **DAVx5:** the old events were gone. Its log has no 403 because DAVx5 does not use sync tokens when its past-events limit ("Ignore events older than") is set: it lists the whole calendar on every sync and removes local events the server no longer has. Without that setting it takes the same 403 path as Thunderbird, which `SyncTokenTest` covers.
+- Both clients kept the old display name until the calendar list was refreshed; see the note in step 6.

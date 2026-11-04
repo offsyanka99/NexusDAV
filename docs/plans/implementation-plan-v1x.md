@@ -35,7 +35,7 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 | 3 | PR 11 | M1 | Translate Settings, Configuration and Diagnostics; pseudo-locale test (done) | Medium | 9 |
 | 4 | PR 12 | M1 | M1 release (done, 0.1.2) | Low | 10, 11 |
 | 5 | PR 13 | M2 | Client checklist and the first hand-test pass | Medium | — |
-| 6 | PR 14 | M2 | Sync tokens that cannot be trusted | High | — |
+| 6 | PR 14 | M2 | Sync tokens that cannot be trusted (done, 0.1.4) | High | — |
 | 7 | PR 15 | M2 | Sync history retention | Medium | 14 |
 | 8 | PR 16 | M2 | Atomic conditional writes | High | — |
 | 9 | PR 17 | M2 | Busy database: retry, then 503 | Medium | 16 |
@@ -236,7 +236,7 @@ Pass 1 results (3 November 2026, v0.1.3, PostgreSQL; DAVx5 4.5.21 and jtx Board 
 
 The Done when is met except for one gap: Tasks.org was not run. The one failure has an issue.
 
-### PR 14 — Sync tokens that cannot be trusted (Effort: High)
+### PR 14 — Sync tokens that cannot be trusted (Effort: High) — ✅ done
 
 - Calendar and address book sync tokens carry the collection's identity as well as its change number (for example `<collection id>-<number>` after sabre's `http://sabre.io/ns/sync/` prefix). `getctag` follows the same rule, so a client that compares ctags also sees a re-created collection as changed.
 - `sync-collection` answers 403 with `DAV:valid-sync-token` (sabre's `InvalidSyncToken`) when the token:
@@ -250,7 +250,7 @@ The Done when is met except for one gap: Tasks.org was not run. The one failure 
 
 **Done when:** the three bad-token cases get `valid-sync-token` on both databases, legacy tokens keep working, and DAVx5 and Thunderbird recover with a full sync after a calendar is deleted and created again while they are offline.
 
-**Status:** code done; the client check is left. Fixes issue #2 (client pass 1, step 6).
+**Status:** done, released for testing as 0.1.4. Fixes issue #2 (client pass 1, step 6).
 
 - `App\Services\Dav\SyncToken` holds the rules. `CalendarBackend` and `AddressBookBackend` put `<id>-<number>` in the sync token and the ctag, and check every incoming token before sabre reads the change log, so a malformed token never reaches SQL. The calendar id is `calendars.id`, so a shared calendar (PR 23) gets the owner's tokens, as planned.
 - Ids are never reused: `autoincrement` on SQLite and a sequence on PostgreSQL. A database restored from an older backup goes back in change numbers, so client tokens are ahead and get 403, which is the right answer.
@@ -261,7 +261,7 @@ The Done when is met except for one gap: Tasks.org was not run. The one failure 
 
 Tag `v0.1.4` publishes the image with this change (no GitHub Release page).
 
-Left: check with DAVx5 and Thunderbird on 0.1.4 (client checklist step 6), then close #2.
+Done on 0.1.4: Thunderbird got a 403 and then synced in full; DAVx5 dropped the old events too (it was listing the calendar in full because of its past-events limit). #2 is closed.
 
 ### PR 15 — Sync history retention (Effort: Medium)
 

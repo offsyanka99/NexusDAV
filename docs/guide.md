@@ -297,7 +297,7 @@ NexusDAV targets standards-compliant clients. The table shows the Version 1 targ
 - **Thunderbird 159.0** (Snap package on Ubuntu): calendar and contacts. Tasks were not tested.
 - **Not tested yet:** Apple Calendar, Contacts and Reminders, and Tasks.org or OpenTasks with DAVx5.
 
-0.1.2 and 0.1.3 changed only the admin panel (languages) and a test tool. The full [client checklist](testing/client-checklist.md) was run on 0.1.3 with the same clients on PostgreSQL and SQLite: everything passed except a calendar deleted and created again with the same name while a client was offline (the client kept the old events). 0.1.4 fixes that in the server's sync tokens (see [DAV endpoints](dav-endpoints.md#sync-tokens)); the re-check with the clients is pending.
+0.1.2 and 0.1.3 changed only the admin panel (languages) and a test tool. The full [client checklist](testing/client-checklist.md) was run on 0.1.3 with the same clients on PostgreSQL and SQLite: everything passed except a calendar deleted and created again with the same name while a client was offline (the client kept the old events). 0.1.4 fixes that in the server's sync tokens (see [DAV endpoints](dav-endpoints.md#sync-tokens)); re-checked with both clients on 0.1.4.
 
 **What was tested by automated clients** (SQLite, November 2026; recorded on 0.1.0 and unchanged for 0.1.1 to 0.1.3):
 
