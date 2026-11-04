@@ -231,7 +231,7 @@ Pass 1 results (3 November 2026, v0.1.3, PostgreSQL; DAVx5 4.5.21 and jtx Board 
 - **Pass on PostgreSQL, both clients:** discovery, events, recurring events with exceptions, tasks (jtx Board), contacts with a photo, offline edits, two devices editing the same item, and the large collection (5,000 events and 2,000 contacts: 14 s in Thunderbird, 10 min 45 s in DAVx5, no errors, and the second sync fetched only the change). Notes and calendar creation passed in DAVx5.
 - **SQLite:** the maintainer ran the same steps with the same results as PostgreSQL, including step 7 (on 0.1.4): calendar 29 s in DAVx5 and 22 s in Thunderbird, contacts about 10 min in DAVx5 and about 2 s in Thunderbird. The DAVx5 contacts time is the same on both databases and the server answers the requests in about 2.5 s in total, so it is client-side (#1, medium priority; an iPad loaded the same 2,000 contacts in 74 s). The load test uploaded in parallel and got one 500 "database is locked" on SQLite (#3, for PR 16).
 - **Failure:** step 6 on both clients and both databases (#2): after a calendar is deleted and re-created with the same URI, the old events stay on the client with no error until DAVx5 Refresh list or a new Thunderbird subscription. PR 14 targets exactly this, so it now has a before-fix result.
-- **Observation:** the DAVx5 first-sync time, low priority (#1).
+- **Observation:** the DAVx5 first contact sync takes about 10 minutes for 2,000 contacts. Proven client-side from the DAVx5 log, documented in the guide's Troubleshooting, and #1 is closed.
 
 The Done when is met: both clients and both databases are covered, and every failure has an issue. Tasks.org was dropped from the test devices (the maintainer uses jtx Board).
 
