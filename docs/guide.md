@@ -284,18 +284,25 @@ NexusDAV targets standards-compliant clients. The table shows the Version 1 targ
 
 | Client | CalDAV (events) | CardDAV (contacts) | Tasks (VTODO) | Notes (VJOURNAL) | Status |
 |---|---|---|---|---|---|
-| **DAVx5** (Android) | Yes | Yes | Yes, via a tasks app (jtx Board, Tasks.org, OpenTasks) | Yes, via jtx Board | Primary target; tested for 0.1.1 (4.5.21): calendar, contacts, tasks and notes via jtx Board |
+| **DAVx5** (Android) | Yes | Yes | Yes, via **jtx Board** | Yes, via **jtx Board** | Primary target. Tested with DAVx⁵ 4.5.21 + jtx Board: calendar, contacts, tasks and notes |
 | **Thunderbird** | Yes | Yes | Yes | No (not supported by the client) | Target; tested for 0.1.1 (159.0): calendar and contacts. Tasks not tested |
 | **Apple Calendar / Contacts** (macOS, iOS) | Yes | Yes | Yes, in Reminders (not in Calendar) | No | Target; not tested yet |
 | **vdirsyncer** 0.21.0 | Yes | Yes | Synced as files | Synced as files | Tested for 0.1.1 (automated) |
 | **python caldav** 3.7.0 | Yes | — | Yes | Yes | Tested for 0.1.1 (automated) |
 | Other standards-compliant clients | Expected | Expected | Client-dependent | Client-dependent | Best effort |
 
+**Recommended clients for testing**
+
+- **Android:** DAVx⁵ (Google Play) + jtx Board — events, contacts, tasks and notes
+- **Desktop:** Thunderbird — events and contacts
+- **iOS / macOS:** Apple Calendar, Contacts and Reminders
+- **Automation:** vdirsyncer and python caldav (already used in CI)
+
 **What was tested by hand** (0.1.1, PostgreSQL 18 behind Caddy over HTTPS, November 2026):
 
-- **DAVx5 4.5.21** on a Pixel 7 Pro and a Pixel 10 Pro, both on Android 17: calendar, contacts, tasks and notes, the last two through jtx Board.
+- **DAVx⁵ 4.5.21** (Google Play) + **jtx Board** on a Pixel 7 Pro and a Pixel 10 Pro (Android 17): calendar, contacts, tasks and notes.
 - **Thunderbird 159.0** (Snap package on Ubuntu): calendar and contacts. Tasks were not tested.
-- **Not tested yet:** Apple Calendar, Contacts and Reminders, and Tasks.org or OpenTasks with DAVx5.
+- **Not tested yet:** Apple Calendar, Contacts and Reminders.
 
 0.1.2 and 0.1.3 changed only the admin panel (languages) and a test tool. The full [client checklist](testing/client-checklist.md) was run on 0.1.3 with the same clients on PostgreSQL and SQLite: everything passed except a calendar deleted and created again with the same name while a client was offline (the client kept the old events). 0.1.4 fixes that in the server's sync tokens (see [DAV endpoints](dav-endpoints.md#sync-tokens)); re-checked with both clients on 0.1.4.
 
@@ -318,7 +325,7 @@ Use the same steps for every client; only the menu names differ.
 3. Paste the app password.
 4. If discovery fails, enter the full DAV root URL instead of the domain: `APP_URL` followed by `/dav/` (for example `https://dav.example.com/dav/`).
 
-- **DAVx5:** add an account, choose *Login with URL and user name*, enter the URL and credentials. Install a tasks app (jtx Board, Tasks.org) to see tasks and notes.
+- **DAVx⁵ + jtx Board (recommended Android setup):** add an account in DAVx⁵ (*Login with URL and user name*), enter the URL and app password. Install **jtx Board** to view and edit tasks (VTODO) and notes (VJOURNAL).
 - **Thunderbird:** add a calendar (*New Calendar > On the Network > CalDAV*) and an address book (*New Address Book > CardDAV*).
 - **Apple Calendar / Contacts:** add an account of type *Other* (CalDAV / CardDAV account).
 
