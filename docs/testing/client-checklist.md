@@ -1,6 +1,6 @@
 # Client checklist
 
-A hand test with real clients, run before a release on the devices in [Decision 15](../plans/implementation-plan-v1x.md#decisions): **DAVx5** with **jtx Board** and **Tasks.org** on Android, and **Thunderbird** on Linux. Automated tests cover the protocol; this checklist covers what the clients actually do with it.
+A hand test with real clients, run before a release on the devices in [Decision 15](../plans/implementation-plan-v1x.md#decisions): **DAVx5** with **jtx Board** on Android, and **Thunderbird** on Linux. Automated tests cover the protocol; this checklist covers what the clients actually do with it.
 
 Run every step for each client on both databases, record one result per cell in [Results](#results), and open a GitHub issue for each failure (see [When a step fails](#when-a-step-fails)). Later milestones add their own sections (Sharing, Files, WebDAV-Push). Before a release, run the sections the release touched; the results also go in the guide's [client compatibility](../guide.md#client-compatibility) table.
 
@@ -31,7 +31,7 @@ On each server, in the admin panel:
 
 Write the version of each app in the run log.
 
-- **DAVx5**: add an account with **Login with URL and user name**. For the task steps, run them once with **jtx Board** and once with **Tasks.org** as the tasks app (DAVx5 account settings), on the same account.
+- **DAVx5**: add an account with **Login with URL and user name**. For the task steps, use **jtx Board** as the tasks app.
 - **Thunderbird**: add the calendar with **New Calendar → On the Network**, and the address book with **New Address Book → Add CardDAV Address Book**. Thunderbird does not show notes (VJOURNAL); those cells are "n/a".
 
 Step 5 needs two devices: two Android phones, or one phone and Thunderbird.
@@ -54,7 +54,7 @@ Make each change on one client, then check it on the other client after a sync.
 |---|---|---|
 | 2a | Create an event, change its title and time, then delete it | Each change shows on the other client; the event is gone everywhere after the delete |
 | 2b | Create a weekly recurring event. Move one occurrence to another day (an exception), and delete another occurrence | The other client shows the series, the moved occurrence on its new day, and not the deleted one |
-| 2c | Create a task with a due date, then mark it completed | The task shows on the other client, then shows as completed. DAVx5: once with jtx Board, once with Tasks.org |
+| 2c | Create a task with a due date, then mark it completed | The task shows on the other client, then shows as completed. DAVx5 with jtx Board |
 | 2d | Create a note in jtx Board, edit it, then delete it | The note survives a sync (check with a second device, or remove and add the account again). Thunderbird: n/a |
 | 2e | Create a contact with a photo, a phone number and an email, edit it, then delete it | The other client shows the photo and the fields; the delete is synced |
 
@@ -143,7 +143,7 @@ The first pass, on the current `main`.
 | Tester | Maintainer |
 | PostgreSQL server | PostgreSQL behind HTTPS, v0.1.3 (nexusdav.vovchenko.org). Test data for step 7 uploaded over DAV, not with the seeder |
 | SQLite server | Not run (skipped by the maintainer) |
-| DAVx5, jtx Board, Tasks.org | DAVx5 4.5.21, jtx Board 2.17.00, Tasks.org not run. Google Pixel 7 Pro, Android 17 |
+| DAVx5 + jtx Board | DAVx5 4.5.21 + jtx Board 2.17.00. Google Pixel 7 Pro, Android 17 |
 | Thunderbird | 159.0, Ubuntu Snap build (ubuntu-snap-build 1.0), on Ethernet |
 
 | Step | DAVx5, PostgreSQL | DAVx5, SQLite | Thunderbird, PostgreSQL | Thunderbird, SQLite | Notes |
@@ -152,7 +152,7 @@ The first pass, on the current `main`.
 | 2a Event | ✅ | ✅ | ✅ | ✅ | |
 | 2b Recurring event with exceptions | ✅ | ✅ | ✅ | ✅ | |
 | 2c Task, completed (jtx Board) | ✅ | ✅ | ✅ | ✅ | Thunderbird columns: Thunderbird's own tasks |
-| 2c Task, completed (Tasks.org) | skipped | skipped | ➖ | ➖ | |
+
 | 2d Note | ✅ | ✅ | ➖ | ➖ | Thunderbird has no notes |
 | 2e Contact with a photo | ✅ | ✅ | ✅ | ✅ | |
 | 3 Calendar created from the client | ✅ | ✅ | ➖ | ➖ | Thunderbird cannot create a calendar on the server |
