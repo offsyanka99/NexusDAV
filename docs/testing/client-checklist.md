@@ -157,7 +157,7 @@ The first pass, on the current `main`.
 | 3 Calendar created from the client | ✅ | ✅ | ➖ | ➖ | Thunderbird cannot create a calendar on the server |
 | 4 Offline edits, then sync | ✅ | ✅ | ✅ | ✅ | |
 | 5 Two devices, same item | ✅ | ✅ | ✅ | ✅ | |
-| 6 Calendar deleted and re-created while offline | ❌ #2 | ❌ #2 | ❌ #2 | ❌ #2 | Old events stayed on both clients, with no error, until DAVx5 Refresh list or a new Thunderbird subscription. PR 14 targets this |
+| 6 Calendar deleted and re-created while offline | ✅ #2 | ✅ #2 | ✅ #2 | ✅ #2 | Old events stayed on both clients, with no error, until DAVx5 Refresh list or a new Thunderbird subscription. PR 14 targets this |
 | 7 Large collection, first sync | PostgreSQL: ✅ 10 min 45 s for both collections (#1) | SQLite: ✅ calendar 29 s, contacts 10 min (#1) | PostgreSQL: ✅ 14 s for both | SQLite: ✅ calendar 22 s, contacts about 2 s | 5,000 events and 2,000 contacts, no errors, all items present. Thunderbird on Ethernet, Pixel 7 Pro on Wi-Fi 5. The second sync fetched only the change: about 1 s in Thunderbird, slightly longer in DAVx5. SQLite run on 0.1.4, contacts and calendar timed separately. The slow part is DAVx5 contacts on both databases (about 300 ms per contact, against 6 ms per event); the server answers its 200 requests in about 2.5 s, so it is the client (#1). An iPad (native Contacts) loaded all 2,000 contacts in 74 s, and the server log stayed quiet for 5 minutes afterwards |
 
 **Re-check of step 6 on 0.1.4** (after the fix for #2, PR 14): ✅ both clients.
@@ -165,3 +165,9 @@ The first pass, on the current `main`.
 - **Thunderbird:** the sync with the old token got **403** `valid-sync-token`, and the next sync (207) was a full one. The old events were gone, and the calendar was the new one.
 - **DAVx5:** the old events were gone. Its log has no 403 because DAVx5 does not use sync tokens when its past-events limit ("Ignore events older than") is set: it lists the whole calendar on every sync and removes local events the server no longer has. Without that setting it takes the same 403 path as Thunderbird, which `SyncTokenTest` covers.
 - Both clients kept the old display name until the calendar list was refreshed; see the note in step 6.
+
+**Second re-check on 0.1.4** (4 November 2026, PostgreSQL, sync token `14-1` in the DAVx5 log), with an iPad added:
+
+- **Thunderbird:** ✅ again **403**, then a full sync (207). The old event was gone.
+- **DAVx5:** ✅ the old event was gone ("Removed 1 local resources which are not present on the server anymore"). The past-events limit was set to **0**, which is still a limit: DAVx5 logged "Sync algorithm: full listing" and used no token. To make DAVx5 use sync tokens, turn the limit off so the field is empty; 0 is not the same.
+- **iPad, native Calendar (observation, not part of the test pass):** its sync with the old token got **403** as intended, and it then refreshed the calendar list on its own. It kept the old event and showed it in the new calendar, and sent no `PUT`, so the server never received it again. This is iOS keeping its local copy after the refused token, not a server error.
