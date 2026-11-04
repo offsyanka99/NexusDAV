@@ -130,6 +130,7 @@ class LocalizationTest extends TestCase
         $this->get('/admin/users/'.$user->getKey().'/edit')
             ->assertOk()
             ->assertSee('Изменить пользователя')
+            ->assertSee('Информация о пользователе')
             ->assertSee('Календари')
             ->assertSee('Адресные книги')
             ->assertSee('Пароли приложений');
@@ -359,7 +360,7 @@ class LocalizationTest extends TestCase
         );
     }
 
-    public function test_email_taken_and_calendar_marks_are_russian(): void
+    public function test_email_taken_and_calendar_columns_are_russian(): void
     {
         App::setLocale('ru');
         $this->actingAs(User::factory()->create(['is_admin' => true, 'is_active' => true]));
@@ -372,8 +373,10 @@ class LocalizationTest extends TestCase
             ->assertSee('Этот адрес электронной почты уже используется.');
 
         Livewire::test(CalendarsRelationManager::class, ['ownerRecord' => $ada, 'pageClass' => EditUser::class])
-            ->assertSee('ЗАДАЧИ')
-            ->assertDontSee('TASKS');
+            ->assertSee('События')
+            ->assertSee('Задачи')
+            ->assertSee('Заметки')
+            ->assertDontSee('Tasks');
     }
 
     /**

@@ -55,7 +55,7 @@ Below the form are three tables.
 Table columns:
 - URI (example: `holidays-ca`)
 - Name (example: `Canadian Holidays`)
-- Objects: the count, plus `TASKS` and `NOTES` when the calendar accepts them (example: `38 TASKS NOTES`)
+- Events, Tasks and Notes: the number of each stored in the calendar (example: `38`, `5`, `2`). `—` when the calendar does not accept that type and holds none of it. The Tasks and Notes columns are hidden while that switch is off on the Settings page.
 - DAV path (example: `/dav/calendars/test_user/holidays-ca/`)
 - Actions (Edit, Delete)
 

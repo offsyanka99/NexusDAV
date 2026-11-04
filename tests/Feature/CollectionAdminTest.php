@@ -75,7 +75,7 @@ class CollectionAdminTest extends TestCase
             'pageClass' => EditUser::class,
         ])
             ->assertSee('/dav/calendars/ada_l/default/')
-            ->assertSee('0 TASKS NOTES')
+            ->assertDontSee('TASKS')
             ->callTableAction('create', data: [
                 'uri' => '2024',
                 'display_name' => 'Year',
@@ -122,7 +122,10 @@ class CollectionAdminTest extends TestCase
         Livewire::test(CalendarsRelationManager::class, [
             'ownerRecord' => $ada,
             'pageClass' => EditUser::class,
-        ])->assertSee('1 TASKS');
+        ])
+            ->assertTableColumnStateSet('events_count', '1', $calendar)
+            ->assertTableColumnStateSet('tasks_count', '0', $calendar)
+            ->assertTableColumnStateSet('notes_count', '—', $calendar);
 
         $this->assertDenied($this->dav('PROPFIND', '/dav/calendars/ada_l/2024', 'adaxl', $bobToken, ['Depth' => '1'], $this->propfind()), $secret);
         $this->assertDenied($this->dav('GET', '/dav/calendars/ada_l/2024/planning.ics', 'adaxl', $bobToken), $secret);
@@ -158,7 +161,10 @@ class CollectionAdminTest extends TestCase
         Livewire::test(CalendarsRelationManager::class, [
             'ownerRecord' => $ada,
             'pageClass' => EditUser::class,
-        ])->assertSee('1 NOTES');
+        ])
+            ->assertTableColumnStateSet('events_count', '1', $calendar)
+            ->assertTableColumnStateSet('tasks_count', '—', $calendar)
+            ->assertTableColumnStateSet('notes_count', '0', $calendar);
 
         $this->insertProperty('calendars/ada_l/2024', 'Ada calendar');
         $this->insertProperty('calendars/ada_l/2024/planning.ics', 'Ada event');
@@ -495,6 +501,7 @@ class CollectionAdminTest extends TestCase
         $this->actingAs($admin);
 
         Livewire::test(EditUser::class, ['record' => $ada->getKey()])
+            ->assertSee('User Information')
             ->assertSee('principals/ada')
             ->assertSee('Calendars')
             ->assertSee('Events/Objects')
@@ -570,6 +577,40 @@ class CollectionAdminTest extends TestCase
   </D:prop>
 </D:propfind>
 XML;
+    }
+
+    public function test_the_calendars_table_counts_events_tasks_and_notes_separately(): void
+    {
+        $ada = $this->user('ada', 'Ada', 'ada@example.com');
+        $token = $this->token($ada);
+        $this->actingAs($this->admin());
+        $calendar = CalendarInstance::query()->where('principaluri', 'principals/ada')->where('uri', 'default')->sole();
+
+        $items = ['e1' => 'VEVENT', 'e2' => 'VEVENT', 't1' => 'VTODO', 'n1' => 'VJOURNAL'];
+
+        foreach ($items as $uid => $component) {
+            $body = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//NexusDAV//EN\r\nBEGIN:$component\r\nUID:$uid\r\nDTSTAMP:20261028T120000Z\r\n"
+                .($component === 'VEVENT' ? "DTSTART:20261028T130000Z\r\n" : '')
+                ."SUMMARY:$uid\r\nEND:$component\r\nEND:VCALENDAR\r\n";
+            $this->dav('PUT', '/dav/calendars/ada/default/'.$uid.'.ics', 'ada', $token, ['Content-Type' => 'text/calendar'], $body)->assertCreated();
+        }
+
+        $table = fn () => Livewire::test(CalendarsRelationManager::class, ['ownerRecord' => $ada, 'pageClass' => EditUser::class]);
+
+        $table()
+            ->assertTableColumnStateSet('events_count', '2', $calendar)
+            ->assertTableColumnStateSet('tasks_count', '1', $calendar)
+            ->assertTableColumnStateSet('notes_count', '1', $calendar);
+
+        // The calendar stops accepting tasks; the stored task is still counted.
+        app(CollectionService::class)->updateCalendar($ada, $calendar, 'Calendar', null, '#1A73E8', false, true);
+        $table()->assertTableColumnStateSet('tasks_count', '1', $calendar);
+
+        // With the Tasks switch off on the Settings page, the column is hidden.
+        config(['nexusdav.features.tasks' => false]);
+        $table()
+            ->assertTableColumnHidden('tasks_count')
+            ->assertTableColumnVisible('notes_count');
     }
 
     private function event(string $summary): string

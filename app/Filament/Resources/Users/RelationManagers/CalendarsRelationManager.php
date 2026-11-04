@@ -22,6 +22,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Number;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -37,29 +38,21 @@ class CalendarsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('calendar')->withCount('objects'))
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('calendar')->withCount([
+                'objects as events_count' => fn (Builder $objects): Builder => $objects->where('componenttype', 'VEVENT'),
+                'objects as tasks_count' => fn (Builder $objects): Builder => $objects->where('componenttype', 'VTODO'),
+                'objects as notes_count' => fn (Builder $objects): Builder => $objects->where('componenttype', 'VJOURNAL'),
+            ]))
             ->columns([
                 TextColumn::make('uri')
                     ->label(__('URI')),
                 TextColumn::make('displayname')
                     ->label(__('Name')),
-                TextColumn::make('object_summary')
-                    ->label(__('Objects'))
-                    ->state(function (CalendarInstance $record): string {
-                        $count = (int) ($record->getAttribute('objects_count') ?? 0);
-                        $components = (string) $record->calendar->components;
-                        $marks = [];
-
-                        if (str_contains($components, 'VTODO')) {
-                            $marks[] = __('TASKS');
-                        }
-
-                        if (str_contains($components, 'VJOURNAL')) {
-                            $marks[] = __('NOTES');
-                        }
-
-                        return $marks === [] ? (string) $count : $count.' '.implode(' ', $marks);
-                    }),
+                $this->countColumn('events_count', __('Events'), 'VEVENT'),
+                $this->countColumn('tasks_count', __('Tasks'), 'VTODO')
+                    ->visible(fn (): bool => $this->componentAllowed('VTODO')),
+                $this->countColumn('notes_count', __('Notes'), 'VJOURNAL')
+                    ->visible(fn (): bool => $this->componentAllowed('VJOURNAL')),
                 TextColumn::make('dav_path')
                     ->label(__('DAV path'))
                     ->fontFamily(FontFamily::Mono)
@@ -270,6 +263,24 @@ class CalendarsRelationManager extends RelationManager
             ->default(fn (): bool => $this->componentAllowed($component))
             ->disabled(fn (): bool => ! $this->componentAllowed($component))
             ->dehydrated(fn (): bool => $this->componentAllowed($component));
+    }
+
+    /**
+     * Stored items of one type. "—" when the calendar does not accept that
+     * type and holds none; items kept from before the type was turned off
+     * are still counted.
+     */
+    private function countColumn(string $name, string $label, string $component): TextColumn
+    {
+        return TextColumn::make($name)
+            ->label($label)
+            ->alignEnd()
+            ->state(function (CalendarInstance $record) use ($name, $component): string {
+                $count = (int) ($record->getAttribute($name) ?? 0);
+                $accepted = str_contains((string) $record->calendar->components, $component);
+
+                return $count === 0 && ! $accepted ? '—' : Number::format($count);
+            });
     }
 
     private function componentAllowed(string $component): bool
