@@ -22,11 +22,11 @@ A task is a CalDAV `VTODO`. Tasks are not a separate server and not a separate p
 
 How clients show tasks:
 
-- **DAVx⁵** syncs the data and does not display it. A tasks app such as jtx Board, Tasks.org, or OpenTasks is required.
+- **DAVx⁵** syncs the data and does not display it. A tasks app is required. **jtx Board** is the recommended free option.
 - **Thunderbird** is a target for tasks.
 - **Apple** shows them in Reminders, not in Calendar.
 
-Automated tests with vdirsyncer and the python caldav client pass. DAVx⁵ with jtx Board was tested by hand with 0.1.1. Thunderbird tasks, Apple Reminders, Tasks.org and OpenTasks have not been tried yet. See [Client compatibility](../guide.md#client-compatibility).
+Automated tests with vdirsyncer and the python caldav client pass. DAVx⁵ with jtx Board was tested by hand with 0.1.1. Thunderbird tasks and Apple Reminders have not been tried yet. See [Client compatibility](../guide.md#client-compatibility).
 
 ## Not in the plan yet
 
