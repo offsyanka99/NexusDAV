@@ -91,6 +91,7 @@ class UserResourceTest extends TestCase
             ->assertHasFormErrors(['password' => 'required']);
 
         Livewire::test(EditUser::class, ['record' => $created->getKey()])
+            ->assertSee('User Information')
             ->fillForm([
                 'username' => 'renamed',
                 'display_name' => 'Augusta',

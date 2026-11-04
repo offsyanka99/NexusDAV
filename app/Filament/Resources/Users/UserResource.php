@@ -64,7 +64,7 @@ class UserResource extends Resource
     {
         return $schema
             ->components([
-                Section::make(__('User'))
+                Section::make(__('User Information'))
                     ->visible(fn (string $operation): bool => $operation === 'edit')
                     ->compact()
                     ->gap(false)
