@@ -45,9 +45,13 @@ class CalendarsRelationManager extends RelationManager
             ]))
             ->columns([
                 TextColumn::make('uri')
-                    ->label(__('URI')),
+                    ->label(__('URI'))
+                    ->wrap()
+                    ->extraAttributes(['style' => 'word-break: normal; overflow-wrap: anywhere;']),
                 TextColumn::make('displayname')
-                    ->label(__('Name')),
+                    ->label(__('Name'))
+                    ->wrap()
+                    ->extraAttributes(['style' => 'word-break: normal; overflow-wrap: anywhere;']),
                 $this->countColumn('events_count', __('Events'), 'VEVENT'),
                 $this->countColumn('tasks_count', __('Tasks'), 'VTODO')
                     ->visible(fn (): bool => $this->componentAllowed('VTODO')),
@@ -56,6 +60,8 @@ class CalendarsRelationManager extends RelationManager
                 TextColumn::make('dav_path')
                     ->label(__('DAV path'))
                     ->fontFamily(FontFamily::Mono)
+                    ->wrap()
+                    ->extraAttributes(['style' => 'overflow-wrap: anywhere;'])
                     ->state(function (CalendarInstance $record): string {
                         $owner = $this->getOwnerRecord();
                         $username = $owner instanceof User ? $owner->username : '';

@@ -36,15 +36,21 @@ class AddressBooksRelationManager extends RelationManager
         return $table
             ->columns([
                 TextColumn::make('uri')
-                    ->label(__('URI')),
+                    ->label(__('URI'))
+                    ->wrap()
+                    ->extraAttributes(['style' => 'word-break: normal; overflow-wrap: anywhere;']),
                 TextColumn::make('displayname')
-                    ->label(__('Name')),
+                    ->label(__('Name'))
+                    ->wrap()
+                    ->extraAttributes(['style' => 'word-break: normal; overflow-wrap: anywhere;']),
                 TextColumn::make('cards_count')
                     ->label(__('Contacts'))
                     ->counts('cards'),
                 TextColumn::make('dav_path')
                     ->label(__('DAV path'))
                     ->fontFamily(FontFamily::Mono)
+                    ->wrap()
+                    ->extraAttributes(['style' => 'overflow-wrap: anywhere;'])
                     ->state(function (AddressBook $record): string {
                         $owner = $this->getOwnerRecord();
                         $username = $owner instanceof User ? $owner->username : '';

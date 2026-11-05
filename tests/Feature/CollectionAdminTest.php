@@ -34,6 +34,26 @@ class CollectionAdminTest extends TestCase
         Filament::setCurrentPanel(Filament::getPanel('admin'));
     }
 
+    /**
+     * A long URI made the table wider than the page and pushed Edit and
+     * Delete out of view. The long columns wrap instead.
+     */
+    public function test_long_uri_and_path_columns_wrap_so_the_row_actions_stay_in_view(): void
+    {
+        $this->actingAs($this->admin());
+        $ada = $this->user('ada', 'Ada', 'ada@example.com');
+
+        foreach ([CalendarsRelationManager::class, AddressBooksRelationManager::class] as $manager) {
+            $columns = Livewire::test($manager, ['ownerRecord' => $ada, 'pageClass' => EditUser::class])
+                ->instance()->getTable()->getColumns();
+
+            foreach (['uri', 'dav_path'] as $name) {
+                $this->assertTrue($columns[$name]->canWrap(), $manager.' '.$name);
+                $this->assertStringContainsString('overflow-wrap: anywhere', $columns[$name]->getExtraAttributes()['style']);
+            }
+        }
+    }
+
     public function test_new_users_get_one_default_calendar_and_address_book(): void
     {
         $user = app(UserService::class)->create([
