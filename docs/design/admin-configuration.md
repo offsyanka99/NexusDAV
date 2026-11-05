@@ -22,6 +22,9 @@ The Configuration page holds server-wide preferences that are not tied to a spec
 - Session lifetime (`SESSION_LIFETIME`, default `120`): Laravel's session lifetime, minutes of inactivity before an admin is signed out
 - Secure cookies (`SESSION_SECURE_COOKIE`): on by default when `APP_URL` is `https`. Turning it on is refused unless the panel is open over HTTPS, so an admin cannot sign themselves out by accident
 
+**Notifications** section:
+- Close messages after, in seconds (`NEXUSDAV_NOTIFICATION_SECONDS`, default `6`, 0 to 300). Success and info messages close by themselves after this time; `0` keeps them until the admin closes them. Errors and warnings never close by themselves, so a failure is not missed (a time limit the user can switch off also meets WCAG 2.2.1). A message that sets its own duration, such as the one-time app password, keeps it.
+
 **Diagnostics** section:
 - Keep failed logins and DAV errors for, in days (`NEXUSDAV_DIAGNOSTICS_RETENTION_DAYS`, default `30`)
 

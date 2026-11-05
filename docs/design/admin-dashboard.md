@@ -21,7 +21,7 @@ The page uses the standard Filament panel layout (navigation, then page header, 
 | Dashboard                                                             |
 +-----------------------------------------------------------------------+
 | [ Server status ]                                                     |
-|  ● Application OK  ● Database OK (PostgreSQL)  NexusDAV 0.1.6         |
+|  ● Application OK  ● Database OK (PostgreSQL)  NexusDAV 0.1.7+4f82db8  |
 +-----------------------------------------------------------------------+
 | [ Services ]                                                          |
 |  CalDAV  ● On     CardDAV  ● On     Tasks  ● On     Notes  ○ Off      |
@@ -53,7 +53,7 @@ One card with a row of status items. Each item has a coloured dot, a label and a
 |---|---|---|---|
 | Application | The page rendering at all | Green, `OK` | Not shown, since the page would not load |
 | Database | The same check as `/health` | Green, `OK`, with the type (`PostgreSQL` or `SQLite`) | Red, `Unavailable` |
-| Version | `NexusDAV` plus `NEXUSDAV_VERSION`, set at image build time (a release shows its version, for example `0.1.0`; CI builds use `ci+<commit>`; a local build without it shows `dev`) | Plain text | |
+| Version | `NexusDAV` plus `NEXUSDAV_VERSION`, set at image build time (a release shows its version and the tagged commit, for example `0.1.6+4f82db8`; CI builds use `ci+<commit>`; a local build without it shows `dev`) | Plain text | |
 
 Rules:
 

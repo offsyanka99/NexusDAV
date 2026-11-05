@@ -121,6 +121,44 @@ Delete `Recreate` in the panel afterwards.
 
 Delete the `load-test` calendar and address book in the panel when the step is done.
 
+### 8. Many uploads at once (SQLite most of all)
+
+No client is needed; this is the load that failed in [#3](https://github.com/offsyanka99/NexusDAV/issues/3). Create an app password for a test user, then upload 5,000 events with 16 parallel writers. Run it on both servers. Set the variables first:
+
+```bash
+export B=https://<your domain> U=checklist P='<app password>' RUN=$(date +%s)
+curl -s -u "$U:$P" -X MKCALENDAR "$B/dav/calendars/$U/parallel/"
+
+put() {
+  n=$1; day=$(( n % 28 + 1 ))
+  printf 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//checklist//EN\r\nBEGIN:VEVENT\r\nUID:p-%s-%s\r\nDTSTAMP:20261104T120000Z\r\nDTSTART:202612%02dT090000Z\r\nSUMMARY:Parallel %s\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n' "$n" "$RUN" "$day" "$n" |
+    curl -s -o /dev/null -w '%{http_code}\n' -u "$U:$P" -X PUT -H 'Content-Type: text/calendar' \
+      -H 'If-None-Match: *' --data-binary @- "$B/dav/calendars/$U/parallel/p-$n-$RUN.ics"
+}
+export -f put
+
+seq 1 5000 | xargs -P 16 -I{} bash -c 'put {}' | sort | uniq -c
+```
+
+**Pass:** `5000 201`. Then count the events (a `PROPFIND` with `Depth: 1` on the calendar lists 5,000 `.ics` entries). Nothing is a 500. A few `503` with `Retry-After` are acceptable only if the same events are then accepted when sent again; Diagnostics shows them as 503. On 0.1.5 this printed 500 "database is locked" on SQLite.
+
+**Fail:** any 500, a missing or duplicated event. Delete the `parallel` calendar in the panel afterwards.
+
+### 9. Admin panel
+
+In the admin panel on each server, with the language set to English and then Russian:
+
+| ID | Do | Pass |
+|---|---|---|
+| 9a | Open **Configuration**. Set **Time format** to 24-hour and **Week starts on** to Monday. Edit a user, open **App passwords → Generate**, and open the **Expires** picker | The calendar starts on Monday and the time has hours and minutes with no AM/PM. Set 12-hour and Sunday: the picker follows |
+| 9b | On a user with an event, a task and a note created from the clients, open **Calendars** | The **Events**, **Tasks** and **Notes** columns each show their own count |
+| 9c | Open the container log in Dozzle (or `docker compose logs`) while a client syncs, and then request `/admin` without signing in | Request lines show `INFO`, a 4xx shows `WARNING` and a 5xx `ERROR`, so Dozzle colours them |
+| 9d | **Diagnostics** after the whole run | No 5xx rows. 4xx rows are only discovery probes, the 412 from step 5 and the 403 from step 6 |
+
+### 10. Offline for longer than the sync history (optional, takes two days)
+
+The sync history is kept for **Keep sync history for (days)**, at least 1. With a client that has synced, set it to 1 in **Settings**, take the client offline for two days while another device changes and deletes events, then sync. **Pass:** the client takes one full resync (Thunderbird logs a 403 `valid-sync-token`, then a full 207) and ends up with exactly the server's events, the deleted ones gone. Restore the setting afterwards. The automated tests cover the same path; run this step once on the release candidate.
+
 ## When a step fails
 
 1. Note the step ID, the client and its version, the database, and what happened.
@@ -181,3 +219,35 @@ DAVx5's debug log of that contacts sync shows 153 requests to the server taking 
 - **Thunderbird:** ✅ again **403**, then a full sync (207). The old event was gone.
 - **DAVx5:** ✅ the old event was gone ("Removed 1 local resources which are not present on the server anymore"). The past-events limit was set to **0**, which is still a limit: DAVx5 logged "Sync algorithm: full listing" and used no token. To make DAVx5 use sync tokens, turn the limit off so the field is empty; 0 is not the same.
 - **iPad, native Calendar (observation, not part of the test pass):** its sync with the old token got **403** as intended, and it then refreshed the calendar list on its own. It kept the old event and showed it in the new calendar, and sent no `PUT`, so the server never received it again. This is iOS keeping its local copy after the refused token, not a server error.
+
+### Pass 2 (M2 release candidate, PR 19)
+
+Step 10 runs on 5 November. Run on the release candidate (the tag that will be released), with both servers on that build.
+
+| Run log | |
+|---|---|
+| Date | Nov 4 |
+| Build (Dashboard version) | 0.1.6 |
+| Tester | HummerSoft |
+| PostgreSQL server | ✅ |
+| SQLite server | ✅ |
+| DAVx5 + jtx Board | ✅ |
+| Thunderbird | ✅ |
+| iPad (iOS 18.5) | ✅ |
+
+| Step | DAVx5, PostgreSQL | DAVx5, SQLite | Thunderbird, PostgreSQL | Thunderbird, SQLite | Notes |
+|---|---|---|---|---|---|
+| 1 Discovery from the domain | ✅ | ✅ | ✅ | ✅ | Android phone, iPad and Thunderbird (linux) |
+| 2a Event | ✅ | ✅ | ✅ | ✅ | Android phone, iPad and Thunderbird (linux) |
+| 2b Recurring event with exceptions | ✅ | ✅ | ✅ | ✅ | Android phone, iPad and Thunderbird (linux) |
+| 2c Task, completed | ✅ | ✅ | ✅ | ✅ | Android phone, iPad and Thunderbird (linux) |
+| 2d Note | ✅ | ✅ | ➖ | ➖ | Tested on the Android phone only|
+| 2e Contact with a photo | ✅ | ✅ | ✅ | ✅ | Android phone, iPad and Thunderbird (linux) |
+| 3 Calendar created from the client | ✅ | ✅ | ➖ | ➖ | Android phone and iPad. The calendar created from the iPad did not create Notes or Tasks on the server. Only Calendar. |
+| 4 Offline edits, then sync | ✅ | ✅ | ✅ | ✅ | Android phone and iPad. |
+| 5 Two devices, same item | ✅ | ✅ | ✅ | ✅ | Android phone and iPad. |
+| 6 Calendar deleted and re-created while offline | ✅ | ✅ | ✅ | ✅ | |
+| 7 Large collection, first sync | ✅ | ✅ | ✅ | ✅ | Android phone, iPad and Thunderbird (linux) |
+| 8 Many uploads at once | ➖ | ➖ | ➖ | ➖ | PostgreSQL: ✅ 5,000 × 201 · SQLite: ✅ 5,000 × 201 (16 parallel writers, no client needed, 4 November 2026) |
+| 9 Admin panel | ➖ | ➖ | ➖ | ➖ | PostgreSQL: ✅ · SQLite: ✅ |
+| 10 Offline longer than the history (optional) | ⬜ | ⬜ | ⬜ | ⬜ | |

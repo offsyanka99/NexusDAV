@@ -14,7 +14,7 @@ The work is split into five milestones and 31 PRs, listed in the order they are 
 
 Sources: [guide](../guide.md), [apps](../apps/README.md), the [admin panel](../apps/admin.md) description, the design notes for [Settings](../design/admin-settings.md), [Configuration](../design/admin-configuration.md) and the [Dashboard](../design/admin-dashboard.md), the pinned WebDAV-Push draft, and the current code.
 
-**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is in progress: PR 13 and PR 14 are done (PR 14 is in 0.1.4); PR 15 to PR 19 are next. M3 to M5 are not started.
+**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is in progress: PR 13 to PR 18 are done (0.1.6 has PR 17); PR 19, the release run, is next. M3 to M5 are not started.
 
 Effort levels are the same as in Version 1:
 - **Low** — small, mostly boilerplate or config
@@ -331,6 +331,7 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 - `busy_timeout` reads `DB_BUSY_TIMEOUT` (default 5000 ms) so tests can shorten it; it is not documented as a setting.
 - Tests: `BusyDatabaseTest` (retry then success, 503 after four tries with its Diagnostics row, the three PostgreSQL states, a read answered 503 at once, a 500 without the exception text, a busy "last used" update). `ConcurrentWritesTest` holds a real SQLite write lock from a second connection: released after 0.4 s the write succeeds through a retry (and gets 503 with retries switched off), held for good it gets 503.
 - Tag `v0.1.6` (no GitHub Release page), also with the expiry date picker that follows Time format and Week starts on.
+- Tag `v0.1.7` (no GitHub Release page): the client pass 2 test round on 0.1.6, the **Close messages after** setting (`NEXUSDAV_NOTIFICATION_SECONDS`), the commit shown on the Dashboard (`0.1.7+<commit>`), the Calendars and Address books tables that wrap long URIs, and the PR 18 and PR 19 docs.
 
 ### PR 18 — Fixes from the client pass (Effort: Medium, re-rated after PR 13)
 
@@ -339,6 +340,17 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 
 **Done when:** every `m2-client-pass` issue is closed with a fix or a documented limitation.
 
+**Status:** done. No `m2-client-pass` issue is open (4 November 2026).
+
+| Issue | Outcome |
+|---|---|
+| #1 DAVx5 first contact sync takes about 10 min | Documented limitation: 98 % of the time is DAVx5 writing into Android's Contacts storage (guide, Troubleshooting) |
+| #2 Old events stay after a calendar is deleted and created again | Fixed by PR 14 (sync tokens `<collection id>-<number>`, 403 `valid-sync-token`), with `SyncTokenTest` |
+| #3 SQLite "database is locked" under parallel uploads | Fixed by PR 16 and PR 17; 16 and 32 parallel writers, 5,000 uploads each, no 500 on 0.1.6 |
+
+- Observations from the pass that are not server bugs are now in the guide's Troubleshooting: the second device's refused write (412, no message on the client), an iPad keeping the old events of a calendar deleted and created again, DAVx5 not using sync tokens when "Time range (past days)" is set, and a full resync after a long time offline.
+- Not done, by decision: a status badge for expired app passwords on the Edit User page (not a client-pass finding). It stays a small follow-up.
+
 ### PR 19 — M2 release (Effort: Medium)
 
 - The full checklist again on the release candidate, with both clients and both databases.
@@ -346,6 +358,8 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
   - The guide's client compatibility table (versions, Thunderbird tasks), its settings table (`NEXUSDAV_SYNC_HISTORY_DAYS`), and Troubleshooting (a full resync after a long time offline; a 503 under heavy load)
   - [data-model.md](../data-model.md) (new columns) and [architecture.md](../architecture.md)
 - Release notes: the new token format, legacy tokens still accepted, and the 90-day history default.
+
+**Status:** prepared. The docs for the 503, the retry and the history setting are written; the checklist has new steps 8 to 10 and an empty Pass 2 table ([client-checklist.md](../testing/client-checklist.md#pass-2-m2-release-candidate-pr-19)). The run on 0.1.6 passed on 4 November 2026 with DAVx5, Thunderbird and an iPad on both databases; only the optional step 10 (offline longer than the history) is left for 5 November. What is left after that is the release notes.
 
 **Done when:** the checklist passes with both clients on both databases, the docs match, and the release is published.
 

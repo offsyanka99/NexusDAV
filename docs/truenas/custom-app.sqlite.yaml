@@ -29,7 +29,7 @@
 
 services:
   nexusdav:
-    image: ghcr.io/offsyanka99/nexusdav:0.1.6
+    image: ghcr.io/offsyanka99/nexusdav:0.1.7
     restart: unless-stopped
     ports:
       - "8080:8080" # CHANGE ME if port 8080 is already used by another app

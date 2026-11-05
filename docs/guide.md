@@ -12,7 +12,7 @@ Related documents:
 - [Implementation plan (v1.x)](plans/implementation-plan-v1x.md) — milestones and PRs for the Version 1.x features
 - [Plan for Version 2 and later](plans/version-2-and-later.md) — features for 2.0, 2.x and beyond
 
-Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `0.1.6` (first release `0.1.0`). 0.1.2 added the first Version 1.x milestone, an admin panel in English and Russian. The server passes automated sync tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
+Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `0.1.7` (first release `0.1.0`). 0.1.2 added the first Version 1.x milestone, an admin panel in English and Russian. The server passes automated sync tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
 
 NexusDAV is built for homelabs and small teams that want calendars, contacts, tasks, notes and files without running a full groupware suite.
 
@@ -30,7 +30,7 @@ Current limitations:
 
 ## Quick start
 
-1. Get the Compose files and create your environment file. The Compose files pull the published image, `ghcr.io/offsyanka99/nexusdav:0.1.6`:
+1. Get the Compose files and create your environment file. The Compose files pull the published image, `ghcr.io/offsyanka99/nexusdav:0.1.7`:
 
    ```bash
    git clone https://github.com/offsyanka99/NexusDAV.git
@@ -154,7 +154,7 @@ The variables used in this guide are listed in `.env.example` with safe placehol
 | `LOG_CHANNEL` | No | `stderr` in the image | No | Set by the Dockerfile so logs reach `docker compose logs`. Leave it unset in `.env`. |
 | `TRUSTED_PROXIES` | No | private ranges | No | Peers whose `X-Forwarded-For`, `-Proto` and `-Host` are trusted. Unset or empty means the private ranges `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.1`, `::1` and `fc00::/7`, which covers a reverse proxy in the same Docker network or LAN. Otherwise list your proxy's address or subnet. `*` trusts every peer: the brute-force limit then sees every client as the proxy's address, the per-address limit is turned off, and `nexusdav:prepare` prints a warning. A device inside the private ranges can set `X-Forwarded-For` itself; list only your proxy if that matters. |
 | `PUID`, `PGID` | No | `568` | No | User and group that own `/data` inside the container. |
-| `NEXUSDAV_VERSION` | No | set at build | No | Shown on the Dashboard. The image sets it from the `NEXUSDAV_VERSION` build argument: a release uses its version (for example `0.1.6`), CI uses `ci+<commit>`, and a local build shows `dev`. |
+| `NEXUSDAV_VERSION` | No | set at build | No | Shown on the Dashboard. The image sets it from the `NEXUSDAV_VERSION` build argument: a release uses its version and the tagged commit (for example `0.1.6+4f82db8`), CI uses `ci+<commit>`, and a local build shows `dev`. |
 
 Secrets can also be supplied as files (for example `DB_PASSWORD_FILE`) for use with Docker secrets; this is planned. The application stops at start with a clear message if a required variable is missing.
 
@@ -182,6 +182,9 @@ These settings are changed on the **Settings** and **Configuration** pages. A ch
 | Session lifetime (minutes of inactivity) | Configuration | `SESSION_LIFETIME` | `120` |
 | Secure session cookie | Configuration | `SESSION_SECURE_COOKIE` | on when `APP_URL` is `https` |
 | Keep diagnostics for (days) | Configuration | `NEXUSDAV_DIAGNOSTICS_RETENTION_DAYS` | `30` |
+| Close messages after (seconds) | Configuration | `NEXUSDAV_NOTIFICATION_SECONDS` | `6` (0 keeps them until closed) |
+
+**Admin panel messages:** success and info messages close by themselves after **Close messages after** seconds. `0` keeps them until you close them. Errors and warnings always stay until closed, and so does the one-time app password secret.
 
 What the service switches do:
 
@@ -287,7 +290,7 @@ NexusDAV targets standards-compliant clients. The table shows the Version 1 targ
 |---|---|---|---|---|---|
 | **DAVx5** (Android) | Yes | Yes | Yes, via **jtx Board** | Yes, via **jtx Board** | Primary target. Client checklist passed on 0.1.3 and 0.1.4 with DAVx⁵ 4.5.21 + jtx Board 2.17.00: calendar, contacts, tasks and notes. A first sync of 2,000 contacts takes about 10 minutes on the phone ([#1](https://github.com/offsyanka99/NexusDAV/issues/1)) |
 | **Thunderbird** | Yes | Yes | Yes | No (not supported by the client) | Target. Client checklist passed on 0.1.3 and 0.1.4 with 159.0: calendar, contacts and tasks |
-| **Apple Calendar / Contacts** (macOS, iOS) | Yes | Yes | Yes, in Reminders (not in Calendar) | No | Contacts on iPad synced 2,000 contacts on 0.1.4 (native app). Calendar and Reminders not tested yet |
+| **Apple Calendar / Contacts** (macOS, iOS) | Yes | Yes | Yes, in Reminders (not in Calendar) | No | Client checklist passed on 0.1.6 with an iPad (iOS 18.5, native apps): discovery, events, recurring events, tasks, contacts, offline edits, two devices editing one item, a calendar deleted and created again, and a large first sync (see Troubleshooting for what the iPad keeps after a calendar is re-created) |
 | **vdirsyncer** 0.21.0 | Yes | Yes | Synced as files | Synced as files | Tested for 0.1.1 (automated) |
 | **python caldav** 3.7.0 | Yes | — | Yes | Yes | Tested for 0.1.1 (automated) |
 | Other standards-compliant clients | Expected | Expected | Client-dependent | Client-dependent | Best effort |
@@ -304,9 +307,9 @@ NexusDAV targets standards-compliant clients. The table shows the Version 1 targ
 - **DAVx⁵ 4.5.21** (Google Play) + **jtx Board 2.17.00** on a Pixel 7 Pro (Android 17): discovery, events, recurring events with exceptions, tasks, notes, contacts with a photo, a calendar created from the client, offline edits, two devices editing the same event, and a first sync of 5,000 events and 2,000 contacts. 0.1.1 was also tested on a Pixel 10 Pro.
 - **Thunderbird 159.0** (Snap package on Ubuntu): the same steps except notes and creating a calendar, which Thunderbird does not do.
 - **iPad, native Contacts:** a first sync of 2,000 contacts (74 s) on 0.1.4.
-- **Not tested yet:** Apple Calendar and Reminders.
+- **iPad (iOS 18.5):** the checklist steps 1 to 7 on 0.1.6; notes were tested on the Android phone only.
 
-0.1.2 and 0.1.3 changed only the admin panel (languages) and a test tool. On 0.1.3 everything passed except a calendar deleted and created again with the same name while a client was offline: the client kept the old events. 0.1.4 fixes that in the server's sync tokens (see [DAV endpoints](dav-endpoints.md#sync-tokens)), and both clients passed that step on 0.1.4. 0.1.5 adds sync history retention, safe concurrent writes and readable log levels; 0.1.6 retries a write when the database is busy and answers 503 instead of 500 when it stays busy. The client checklist has not been run on 0.1.5 or 0.1.6 yet.
+0.1.2 and 0.1.3 changed only the admin panel (languages) and a test tool. On 0.1.3 everything passed except a calendar deleted and created again with the same name while a client was offline: the client kept the old events. 0.1.4 fixes that in the server's sync tokens (see [DAV endpoints](dav-endpoints.md#sync-tokens)), and both clients passed that step on 0.1.4. 0.1.5 adds sync history retention, safe concurrent writes and readable log levels; 0.1.6 retries a write when the database is busy and answers 503 instead of 500 when it stays busy. 0.1.7 adds a setting that closes admin panel messages by themselves, shows the commit next to the version on the Dashboard, and keeps the Edit and Delete buttons in view for long calendar and address book names. The client checklist passed on 0.1.6 with DAVx5, Thunderbird and an iPad, on both databases, except the optional step 10 (offline longer than the sync history), which runs on 5 November ([results](testing/client-checklist.md#pass-2-m2-release-candidate-pr-19)).
 
 **What was tested by automated clients** (SQLite, November 2026; recorded on 0.1.0 and unchanged up to 0.1.4, whose sync-token change is covered by its own tests):
 
@@ -477,7 +480,7 @@ Export the settings before an upgrade and keep the file with your other backups.
 **Upgrade**
 
 1. Back up first.
-2. Read the release notes, then change the tag on the `image:` line in `compose.yaml` (for example from `0.1.5` to `0.1.6`). Keep an exact version rather than `latest`, so an upgrade happens only when you choose it.
+2. Read the release notes, then change the tag on the `image:` line in `compose.yaml` (for example from `0.1.6` to `0.1.7`). Keep an exact version rather than `latest`, so an upgrade happens only when you choose it.
 3. Run `docker compose pull` and `docker compose up -d`, with the same `-f` files as at install. Database migrations run automatically on start. With `compose.build.yaml`, update the checkout instead and run `up -d --build`.
 4. Upgrade one minor version at a time. There is no rollback other than restoring the backup.
 
@@ -524,6 +527,11 @@ Automatic backups are a long-term goal (see [Roadmap](#roadmap)).
 | Tasks or notes are not visible | The client app does not display them (see [Client compatibility](#client-compatibility)). |
 | The first contact sync in DAVx5 takes many minutes | DAVx5 saves each contact into Android's contacts storage one at a time, about 0.5 s per contact on a Pixel 7 Pro: roughly 10 minutes for 2,000 contacts. The server's part is a few seconds. Later syncs fetch only changes and are quick. Calendars and other clients (Thunderbird, iPhone, iPad) are not affected ([#1](https://github.com/offsyanka99/NexusDAV/issues/1)). |
 | A client reports 503 "The server is busy" during a large import | Many writes arrived at once, and one waited for the database longer than the server retries (about 5 s per try, four tries). Nothing was saved for that item; the client sends it again later (`Retry-After: 5`). It happens mostly on SQLite with many parallel uploads; PostgreSQL handles them better. |
+| A client syncs everything again after being offline for a long time | The server keeps the change history for **Keep sync history for (days)** (default 90). A client whose last sync is older gets a 403 `valid-sync-token` and takes a full sync, which ends with exactly the server's data. Raise the setting if clients stay offline longer. |
+| An edit made on one device is gone after the other device syncs | Both devices changed the same item. The first to reach the server wins; the server refuses the second write (412 Precondition Failed, listed on Diagnostics) because the item changed after that device last synced. Clients show no message and take the server's version on their next sync. Edit the item again on the second device. |
+| A calendar deleted and created again with the same name still shows its old events on an iPad or iPhone | Apple Calendar keeps its local copy when the server refuses its old sync token, and shows those events in the new calendar. The server never receives them again. Remove the calendar account and add it again. DAVx5 and Thunderbird drop the old events themselves ([DAV endpoints](dav-endpoints.md#sync-tokens)). |
+| DAVx5 does not use sync tokens for a calendar | **Time range (past days)** is set, even to `0`: DAVx5 then lists the whole calendar on every sync instead. That is correct, only slower for big calendars. Leave the field empty to use sync tokens. |
+| A calendar created from an iPad or iPhone has no tasks or notes on the server | The client chooses what a new calendar holds when it creates it, and Apple Calendar asks for events only. Open the calendar under **Edit** on the user's Calendars tab and turn on Tasks and Notes. |
 | A calendar or address book deleted and created again with the same name still shows its old name in the client | Clients keep the name they first saw. Refresh the collection list (DAVx5: **Refresh list**) or add the calendar again in Thunderbird. The contents are already the new ones. |
 
 ### Migrating from another server
