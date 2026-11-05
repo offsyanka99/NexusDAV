@@ -8,6 +8,7 @@ use App\Services\DiagnosticEventWriter;
 use App\Services\SettingsService;
 use App\Support\LocaleCatalog;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Notifications\Notification;
 use Filament\Schemas\Schema;
 use Filament\Support\Facades\FilamentTimezone;
 use Filament\Tables\Table;
@@ -54,6 +55,21 @@ class AppServiceProvider extends ServiceProvider
         FilamentTimezone::set(fn (): string => (string) config('nexusdav.default_timezone', 'UTC'));
 
         $twelveHour = fn (): bool => config('nexusdav.time_format') === '12';
+
+        // Success and info messages close after the configured time (0 keeps
+        // them); errors and warnings stay until closed. An explicit
+        // ->persistent() or ->duration() on a message still wins.
+        Notification::configureUsing(function (Notification $notification): void {
+            $notification->duration(function () use ($notification): int|string {
+                $seconds = (int) config('nexusdav.notifications.seconds', 6);
+
+                if ($seconds <= 0 || in_array($notification->getStatus(), ['danger', 'warning'], true)) {
+                    return 'persistent';
+                }
+
+                return $seconds * 1000;
+            });
+        });
 
         Table::configureUsing(function (Table $table) use ($twelveHour): void {
             $table

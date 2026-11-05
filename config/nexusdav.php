@@ -121,6 +121,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Admin panel notifications
+    |--------------------------------------------------------------------------
+    |
+    | Seconds before a success or info message closes by itself. 0 keeps it
+    | until the admin closes it. Errors and warnings always stay.
+    |
+    */
+
+    'notifications' => [
+        'seconds' => env('NEXUSDAV_NOTIFICATION_SECONDS', 6),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Sync history
     |--------------------------------------------------------------------------
     |

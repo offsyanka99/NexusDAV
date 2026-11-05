@@ -14,6 +14,7 @@ use App\Services\SettingsService;
 use App\Services\UserService;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Notifications\Notification;
 use Filament\Support\Facades\FilamentTimezone;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -65,6 +66,38 @@ class SettingsTest extends TestCase
         config(['nexusdav.rate_limit.max_attempts' => 5]);
         app(SettingsService::class)->apply();
         $this->assertSame(2, config('nexusdav.rate_limit.max_attempts'));
+    }
+
+    public function test_notifications_close_after_the_saved_seconds_and_errors_stay(): void
+    {
+        $this->actingAs($this->makeUser('root', true));
+
+        $this->assertSame(6000, Notification::make()->success()->getDuration());
+
+        Livewire::test(Configuration::class)
+            ->fillForm(['notification_seconds' => 3])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame(3, config('nexusdav.notifications.seconds'));
+        $this->assertSame(3000, Notification::make()->success()->getDuration());
+        $this->assertSame(3000, Notification::make()->title('Info')->getDuration());
+        $this->assertSame('persistent', Notification::make()->danger()->getDuration());
+        $this->assertSame('persistent', Notification::make()->warning()->getDuration());
+        $this->assertSame(1000, Notification::make()->success()->seconds(1)->getDuration());
+        $this->assertSame('persistent', Notification::make()->success()->persistent()->getDuration());
+
+        Livewire::test(Configuration::class)
+            ->fillForm(['notification_seconds' => 0])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame('persistent', Notification::make()->success()->getDuration());
+
+        Livewire::test(Configuration::class)
+            ->fillForm(['notification_seconds' => 301])
+            ->call('save')
+            ->assertHasFormErrors(['notification_seconds']);
     }
 
     public function test_saved_values_are_read_from_the_cache_not_the_database(): void

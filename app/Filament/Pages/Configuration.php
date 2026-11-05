@@ -51,6 +51,7 @@ class Configuration extends SettingsPage
             'session_lifetime',
             'session_secure_cookie',
             'diagnostics_retention_days',
+            'notification_seconds',
         ];
     }
 
@@ -142,6 +143,12 @@ class Configuration extends SettingsPage
                                 }),
                             'session_secure_cookie',
                         ),
+                    ]),
+                Section::make(__('Notifications'))
+                    ->schema([
+                        $this->lockable($this->number('notification_seconds', __('Close messages after'))
+                            ->suffix(__('seconds'))
+                            ->helperText(__('Success and info messages close by themselves after this time. 0 keeps them until you close them. Errors and warnings always stay.')), 'notification_seconds'),
                     ]),
                 Section::make(__('Diagnostics'))
                     ->schema([

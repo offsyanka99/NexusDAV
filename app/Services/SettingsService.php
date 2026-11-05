@@ -42,6 +42,7 @@ final class SettingsService
         'session_lifetime' => ['config' => 'session.lifetime', 'env' => 'SESSION_LIFETIME', 'type' => 'int', 'min' => 5, 'max' => 10080, 'default' => 120],
         'session_secure_cookie' => ['config' => 'session.secure', 'env' => 'SESSION_SECURE_COOKIE', 'type' => 'bool'],
         'diagnostics_retention_days' => ['config' => 'nexusdav.diagnostics.retention_days', 'env' => 'NEXUSDAV_DIAGNOSTICS_RETENTION_DAYS', 'type' => 'int', 'min' => 1, 'max' => 365, 'default' => 30],
+        'notification_seconds' => ['config' => 'nexusdav.notifications.seconds', 'env' => 'NEXUSDAV_NOTIFICATION_SECONDS', 'type' => 'int', 'min' => 0, 'max' => 300, 'default' => 6],
         'sync_history_days' => ['config' => 'nexusdav.sync_history.retention_days', 'env' => 'NEXUSDAV_SYNC_HISTORY_DAYS', 'type' => 'int', 'min' => 1, 'max' => 3650, 'default' => 90],
     ];
 
