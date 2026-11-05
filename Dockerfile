@@ -1,6 +1,6 @@
 FROM dunglas/frankenphp:1-php8.4
 
-# Shown on the admin Dashboard. CI passes ci+<commit>; a release passes its version.
+# Shown on the admin Dashboard. CI passes ci+<commit>; a release passes <version>+<commit>.
 ARG NEXUSDAV_VERSION=dev
 
 # CVE-2026-109618 and CVE-2026-109619 are fixed from PHP 8.4.27. The build
