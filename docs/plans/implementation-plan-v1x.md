@@ -349,7 +349,6 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 | #3 SQLite "database is locked" under parallel uploads | Fixed by PR 16 and PR 17; 16 and 32 parallel writers, 5,000 uploads each, no 500 on 0.1.6 |
 
 - Observations from the pass that are not server bugs are now in the guide's Troubleshooting: the second device's refused write (412, no message on the client), an iPad keeping the old events of a calendar deleted and created again, DAVx5 not using sync tokens when "Time range (past days)" is set, and a full resync after a long time offline.
-- Not done, by decision: a status badge for expired app passwords on the Edit User page (not a client-pass finding). It stays a small follow-up.
 
 ### PR 19 — M2 release (Effort: Medium)
 
@@ -375,8 +374,8 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
   - The shape of the address book share data: a share table, or an instance table like calendars have
   - The URI of a shared collection in the sharee's home. Proposed: the owner's URI, with `-<owner username>` added when the sharee already uses that URI
   - How the homes list shared children and include them in the home sync token
-  - What `DAV:owner` shows. It names the owner's principal, which still answers 404 to the sharee (Decision 5)
-- Output: `docs/design/sharing.md` with the decisions. The prototype code is not merged.
+  - What `DAV:owner` shows. Decided in [sharing.md](../design/sharing.md): the sharee's principal, as sabre's calendar sharing does, because the owner's principal answers 404 to the sharee (Decision 5)
+- Output: [docs/design/sharing.md](../design/sharing.md) with the decisions. The prototype code is not merged.
 
 **Done when:** the design note is merged, and the prototype synced a read-only and a read-write shared address book in DAVx5 and Thunderbird.
 
@@ -384,10 +383,11 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 
 - The migration for address book shares, in the shape chosen in PR 20.
 - Calendar shares use `calendarinstances` rows: access `2` (read) or `3` (read-write), invite status accepted, and `share_href` set to the sharee's principal.
+- Address book shares use `addressbookinstances` rows linked to `addressbooks` ([sharing.md](../design/sharing.md#addressbookinstances-table)).
 - `SharingService`: share, change the access, unshare, list the sharees of a collection, list the shares a user received, and list every instance of a collection (M5 needs it).
 - The sharee's copy:
   - Its display name starts as "<name> (<owner's display name>)" (Decision 17)
-  - Its color and order are copied from the owner's
+  - Its color and order are copied from the owner's (calendars; address books have neither)
   - Its URI is unique in the sharee's home
 - Rules:
   - No share with the owner

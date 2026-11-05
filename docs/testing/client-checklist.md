@@ -246,7 +246,7 @@ Step 10 runs on 5 November. Run on the release candidate (the tag that will be r
 | 3 Calendar created from the client | ✅ | ✅ | ➖ | ➖ | Android phone and iPad. The calendar created from the iPad did not create Notes or Tasks on the server. Only Calendar. |
 | 4 Offline edits, then sync | ✅ | ✅ | ✅ | ✅ | Android phone and iPad. |
 | 5 Two devices, same item | ✅ | ✅ | ✅ | ✅ | Android phone and iPad. |
-| 6 Calendar deleted and re-created while offline | ✅ | ✅ | ✅ | ✅ | |
+| 6 Calendar deleted and re-created while offline | ✅ | ✅ | ✅ | ✅ | Android phone and Thunderbird (linux) |
 | 7 Large collection, first sync | ✅ | ✅ | ✅ | ✅ | Android phone, iPad and Thunderbird (linux) |
 | 8 Many uploads at once | ➖ | ➖ | ➖ | ➖ | PostgreSQL: ✅ 5,000 × 201 · SQLite: ✅ 5,000 × 201 (16 parallel writers, no client needed, 4 November 2026) |
 | 9 Admin panel | ➖ | ➖ | ➖ | ➖ | PostgreSQL: ✅ · SQLite: ✅ |
