@@ -20,7 +20,7 @@ Search matches username, display name or email.
 Row actions:
 - Edit
 - Disable (shown for an active user) or Enable (shown for a disabled user), each with a confirmation
-- Delete, with a confirmation that lists what is removed: the principal, calendars, events, address books, contacts and app passwords
+- Delete, with a confirmation that lists what is removed: the principal, calendars, events, address books, contacts and app passwords, then the shares that user owns and the shares they received (or "none")
 
 The last active admin cannot be disabled, demoted or deleted. The confirmation says so, and the action is refused with a notification.
 
@@ -56,8 +56,9 @@ Table columns:
 - URI (example: `holidays-ca`)
 - Name (example: `Canadian Holidays`)
 - Events, Tasks and Notes: the number of each stored in the calendar (example: `38`, `5`, `2`). `—` when the calendar does not accept that type and holds none of it. The Tasks and Notes columns are hidden while that switch is off on the Settings page.
+- Shared: how many people the calendar is shared with
 - DAV path (example: `/dav/calendars/test_user/holidays-ca/`)
-- Actions (`->iconButton()`) (Edit, Delete)
+- Actions (`->iconButton()`) (Edit, Share, Delete)
 
 **Add Calendar** button at the top of the table.
 
@@ -70,14 +71,17 @@ Add Calendar modal fields:
 - **[checkbox]** Notes (VJOURNAL): checked by default; unavailable when Notes is off on the Settings page
 - Cancel and Save buttons
 
-The Edit modal has the same fields with the URI read-only. Delete asks for confirmation and removes the calendar with its events, tasks and notes. A calendar that a client created with a `#RRGGBBAA` color opens with its `#RRGGBB` part.
+The Edit modal has the same fields with the URI read-only. Delete asks for confirmation and removes the calendar with its events, tasks, notes and shares. A calendar that a client created with a `#RRGGBBAA` color opens with its `#RRGGBB` part.
+
+**Share** opens **Shared with**. Each sharee is listed with **Read only** or **Read and write**. **Read and write** says that the sharee can change and delete the owner's items for everyone, and that a client may need the book set or added again after the access changes (Thunderbird keeps its own Read-only flag). Add finds a user by username, display name or email; the owner and anyone who already has the calendar are left out. Remove asks for confirmation. Saving calls `SharingService`.
 
 #### Address books
 Table columns:
 - URI (example: `default`)
 - Name (example: `Personal Address Book`)
 - Contacts (example: `93`)
-- Actions (Edit, Delete)
+- Shared: how many people the address book is shared with
+- Actions (Edit, Share, Delete)
 
 **Add address book** button at the top of the table.
 
@@ -87,7 +91,7 @@ Add address book modal fields:
 - Description
 - Cancel and Save buttons
 
-The Edit modal has the same fields with the URI read-only. Delete asks for confirmation and removes the address book and its contacts.
+The Edit modal has the same fields with the URI read-only. Delete asks for confirmation and removes the address book, its contacts and its shares. **Share** is the same modal as on a calendar. Address book shares are stored; clients do not see them until a later change.
 
 #### App passwords
 Table columns:

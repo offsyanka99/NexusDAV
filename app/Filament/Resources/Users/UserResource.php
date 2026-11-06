@@ -288,7 +288,7 @@ class UserResource extends Resource
         return DeleteAction::make()
             ->modalDescription(fn (User $record): string => app(UserService::class)->isLastActiveAdmin($record)
                 ? __(LastActiveAdminException::CANNOT_DELETE)
-                : __('The user, their principal, calendars, events, address books, contacts, and app passwords will be deleted.'))
+                : CollectionShareAction::deletionNote($record))
             ->using(function (User $record): bool {
                 try {
                     app(UserService::class)->delete($record);
