@@ -57,7 +57,7 @@ Table columns:
 - Name (example: `Canadian Holidays`)
 - Events, Tasks and Notes: the number of each stored in the calendar (example: `38`, `5`, `2`). `—` when the calendar does not accept that type and holds none of it. The Tasks and Notes columns are hidden while that switch is off on the Settings page.
 - DAV path (example: `/dav/calendars/test_user/holidays-ca/`)
-- Actions (`->iconButton()`) (Share, Edit, Delete)
+- Actions (`->iconButton()`) (Edit, Delete)
 
 **Add Calendar** button at the top of the table.
 

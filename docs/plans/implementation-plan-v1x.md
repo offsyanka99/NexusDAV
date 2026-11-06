@@ -351,7 +351,7 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 
 - Observations from the pass that are not server bugs are now in the guide's Troubleshooting: the second device's refused write (412, no message on the client), an iPad keeping the old events of a calendar deleted and created again, DAVx5 not using sync tokens when "Time range (past days)" is set, and a full resync after a long time offline.
 
-### PR 19 — M2 release (Effort: Medium)
+### PR 19 — M2 release (Effort: Medium) — ✅ done
 
 - The full checklist again on the release candidate, with both clients and both databases.
 - Docs:
