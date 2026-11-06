@@ -15,13 +15,17 @@ use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Support\Enums\IconSize;
 use Filament\Support\Exceptions\Halt;
 use Filament\Support\Icons\Heroicon;
+use Filament\Support\View\ComponentAttributeBag as FilamentComponentAttributeBag;
 use Filament\Tables\Columns\TextColumn;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
+use Illuminate\Support\HtmlString;
+use Illuminate\Support\Js;
 use Illuminate\Support\Number;
 use InvalidArgumentException;
 
@@ -50,11 +54,10 @@ final class CollectionShareAction
                         Hidden::make('user_id'),
                         Hidden::make('sharee'),
                         Select::make('access')
-                            ->label(__('Access'))
+                            ->label(self::accessLabel())
                             ->options(self::accessOptions())
                             ->selectablePlaceholder(false)
                             ->required()
-                            ->helperText(self::accessHelp())
                             ->rule(fn (): Closure => self::accessRule()),
                     ])
                     ->deleteAction(fn (Action $action): Action => $action
@@ -169,11 +172,10 @@ final class CollectionShareAction
     private static function accessSelect(): Select
     {
         return Select::make('share_access')
-            ->label(__('Access'))
+            ->label(self::accessLabel())
             ->options(self::accessOptions())
             ->default(SharingService::READ)
             ->selectablePlaceholder(false)
-            ->helperText(self::accessHelp())
             ->required(fn (Get $get): bool => filled($get('sharee_id')))
             ->rule(fn (Get $get): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get): void {
                 if (blank($get('sharee_id'))) {
@@ -585,6 +587,33 @@ final class CollectionShareAction
             SharingService::READ => __('Read only'),
             SharingService::READ_WRITE => __('Read and write'),
         ];
+    }
+
+    /**
+     * Filament's hint slot is aligned to the end of the row, and its CSS draws
+     * every SVG as a block, so the icon is placed here with an inline style.
+     */
+    private static function accessLabel(): HtmlString
+    {
+        $icon = \Filament\Support\generate_icon_html(
+            Heroicon::OutlinedInformationCircle,
+            attributes: (new FilamentComponentAttributeBag([
+                'x-tooltip' => '{ content: '.Js::from(self::accessHelp()).', theme: $store.theme }',
+                'style' => 'display:inline-block;width:1rem;height:1rem;vertical-align:-0.125em',
+            ]))->class([
+                'fi-sc-icon',
+                'text-gray-400',
+                'dark:text-gray-500',
+            ]),
+            size: IconSize::Small,
+        );
+
+        return new HtmlString(
+            '<span style="display:inline-flex;align-items:center;gap:0.25rem;white-space:nowrap">'
+            .e(__('Access'))
+            .($icon?->toHtml() ?? '')
+            .'</span>'
+        );
     }
 
     private static function accessHelp(): string

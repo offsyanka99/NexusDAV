@@ -30,8 +30,6 @@ class ShareAdminTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const HELP = "Read and write lets the sharee change and delete the owner's items for everyone. A client may need the book set or added again after the access changes. Thunderbird keeps its own Read-only flag.";
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -74,7 +72,8 @@ class ShareAdminTest extends TestCase
                 'pageClass' => EditUser::class,
             ])
                 ->mountTableAction('share', $record)
-                ->assertMountedActionModalSee(self::HELP)
+                ->assertMountedActionModalSee('Thunderbird keeps its own Read-only flag.')
+                ->assertMountedActionModalSee('>Access<svg', false)
                 ->assertSchemaComponentExists('sharee_id', checkComponentUsing: function (Select $select) use ($ada, $bob, $carol, $dave): bool {
                     $empty = $select->getSearchResults('');
                     $this->assertTrue($this->hasId($empty, (int) $carol->getKey()));
@@ -266,7 +265,8 @@ class ShareAdminTest extends TestCase
         $page = $table()->mountTableAction('share', $record)
             ->assertMountedActionModalSee('Bob Baker')
             ->assertMountedActionModalSee('Carol Clark')
-            ->assertMountedActionModalSee(self::HELP);
+            ->assertMountedActionModalSee('Thunderbird keeps its own Read-only flag.')
+            ->assertMountedActionModalSee('>Access<svg', false);
         $state = $page->instance()->mountedActions[0]['data'];
 
         foreach ($state['shares'] as $key => $item) {
