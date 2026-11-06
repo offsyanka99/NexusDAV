@@ -72,7 +72,7 @@ class Configuration extends SettingsPage
                                 ->options(app(LocaleCatalog::class)->all())
                                 ->required()
                                 ->selectablePlaceholder(false)
-                                ->helperText(__('Used on the login page and for admins who have not chosen a language in the user menu.')),
+                                ->helperText(__('Used on the login page and for admins who have not chosen a language in the user menu. A language chosen in the user menu always wins.')),
                             'default_locale',
                         ),
                     ]),
@@ -129,7 +129,7 @@ class Configuration extends SettingsPage
                     ->schema([
                         $this->lockable($this->number('session_lifetime', __('Session lifetime'))
                             ->suffix(__('minutes'))
-                            ->helperText(__('Minutes without activity before an admin is signed out.')), 'session_lifetime'),
+                            ->helperText(__('Minutes without activity before an admin is signed out and the panel returns to the sign-in page. Opening a page, saving and other actions count as activity.')), 'session_lifetime'),
                         $this->lockable(
                             Toggle::make('session_secure_cookie')
                                 ->label(__('Secure cookies'))

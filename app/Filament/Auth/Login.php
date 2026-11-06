@@ -7,6 +7,7 @@ use App\Services\AuthThrottle;
 use DanHarrin\LivewireRateLimiting\Exceptions\TooManyRequestsException;
 use Filament\Auth\Pages\Login as BaseLogin;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Schema;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -21,6 +22,24 @@ class Login extends BaseLogin
      * Set when credentials already matched and the panel still refused the account.
      */
     private bool $panelRefused = false;
+
+    /**
+     * The panel sends an idle admin here with ?timeout=1. The message stays
+     * until it is closed, like an error.
+     */
+    public function mount(): void
+    {
+        parent::mount();
+
+        if (request()->query('timeout')) {
+            Notification::make()
+                ->warning()
+                ->title(__('Session ended'))
+                ->body(__('You were signed out because of inactivity. Sign in again to continue.'))
+                ->persistent()
+                ->send();
+        }
+    }
 
     public function form(Schema $schema): Schema
     {

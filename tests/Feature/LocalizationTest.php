@@ -25,6 +25,7 @@ use DOMDocument;
 use DOMXPath;
 use Filament\Facades\Filament;
 use Filament\Livewire\Topbar;
+use Filament\Notifications\Notification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\App;
@@ -293,6 +294,55 @@ class LocalizationTest extends TestCase
             ->call('save')
             ->assertNotified('Saved')
             ->assertNoRedirect();
+    }
+
+    public function test_an_admin_with_their_own_language_is_told_it_stays_when_the_server_default_changes(): void
+    {
+        config(['nexusdav.default_locale' => 'en']);
+        $own = User::factory()->create(['is_admin' => true, 'is_active' => true, 'locale' => 'en']);
+        $this->actingAs($own);
+        App::setLocale('en');
+
+        Livewire::test(Configuration::class)
+            ->fillForm(['default_locale' => 'ru'])
+            ->call('save')
+            ->assertNotified(
+                Notification::make()
+                    ->success()
+                    ->title('Saved')
+                    ->body('The change applies from the next request. No restart is needed. Your own language, English, stays. Change it in the user menu.'),
+            )
+            ->assertNoRedirect();
+
+        // Choosing the language they already follow needs no notice.
+        $follower = User::factory()->create(['is_admin' => true, 'is_active' => true]);
+        $this->actingAs($follower);
+        App::setLocale($follower->resolvedLocale());
+
+        Livewire::test(Configuration::class)
+            ->fillForm(['default_locale' => 'en'])
+            ->call('save')
+            ->assertNotified(
+                Notification::make()
+                    ->success()
+                    ->title('Saved')
+                    ->body('The change applies from the next request. No restart is needed.'),
+            );
+    }
+
+    public function test_the_user_menu_says_which_language_is_shown_and_why(): void
+    {
+        config(['nexusdav.default_locale' => 'ru']);
+        $admin = User::factory()->create(['is_admin' => true, 'is_active' => true]);
+        $this->actingAs($admin);
+        App::setLocale($admin->resolvedLocale());
+
+        $this->get('/admin')->assertOk()->assertSee('Язык: По умолчанию на сервере (Русский)');
+
+        $admin->forceFill(['locale' => 'en'])->save();
+        App::setLocale('en');
+
+        $this->get('/admin')->assertOk()->assertSee('Language: English');
     }
 
     public function test_user_menu_can_save_and_clear_an_individual_language(): void

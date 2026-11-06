@@ -64,6 +64,7 @@ abstract class SettingsPage extends Page
         $state = $this->form->getState();
         $values = [];
         $localeBefore = $this->panelLocale();
+        $defaultBefore = app(LocaleCatalog::class)->default();
 
         foreach ($this->settingKeys() as $key) {
             if (array_key_exists($key, $state) && ! $settings->isLocked($key)) {
@@ -94,10 +95,19 @@ abstract class SettingsPage extends Page
             app()->setLocale($localeAfter);
         }
 
+        $body = __('The change applies from the next request. No restart is needed.');
+        $user = Filament::auth()->user();
+        $catalog = app(LocaleCatalog::class);
+
+        // A new server default does not change an admin who chose a language.
+        if ($catalog->default() !== $defaultBefore && $user instanceof User && $catalog->supports($user->locale) && $user->locale !== $catalog->default()) {
+            $body .= ' '.__('Your own language, :language, stays. Change it in the user menu.', ['language' => $catalog->all()[$user->locale]]);
+        }
+
         Notification::make()
             ->success()
             ->title(__('Saved'))
-            ->body(__('The change applies from the next request. No restart is needed.'))
+            ->body($body)
             ->send();
 
         if ($localeAfter !== $localeBefore) {

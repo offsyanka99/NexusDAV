@@ -20,6 +20,7 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Support\Icons\Heroicon;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -58,6 +59,7 @@ class AdminPanelProvider extends PanelProvider
             // The Dashboard shows only the widgets discovered above (status,
             // services, counts, needs attention). Filament's defaults are dropped.
             ->widgets([])
+            ->renderHook(PanelsRenderHook::BODY_END, fn (): string => self::sessionTimeout())
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
@@ -77,19 +79,57 @@ class AdminPanelProvider extends PanelProvider
     }
 
     /**
+     * The script that returns an idle admin to the sign-in page when the
+     * session lifetime (Configuration, Sessions) has passed. Signed-in pages only.
+     */
+    private static function sessionTimeout(): string
+    {
+        if (! Filament::auth()->check()) {
+            return '';
+        }
+
+        return view('filament.session-timeout', [
+            'lifetime' => max(1, (int) config('session.lifetime')),
+            'loginUrl' => Filament::getLoginUrl().'?timeout=1',
+            'logoutUrl' => Filament::getLogoutUrl(),
+        ])->render();
+    }
+
+    /**
+     * The language the signed-in admin sees, with "(server default)" when it
+     * is not their own choice, so the menu says why the panel is in it.
+     */
+    private static function currentLanguageName(): string
+    {
+        $user = Filament::auth()->user();
+        $catalog = app(LocaleCatalog::class);
+
+        if ($user instanceof User && $catalog->supports($user->locale)) {
+            return self::languageName((string) $user->locale);
+        }
+
+        return __('Server default (:language)', ['language' => self::languageName($catalog->default())]);
+    }
+
+    private static function languageName(string $locale): string
+    {
+        return app(LocaleCatalog::class)->all()[$locale] ?? $locale;
+    }
+
+    /**
      * The admin's own language, saved in users.locale. "Server default"
      * clears it. The page is reloaded so the whole panel switches at once.
      */
     private static function languageAction(): Action
     {
         return Action::make('language')
-            ->label(fn (): string => __('Language'))
+            ->label(fn (): string => __('Language: :language', ['language' => self::currentLanguageName()]))
             ->icon(Heroicon::OutlinedLanguage)
             ->schema([
                 Select::make('locale')
                     ->label(fn (): string => __('Language'))
                     ->options(fn (): array => app(LocaleCatalog::class)->all())
-                    ->placeholder(fn (): string => __('Server default'))
+                    ->placeholder(fn (): string => __('Server default (:language)', ['language' => self::languageName(app(LocaleCatalog::class)->default())]))
                     ->in(fn (): array => array_keys(app(LocaleCatalog::class)->all()))
                     ->nullable()
                     ->native(false),
