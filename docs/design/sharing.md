@@ -1,70 +1,147 @@
 # Address book sharing design
 
-Design note for the spike in [PR 20](../plans/implementation-plan-v1x.md#pr-20--spike-address-book-sharing-design-effort-medium). The decisions below keep address book sharing consistent with the calendar model (sabre's `calendarinstances`) and with principal isolation (Decision 5).
+Design note for the spike in [PR 20](../plans/implementation-plan-v1x.md#pr-20--spike-address-book-sharing-design-effort-medium). The decisions below keep address book sharing consistent with the calendar model (sabre's `calendarinstances`) and with principal isolation (Decision 5). sabre/dav 4.7.1 has calendar sharing and no address book sharing plugin. CardDAV stays on sabre's `addressbooks` table. Shares are a separate instance row, not a second ACL store.
 
 ## Decisions
 
 | Topic | Choice | Reason |
 |---|---|---|
-| Storage shape | **Instance table** (`addressbookinstances`), one row per sharee. The owner's address book stays a row in `addressbooks`, with no instance row of its own | Same model as `calendarinstances`, so both kinds of share work the same way. Each row holds the sharee's own display name and access level. A plain share table would need the same columns plus a separate place for the sharee's display name, so it has no advantage |
-| URI in the sharee's home | The owner's URI. Only when the sharee already uses that URI, `-<owner username>` is added; if that is taken too, `-2`, `-3` and so on | Short URIs when there is no clash. Usernames match `[a-z0-9][a-z0-9_-]*`, so the result is still a valid collection URI. The base URI is shortened when needed so the result fits the 200-character limit |
-| Home listing and sync token | Shared address books are listed as children of the sharee's address book home | The home's sync token is built from its child list (`HomeSync`), so a new or removed share changes it with no extra code, and DAVx5 notices it on its next refresh |
-| Sync token of a shared address book | The owner's address book token, `<owner's address book id>-<number>` | Changes are recorded once, in `addressbookchanges` of the owner's address book. A write by a read-write sharee is a change for the owner and every other sharee. A token from before the share was removed and given again gets 403 `valid-sync-token`, like any stale token |
-| `DAV:owner` | The **sharee's** principal | This is what sabre's calendar sharing does (`Calendar::getOwner()` returns the instance's `principaluri`). The owner's principal stays unreachable (404) for the sharee (Decision 5), so naming it would only give clients a link that fails |
-| Privileges | Built from the access level, not from `DAV:owner`: read-only gets `{DAV:}read`; read-write also gets `{DAV:}write`. Neither gets `{DAV:}share` or the right to change the address book's properties for the owner | The sharee is reported as owner, so an ACL that grants everything to the owner would let a read-only sharee write. sabre's `SharedCalendar::getACL()` follows the access level in the same way |
-| Leaving a share | A `DELETE` of the shared address book by the sharee removes only their instance row. The owner's address book and cards stay | Same as calendars (Settled question 2) |
-| Renaming | A `PROPPATCH` of `{DAV:}displayname` by the sharee changes their instance row only | Decision 17: the owner's name does not change |
+| Storage shape | **Instance table** (`addressbookinstances`), one row per sharee. The owner's address book stays a row in `addressbooks`, with no instance row of its own | sabre's calendar sharing is one `calendarinstances` row per (calendar, principal): access `1` owner, `2` read, `3` read-write. CardDAV has no instance table, so the owner stays the `addressbooks` row (that row is access `1`). A sharee is one `addressbookinstances` row, access `2` or `3`. An owner row in the instance table would copy `addressbooks` and fight the PDO backend. A share table with its own privilege rows would be a second ACL, which Decision 4 rules out |
+| URI in the sharee's home | The owner's URI. Only when the sharee already uses that URI, `-<owner username>` is added; if that is taken too, `-<owner username>-2`, `-3`, and so on | Short URIs when there is no clash. Usernames match `[a-z0-9][a-z0-9_-]{0,62}` and are not renamed, so the result stays a valid collection URI. sabre's own share insert uses a UUID; this project does not, so the URL stays readable. The base URI is shortened when needed so the result fits the 200-character limit |
+| Home listing and sync token | Shared address books are children of the sharee's address book home. The home sync token is unchanged `HomeSync`: the child names and each child's sync token | `AddressBookHome` lists whatever `getAddressBooksForUser` returns. That query today reads only `addressbooks`. The shared listing adds the sharee's instance rows. `HomeSync` then counts a new or removed share with no change of its own, and a removed share is reported deleted. Do not give the home a second changelog |
+| Sync token of a shared address book | The owner's address book token, `<owner's address book id>-<number>`, and the same value for the ctag | `cards` and `addressbookchanges` stay on the owner's `addressbooks.id`. One change log serves the owner and every sharee. The id in the token is that book id, never the instance id. A read-write sharee's create, change, or delete bumps the owner's token |
+| `DAV:owner` | The **sharee's** principal | sabre's `Calendar::getOwner()` returns the instance `principaluri`. RFC 3744's owner is the resource owner instead, and Apple clients look that principal up to name the person who shared the calendar. This server answers 404 for another user's principal (Decision 5), so that href would be a link that fails. The property follows sabre, not RFC 3744 |
+| Privileges | From the access level, not from `DAV:owner`. Read-only is `{DAV:}read`, plus `{DAV:}write-properties` on the collection only. Read-write also gets `{DAV:}write`. No `{DAV:}all`, `{DAV:}share`, `{DAV:}bind`, or `{DAV:}unbind` entry | The sharee is reported as owner. sabre's `AddressBook` uses `ACLTrait`, which grants `{DAV:}all` to `{DAV:}owner`, and `getChildACL()` grants `{DAV:}all` to `getOwner()`. Either one lets a read-only sharee write. `SharedCalendar::getACL()` follows the access level; a shared node does the same, without the extra ACEs listed under Privileges |
+| Leaving a share | A `DELETE` of the shared address book by the sharee removes only their instance row. The owner's address book and cards stay | Same as sabre's `deleteCalendar` when access is not `1`, and the same as calendars (Settled question 2). The sharee can delete the child because it sits in their own home |
+| Renaming | A `PROPPATCH` of `{DAV:}displayname` by the sharee changes their instance row only. It does not bump the owner's sync token and does not write `addressbookchanges` | Decision 17. sabre's `updateCalendar` does write a change row; do not copy that. The owner's clients must not see the sharee's rename |
 
 ## `addressbookinstances` table
 
-Mirrors the parts of `calendarinstances` that apply to address books. Address books have no color or order: the `addressbooks` table has no such columns, and sabre's CardDAV backend stores only the display name and the description.
+One row per (address book, sharee). Access is only `2` or `3`. There is no access `1` row, and no row whose `principaluri` is the owner. Shares are created already accepted. There is no invite list and no group.
+
+Mirrors the parts of `calendarinstances` that apply to address books. Address books have no color, order, or timezone. Those three stay on `calendarinstances` only.
 
 | Column | Type | Notes |
 |---|---|---|
-| `id` | bigint, PK | |
-| `addressbookid` | bigint, foreign key to `addressbooks.id`, cascade on delete | The shared address book. Its `principaluri` is the owner |
-| `principaluri` | varchar(255) | The sharee's principal, `principals/<username>` |
-| `uri` | varchar(200) | The URI in the sharee's home (see Decisions) |
+| `id` | bigint, PK | The instance. Not the id passed to card or change queries |
+| `addressbookid` | bigint, foreign key to `addressbooks.id`, cascade on delete | The owner's book. `cards` and `addressbookchanges` use this id |
+| `principaluri` | varchar(255) | The sharee, `principals/<username>`. Never the owner |
+| `uri` | varchar(200) | The name in the sharee's home |
 | `displayname` | varchar(255), nullable | Starts as "<name> (<owner's display name>)" (Decision 17). The sharee can rename it |
-| `description` | text, nullable | Copied from the owner's address book when the share is created |
-| `access` | smallint | `2` read-only, `3` read-write (sabre's `ACCESS_READ` and `ACCESS_READWRITE`) |
-| `share_href` | varchar(100) | The sharee: `principals/<username>`, as in `calendarinstances` |
-| `share_displayname` | varchar(100), nullable | The sharee's display name, as in `calendarinstances` |
-| `share_invitestatus` | smallint, default `2` | `2` accepted (`INVITE_ACCEPTED`). Shares are created already accepted; there are no invitations |
+| `description` | text, nullable | Copied from the owner's address book when the share is created. A later change by the sharee stays on this row |
+| `access` | smallint | `2` read-only or `3` read-write. sabre's `ACCESS_READ` and `ACCESS_READWRITE`. No other value |
+| `share_href` | varchar(100), not null | The sharee again, `principals/<username>`, the same string as `principaluri`. sabre stores the invite href here. This server has no invites; the column is kept so calendar and address book shares match |
+| `share_displayname` | varchar(100), nullable | The sharee's display name at the time of the share, as on `calendarinstances`. Not the collection name. A later change of the user's display name does not rewrite it |
+| `share_invitestatus` | smallint, default `2` | `2` accepted (`INVITE_ACCEPTED`). No `1`, `3`, or `4` |
 | `created_at` | timestamp | |
 | `updated_at` | timestamp | |
 
-The owner's display name for the initial name is read from the owner's user record when the share is created; it is not stored on the row.
+The owner's display name for the initial collection name is read from the owner's user record when the share is created. It is not a column of its own.
+
+A second share for the same sharee and address book updates `access` on the existing row. It does not insert another row.
 
 ### Indexes and constraints
 
-- Unique on (`principaluri`, `uri`).
-- Unique on (`addressbookid`, `principaluri`): one share per sharee and address book.
-- Index on `addressbookid`, to list the sharees of an address book.
-- The two tables do not share a unique index, so the URI rule spans both in the application: a new share avoids the sharee's own address books, and a new address book of the sharee (`MKCOL` or the admin panel) is refused when one of their shares uses the URI.
+`calendarinstances` already copies sabre's scripts, and the two engines are not the same:
+
+- Both: unique (`principaluri`, `uri`).
+- PostgreSQL: unique (`principaluri`, `calendarid`) and unique (`principaluri`, `share_href`).
+- SQLite: unique (`calendarid`, `principaluri`) and unique (`calendarid`, `share_href`).
+
+(`principaluri`, `calendarid`) and (`calendarid`, `principaluri`) are the same pairs. sabre only swaps the column order. Both mean one row per principal per calendar. `addressbookinstances` uses that same order: unique (`principaluri`, `addressbookid`) on PostgreSQL, unique (`addressbookid`, `principaluri`) on SQLite.
+
+(`principaluri`, `share_href`) and (`calendarid`, `share_href`) are not the same. `share_href` is the sharee's principal, so the PostgreSQL index is one non-null `share_href` per principal on the whole server. A second share to the same person fails. SQLite's index is one `share_href` per collection, which is the rule this project wants. NULL does not save it: PostgreSQL unique allows many nulls, but a share row's `share_href` is not null. Owner rows on `calendarinstances` keep a null `share_href`, and there are no shares yet.
+
+`addressbookinstances` therefore uses unique (`addressbookid`, `share_href`) on both engines. That index also lists the sharees of one book. PR 21 drops `calendarinstances`'s PostgreSQL unique (`principaluri`, `share_href`) and adds unique (`calendarid`, `share_href`), the SQLite index, before a user can receive two calendar shares. The (`principaluri`, `calendarid`) index stays.
+
+Also unique (`principaluri`, `uri`) on `addressbookinstances`. The two tables do not share a unique index. A new share must not use a URI that the sharee's `addressbooks` or `addressbookinstances` already has, and `MKCOL` or the admin panel must not create an address book on a URI one of their shares uses (`addressBookUriTaken` and `createAddressBook`). The check and the insert run in one transaction that locks the sharee's `principals` row first, so the two writers cannot pass the check together. The unique key on each table is what rejects a duplicate in that table. `insertOrIgnore` is for the bootstrap rows, not for a share: a skipped insert is not a successful share.
+
+### URI
+
+Candidates for the sharee's home, in order, using the first that is free in both of the sharee's tables:
+
+1. The owner's URI.
+2. `<owner uri>-<owner username>`.
+3. `<owner uri>-<owner username>-2`, then `-3`, and so on.
+
+Each candidate matches `CollectionService::SLUG_PATTERN` (at most 200 characters). When a suffix would pass 200, shorten the owner URI from the end until it fits. The owner's username is not shortened. Removing a share does not reserve the URI. A later share of the same book picks again by this rule.
+
+### What the sharee is served
+
+`getAddressBooksForUser` keeps the owned books it already returns and appends one entry per instance row for that principal. The panel's address book relation stays the `addressbooks` table; received shares are not owned books.
+
+The DAV entry:
+
+- `id` is `addressbooks.id`. Card and change calls use that id. The instance id is remembered beside it for `PROPPATCH` and `DELETE`, the way a calendar id is `[calendar id, instance id]`. Passing the instance id to the card backend reads or writes the wrong book.
+- `uri`, `{DAV:}displayname`, and the description come from the instance.
+- `principaluri` is the sharee's, because `AddressBook::getOwner()` returns it.
+- The sync token and the ctag are `SyncToken::format(addressbooks.id, addressbooks.synctoken)`, then the ctag prefix `AddressBookBackend` already adds. Not a token of the sharee's own.
+
+The shared node does not use stock `AddressBook::propPatch` or `delete`. Those update and delete the `addressbooks` row. `PROPPATCH` of `{DAV:}displayname` and `{urn:ietf:params:xml:ns:carddav}addressbook-description` writes the instance. Any other property is refused. `DELETE` deletes the instance row only.
+
+The collection's `sync-collection` checks the token with `SyncToken::resolve` against the owner's id, current token, and `synctoken_min`, then reads `addressbookchanges` for that book. Removing the share does not move the owner's token. A token from before the share was removed and given again is still the owner's token: it is accepted while it is inside the kept history, and it gets 403 `valid-sync-token` only for the cases `SyncToken` already rejects (wrong book id, ahead of the current number, older than `synctoken_min`, or malformed). The sharee's client drops the book because the home sync reports the child deleted, then added if it is shared again.
+
+A rename does not change the owner's token, so `HomeSync` does not report the child as modified. Another device of the sharee sees the new name on its next `PROPFIND`. That is not a reason to give the sharee a separate collection token.
+
+When Sharing is off, instance rows stay in the table and are left out of `getAddressBooksForUser`. Their URL answers 404. That switch is PR 23; this note does not add it.
 
 ### Cleanup
 
-- Deleting the owner's address book, from the panel or over DAV: the foreign key removes its shares.
-- Deleting a user: their own address books go, and with them the shares of those address books. `DavDataCleaner` also removes the rows where the user is the sharee.
+- Deleting the owner's address book, from the panel or over DAV, deletes the `addressbooks` row. The foreign key removes its shares.
+- Deleting a user: their own address books go, and with them the shares of those books. `DavDataCleaner` also deletes `addressbookinstances` where `principaluri` is the deleted user, the same way it already deletes `calendarinstances` the user received.
+- Locks and dead properties for the share live under the sharee's path `addressbooks/<sharee username>/<instance uri>`. Removing the instance removes that path. It does not remove the owner's cards.
 
 ### Listing every instance
 
 PR 21's "list every instance of a collection" (M5 needs it) returns the owner's row in `addressbooks` and the rows in `addressbookinstances` for that `addressbookid`. Calendars return all their `calendarinstances` rows, because there the owner has an instance row (access `1`).
 
+## Privileges
+
+Decision 4: sabre's `DAVACL` enforces the access level. There is no `ACL` method, no `setACL`, and no custom privilege. `getSupportedPrivilegeSet()` stays null so sabre's default set is used.
+
+The only principal in the ACL is the sharee's principal, the same URL as `DAV:owner`. Nothing is granted to `{DAV:}owner`, `{DAV:}authenticated`, `{DAV:}all`, or a calendar-proxy principal.
+
+- Access `2`: `{DAV:}read` on the collection and on each card. `{DAV:}write-properties` on the collection only, so the sharee can change their own display name and description. Not `{DAV:}write`.
+- Access `3`: `{DAV:}read` and `{DAV:}write` on the collection and on each card. `{DAV:}write-properties` is already part of `{DAV:}write`.
+
+The ACL entries are not `{DAV:}share`, `{DAV:}bind`, or `{DAV:}unbind`. sabre expands `{DAV:}write` on a collection to include bind and unbind, and creating or deleting a card checks those. Granting `{DAV:}write` is how a read-write sharee saves a contact. It does not let them share the book on. A read-only sharee does not get `{DAV:}write`, so a `PUT` or a `DELETE` of a card is 403.
+
+`{DAV:}all` is never granted. On an address book that grant is the bug: `ACLTrait::getACL()` gives `{DAV:}all` to `{DAV:}owner`, and the sharee is the owner property.
+
+`CalendarBackend` extends sabre's PDO backend, which implements `SharingSupport`, so `CalendarHome` already builds a `SharedCalendar` for every calendar. That node's `getACL()` grants `{DAV:}share` to an owner and names `calendar-proxy-read` and `calendar-proxy-write`. Do not leave those ACEs in place. Do not stop implementing `SharingSupport` to hide them: the home would then build a `Calendar`, and `Calendar::getACL()` grants write unless `{http://sabredav.org/ns}read-only` is set. The PDO backend sets a different key, `read-only`, so a read-only sharee would be given write. The node used for a share reads `share-access` (the instance's `access`) and applies the list above. It does not grant read-free-busy to `{DAV:}authenticated`. An owner's calendar (access `1`) keeps read and write for their own principal, and the read-free-busy ACE it already has. It does not get `{DAV:}share` or a calendar-proxy ACE.
+
+### What is not advertised
+
+Decision 2. Shares are created only in the admin panel.
+
+- Do not register `Sabre\DAV\Sharing\Plugin` or `Sabre\CalDAV\SharingPlugin`. The first advertises `resource-sharing` and handles `POST` of `application/davsharing+xml`. The second advertises `{http://calendarserver.org/ns/}invite` and handles a calendarserver share or invite-reply `POST`.
+- `OPTIONS` does not list `resource-sharing`. No `{DAV:}invite`, `{DAV:}share-access`, `{DAV:}share-resource-uri`, or `shared` / `shared-owner` resource type.
+- A sharing `POST` gets 403.
+- The principal collection stays `Sabre\DAVACL\PrincipalCollection`. `calendar-proxy-read` and `calendar-proxy-write` are not children of a principal.
+- `MKCOL` creates an address book the user owns. It never inserts an instance row. A client cannot bind an existing book into their home.
+
+The instance properties are not a sharee list. A `PROPFIND` does not show other sharees.
+
 ## Calendars
 
-Calendar shares use the existing `calendarinstances` table with sabre's columns as they are: access `2` or `3`, `share_href` the sharee's principal, `share_invitestatus` `2`. Their color and order are copied from the owner's instance. sabre's sharing plugin is not loaded, and sharing requests from clients are refused (Decision 2).
+Calendar shares use the existing `calendarinstances` table. The owner already has the access `1` row. A sharee gets access `2` or `3`, `share_invitestatus` `2`, and `share_href` the sharee's principal. No share with the owner, and one row per sharee per calendar, once the PostgreSQL `share_href` index above is replaced.
+
+The sharee's display name, color, order, and timezone are copied from the owner's instance and then live on the sharee's row. Changing them does not change the owner's row and does not write `calendarchanges` or bump `calendars.synctoken`. Objects and the change log stay on the owner's `calendars.id`. The sync token the sharee sees is that calendar's token (`SyncToken` already uses `calendars.id`, the first element of sabre's `[calendar id, instance id]`). `getCalendarsForUser` already returns every instance for the principal, so the calendar home lists a share as soon as the row exists. `HomeSync` includes it with no further change.
+
+sabre's share insert forces `transparent` to `1` and sets the URI to a UUID. This project does neither. Transparency stays the column default. The URI rule is the same as for address books, checked against the sharee's `calendarinstances` rows (one table, not two).
+
+`DELETE` by the sharee removes only their instance. sabre's `deleteCalendar` already does that when access is not `1`. The owner's `DELETE` removes the calendar and, by the foreign key, every instance.
 
 ## Rules (from the plan)
 
-- Shares are created only from the admin panel (Decision 2). Clients see and use shared collections; sharing is not advertised to them.
-- No share with the owner.
-- A disabled owner or sharee keeps the share. Disabling stops sign-in only (Settled question 1).
+- Shares are created only from the admin panel (Decision 2). Clients see and use shared collections. Sharing is not advertised to them.
+- No share with the owner. The sharee's principal and the book's `principaluri` are compared as strings.
+- Individual users on this server only. No groups, no `mailto:` href (Decision 3).
+- A disabled owner or sharee keeps the row. Disabling stops sign-in only (Settled question 1). Enabling does not recreate a share. The other party still syncs while the owner is disabled.
 
 ## Findings from the prototype
 
-To be filled in from the spike run:
+The hand test is the maintainer's (Decision 15) and was not run in this spike. Nothing below was tried with a client.
 
 - Read-only shared address book in DAVx5 and Thunderbird: ⬜
 - Read-write shared address book in DAVx5 and Thunderbird (create, edit and delete a contact; the owner sees the change): ⬜
