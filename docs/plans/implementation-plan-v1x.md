@@ -14,7 +14,7 @@ The work is split into five milestones and 31 PRs, listed in the order they are 
 
 Sources: [guide](../guide.md), [apps](../apps/README.md), the [admin panel](../apps/admin.md) description, the design notes for [Settings](../design/admin-settings.md), [Configuration](../design/admin-configuration.md) and the [Dashboard](../design/admin-dashboard.md), the pinned WebDAV-Push draft, and the current code.
 
-**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). PR 20's design note records the sharing decisions; the client sync is still open. M3 to M5 are not started. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
+**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is in progress: PR 20 to PR 22 are done, PR 23 is merged with its client test open, and PR 24 (shared address books over DAV) is next. M4 and M5 are not started. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
 
 Effort levels are the same as in Version 1:
 - **Low** — small, mostly boilerplate or config
@@ -43,8 +43,8 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 | 11 | PR 19 | M2 | M2 release (done, 0.2.0) | Medium | 12, 13–18 |
 | 12 | PR 20 | M3 | Spike: address book sharing design | Medium | — |
 | 13 | PR 21 | M3 | Share storage and `SharingService` (done) | High | 20 |
-| 14 | PR 22 | M3 | Share management in the admin panel | High | 11, 21 |
-| 15 | PR 23 | M3 | Shared calendars over DAV and the Sharing switch | High | 14, 21 |
+| 14 | PR 22 | M3 | Share management in the admin panel (done) | High | 11, 21 |
+| 15 | PR 23 | M3 | Shared calendars over DAV and the Sharing switch (merged; client test open) | High | 14, 21 |
 | 16 | PR 24 | M3 | Shared address books: reading and sync | High | 14, 21 |
 | 17 | PR 25 | M3 | Shared address books: writing and leaving a share | High | 16, 24 |
 | 18 | PR 26 | M3 | Received shares, the Sharing switch in the panel, and the Dashboard | Medium | 22, 23 |
@@ -418,7 +418,7 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 - A **Share** action on each calendar and address book row of the user page. It opens a **Shared with** list:
   - Each sharee with their access level
   - Add a user, found by username, display name or email; the owner and current sharees are left out. Choose **Read only** or **Read and write**
-  - Change the access. The help text says that **Read and write** lets the sharee change and delete the owner's items for everyone, and that a client may need the book set or added again after the access changes (Thunderbird keeps its own Read-only flag)
+  - Change the access. The help text says that **Read and write** lets the sharee change and delete the owner's items for everyone, and that a client may need the calendar or address book set or added again after the access changes (Thunderbird keeps its own Read-only flag). The text is a tooltip on an information icon next to **Access**, reachable by keyboard
   - Remove, with a confirmation
 - A shared indicator (number of sharees) in the Calendars and Address books tables.
 - The delete confirmations: deleting a collection says its shares are removed; deleting a user lists the shares they own and received.
@@ -431,7 +431,7 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 
 **Status:** done.
 
-- A **Share** action on each owned calendar and address book. The modal lists each sharee and their access, adds a user found by username, display name or email (the owner and current sharees are not offered), and changes access on save. **Read and write** says that the sharee changes and deletes the owner's items for everyone, and that a client may need the book set or added again (Thunderbird keeps its own Read-only flag). Remove asks for confirmation and calls `unshare`.
+- A **Share** action on each owned calendar and address book. The modal lists each sharee and their access, adds a user found by username, display name or email (the owner and current sharees are not offered), and changes access on save. **Read and write** says that the sharee changes and deletes the owner's items for everyone, and that a client may need the calendar or address book set or added again (Thunderbird keeps its own Read-only flag). Remove asks for confirmation and calls `unshare`.
 - The tables show how many sharees `SharingService::sharees` returns. Deleting a collection says its shares are removed. Deleting a user lists the shares they own and the shares they received.
 - The panel calls `share`, `changeAccess`, `unshare` and `sharees`. It does not write the share tables. Nothing here is served over DAV (PR 23 and PR 24).
 - Tests: `ShareAdminTest` (SQLite and PostgreSQL).
@@ -458,6 +458,16 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 - Non-sharees get 404.
 - Switching Sharing off hides shares at once.
 
+
+**Status:** implemented and merged; the hand test in the clients (below) is still open, so not done yet.
+
+- `CalendarHome` builds every calendar as `CalendarNode` (a `SharedCalendar` with its own ACL): an owner gets read and write plus read-free-busy for authenticated users, a read-only sharee read and `write-properties`, a read-write sharee read and write. No `{DAV:}share` and no calendar-proxy principal, for owners either.
+- `CalendarBackend`: a sharee's `PROPPATCH` writes their instance and does not record a change, so the owner's token stays (the spike showed it moved on every rename). A bare change number is refused on a share. Deleting a share clears the sharee's locks and properties for it.
+- `DavWriteLock` keys the PostgreSQL lock on `calendars.id` or `addressbooks.id` (owner's row or share row), and on the path for a collection that does not exist yet. The lookup runs on PostgreSQL only.
+- A client sharing `POST` is 403. `sharing` in `SettingsService::DEFINITIONS` (`NEXUSDAV_SHARING`, default on) hides shared calendars and keeps the rows.
+- Tests: `SharedCalendarsTest` (SQLite and PostgreSQL), and the two-path `If-Match` race in `ConcurrentWritesTest`.
+- **Found in review:** PR 22 had hidden calendar shares from DAV as a stopgap; the merge keeps PR 23's switch, and the PR 22 test now checks that a read-only share is served and refuses a write. The share modal's help moved into a keyboard-reachable tooltip, with a translated field name for validation messages. The guide's settings table and `dav-endpoints.md` describe shared calendars and the switch.
+- Still open: the hand test with DAVx5 (and jtx Board) and Thunderbird on a shared calendar, read only and read and write.
 ### PR 24 — Shared address books: reading and sync (Effort: High)
 
 - The shared address book node chosen in PR 20, in the sharee's address book home, included in the home listing and its sync token.

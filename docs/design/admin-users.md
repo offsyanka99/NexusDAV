@@ -73,7 +73,7 @@ Add Calendar modal fields:
 
 The Edit modal has the same fields with the URI read-only. Delete asks for confirmation and removes the calendar with its events, tasks, notes and shares. A calendar that a client created with a `#RRGGBBAA` color opens with its `#RRGGBB` part.
 
-**Share** opens **Shared with**. Each sharee is listed with **Read only** or **Read and write**. **Read and write** says that the sharee can change and delete the owner's items for everyone, and that a client may need the book set or added again after the access changes (Thunderbird keeps its own Read-only flag). Add finds a user by username, display name or email; the owner and anyone who already has the calendar are left out. Remove asks for confirmation. Saving calls `SharingService`.
+**Share** opens **Shared with**. Each sharee is listed with **Read only** or **Read and write**. **Read and write** says that the sharee can change and delete the owner's items for everyone, and that a client may need the calendar or address book set or added again after the access changes (Thunderbird keeps its own Read-only flag). The text is a tooltip on an information icon next to **Access**, reachable by keyboard. Add finds a user by username, display name or email; the owner and anyone who already has the calendar are left out. Remove asks for confirmation. Saving calls `SharingService`.
 
 #### Address books
 Table columns:

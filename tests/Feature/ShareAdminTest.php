@@ -119,7 +119,11 @@ class ShareAdminTest extends TestCase
         }
     }
 
-    public function test_a_read_only_calendar_share_is_not_served_over_caldav(): void
+    /**
+     * PR 23 serves a calendar shared from the panel. Read only: listed in the
+     * sharee's home with the owner's events, and a write is refused.
+     */
+    public function test_a_read_only_calendar_share_from_the_panel_is_served_read_only(): void
     {
         $ada = $this->user('ada', 'Ada Lovelace');
         $bob = $this->user('bob', 'Bob Baker');
@@ -154,16 +158,16 @@ class ShareAdminTest extends TestCase
         $home->assertStatus(207);
         $listed = $this->body($home);
         $this->assertStringContainsString('/dav/calendars/bob/default/', $listed);
-        $this->assertStringNotContainsString('/dav/calendars/bob/'.$shareUri.'/', $listed);
-        $this->assertStringNotContainsString('Calendar (Ada Lovelace)', $listed);
-        $this->assertStringNotContainsString($secret, $listed);
+        $this->assertStringContainsString('/dav/calendars/bob/'.$shareUri.'/', $listed);
+        $this->assertStringContainsString('Calendar (Ada Lovelace)', $listed);
 
-        $put = $this->dav('PUT', '/dav/calendars/bob/'.$shareUri.'/guessed.ics', 'bob', $bobToken, [
+        $this->assertStringContainsString($secret, $this->body(
+            $this->dav('GET', '/dav/calendars/bob/'.$shareUri.'/ada.ics', 'bob', $bobToken)->assertOk(),
+        ));
+
+        $this->dav('PUT', '/dav/calendars/bob/'.$shareUri.'/guessed.ics', 'bob', $bobToken, [
             'Content-Type' => 'text/calendar',
-        ], $this->event($guessed));
-        $written = $this->body($put);
-        $this->assertNotContains($put->getStatusCode(), [200, 201, 204], $written);
-        $this->assertStringNotContainsString($secret, $written);
+        ], $this->event($guessed))->assertForbidden();
 
         $owner = $this->dav('GET', '/dav/calendars/ada/default/ada.ics', 'ada', $adaToken);
         $owner->assertOk();

@@ -110,14 +110,14 @@ final class DavWriteLock
         DB::beginTransaction();
         $this->open = true;
 
-        $locks = $this->locks($paths);
-
+        // SQLite took its one database write lock at BEGIN; only PostgreSQL
+        // needs the collection ids.
         if (DB::connection()->getDriverName() === 'pgsql') {
             // Same wait as SQLite's busy_timeout, then an error instead of
             // waiting for ever behind a stuck request.
             DB::statement("SET LOCAL lock_timeout = '5s'");
 
-            foreach ($locks as $lock) {
+            foreach ($this->locks($paths) as $lock) {
                 DB::select('SELECT pg_advisory_xact_lock(?, ?)', [$lock['namespace'], $lock['key']]);
             }
         }

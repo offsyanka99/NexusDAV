@@ -170,6 +170,7 @@ These settings are changed on the **Settings** and **Configuration** pages. A ch
 | CardDAV on or off | Settings | `NEXUSDAV_CARDDAV` | on |
 | Tasks (VTODO) on or off | Settings | `NEXUSDAV_TASKS` | on |
 | Notes (VJOURNAL) on or off | Settings | `NEXUSDAV_NOTES` | on |
+| Sharing on or off (the Settings field arrives with a later change; the variable works now) | Settings | `NEXUSDAV_SHARING` | on |
 | Log level | Settings | `LOG_LEVEL` | `debug` |
 | Keep sync history for (days) | Settings | `NEXUSDAV_SYNC_HISTORY_DAYS` | `90` |
 | Default panel language (`en` or `ru`) | Configuration | `NEXUSDAV_LOCALE` | `en` |
@@ -192,6 +193,7 @@ What the service switches do:
 
 - **CalDAV or CardDAV off:** paths under `/dav/calendars/` or `/dav/addressbooks/` answer 403 with "CalDAV is turned off on this server." (or CardDAV). Discovery no longer offers the home. Stored data is kept and comes back when the service is turned on.
 - **Tasks or Notes off:** calendars stop listing `VTODO` or `VJOURNAL` as supported, so no task or note can be created or changed. Existing ones stay readable and can be deleted.
+- **Sharing off:** a calendar shared with a user is no longer listed in that user's calendar home, and its path answers 404. The shares are kept and come back when sharing is turned on. The owner's calendar does not change.
 
 **Language.** The admin panel ships in English and Russian. Each admin chooses a language under **Language** in the user menu; the item shows the language in use, and "Server default (…)" when it is not the admin's own choice. **Server default** clears the choice and follows the Configuration setting. A language chosen in the user menu always wins over the Configuration setting, so changing the server default does not change an admin who chose their own (Configuration says so when you save). The login page always uses the server default. A value of `NEXUSDAV_LOCALE` that is not a shipped language falls back to English. Only the panel is translated: DAV responses, `/health`, the container log and the reasons stored for Diagnostics stay in English, so log searches keep working; the Diagnostics page shows those reasons in the admin's language. To add a language, see [CONTRIBUTING.md](../CONTRIBUTING.md#translations).
 

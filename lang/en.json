@@ -246,7 +246,7 @@
     "none": "none",
     "Only the owner's calendar can be shared.": "Only the owner's calendar can be shared.",
     "Read and write": "Read and write",
-    "Read and write lets the sharee change and delete the owner's items for everyone. A client may need the book set or added again after the access changes. Thunderbird keeps its own Read-only flag.": "Read and write lets the sharee change and delete the owner's items for everyone. A client may need the book set or added again after the access changes. Thunderbird keeps its own Read-only flag.",
+    "Read and write lets the sharee change and delete the owner's items for everyone. After the access changes, a client may need the calendar or address book set or added again. Thunderbird keeps its own Read-only flag.": "Read and write lets the sharee change and delete the owner's items for everyone. After the access changes, a client may need the calendar or address book set or added again. Thunderbird keeps its own Read-only flag.",
     "Read only": "Read only",
     "Remove": "Remove",
     "Remove share": "Remove share",

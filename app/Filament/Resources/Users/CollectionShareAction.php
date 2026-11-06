@@ -55,6 +55,7 @@ final class CollectionShareAction
                         Hidden::make('sharee'),
                         Select::make('access')
                             ->label(self::accessLabel())
+                            ->validationAttribute(__('Access'))
                             ->options(self::accessOptions())
                             ->selectablePlaceholder(false)
                             ->required()
@@ -173,6 +174,7 @@ final class CollectionShareAction
     {
         return Select::make('share_access')
             ->label(self::accessLabel())
+            ->validationAttribute(__('Access'))
             ->options(self::accessOptions())
             ->default(SharingService::READ)
             ->selectablePlaceholder(false)
@@ -592,6 +594,8 @@ final class CollectionShareAction
     /**
      * Filament's hint slot is aligned to the end of the row, and its CSS draws
      * every SVG as a block, so the icon is placed here with an inline style.
+     * An HTML label is not used in validation messages; validationAttribute()
+     * names the field there.
      */
     private static function accessLabel(): HtmlString
     {
@@ -599,6 +603,11 @@ final class CollectionShareAction
             Heroicon::OutlinedInformationCircle,
             attributes: (new FilamentComponentAttributeBag([
                 'x-tooltip' => '{ content: '.Js::from(self::accessHelp()).', theme: $store.theme }',
+                // The help is only in the tooltip: reachable by keyboard and
+                // read by screen readers too.
+                'tabindex' => '0',
+                'role' => 'img',
+                'aria-label' => self::accessHelp(),
                 'style' => 'display:inline-block;width:1rem;height:1rem;vertical-align:-0.125em',
             ]))->class([
                 'fi-sc-icon',
@@ -618,7 +627,7 @@ final class CollectionShareAction
 
     private static function accessHelp(): string
     {
-        return __("Read and write lets the sharee change and delete the owner's items for everyone. A client may need the book set or added again after the access changes. Thunderbird keeps its own Read-only flag.");
+        return __("Read and write lets the sharee change and delete the owner's items for everyone. After the access changes, a client may need the calendar or address book set or added again. Thunderbird keeps its own Read-only flag.");
     }
 
     private static function accessRule(): Closure

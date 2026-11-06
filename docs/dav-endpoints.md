@@ -82,9 +82,24 @@ The client then syncs the collection from the start (an empty `sync-token`), as 
 
 A home's token is a snapshot of its children and their tokens (`home-1.` and base64 JSON). A child that was created again under the same name is reported as changed, so the client goes on to sync it and gets the 403 above.
 
+## Shared calendars
+
+An admin shares a calendar in the panel (see [sharing.md](design/sharing.md)). The sharee's client finds it in their own calendar home, under a name of its own, usually the owner's calendar name (`default-<owner>` when the sharee already has that name).
+
+- **Read only:** the sharee reads events, tasks and notes. A `PUT`, `DELETE` or `MOVE` of an item is **403**. `current-user-privilege-set` holds `read` and `write-properties`, so DAVx5 and Thunderbird show the calendar as read-only.
+- **Read and write:** the sharee creates, changes and deletes items in the owner's calendar. The owner and every other sharee see the change.
+- `DAV:owner` is the sharee's own principal; the owner's principal still answers 404 to them.
+- The sharee's display name, color and order are their own. Changing them does not change the owner's calendar or its sync token.
+- The sync token is the owner's calendar token. On a share, a bare change number from an older token form is refused with 403 `valid-sync-token`.
+- `DELETE` of the shared calendar by the sharee removes only their share. The owner's calendar stays.
+- Clients cannot share: no sharing plugin is loaded, a sharing `POST` (`share-resource`, CalendarServer `share` or `invite-reply`) is **403**, and no property lists other sharees.
+- With **Sharing** off (`NEXUSDAV_SHARING=false`) shared calendars are not listed and their paths answer 404. The shares are kept.
+
+Shared address books are stored but not served yet.
+
 ## Concurrent writes
 
-`PUT`, `DELETE`, `MOVE`, `COPY`, `PROPPATCH`, `MKCOL` and `MKCALENDAR` on a calendar or address book run in one database transaction, and writes to the same collection wait for each other (SQLite: the database write lock; PostgreSQL: a lock per collection). `If-Match` and `If-None-Match` are checked inside that transaction:
+`PUT`, `DELETE`, `MOVE`, `COPY`, `PROPPATCH`, `MKCOL` and `MKCALENDAR` on a calendar or address book run in one database transaction, and writes to the same collection wait for each other, also when one comes through the owner's path and the other through a sharee's (the lock is the calendar or address book itself) (SQLite: the database write lock; PostgreSQL: a lock per collection). `If-Match` and `If-None-Match` are checked inside that transaction:
 
 - Two clients sending the same `If-Match`: the first one wins, the second gets **412 Precondition Failed** and should fetch the item again. The client does not tell the user; it shows the winning version after its next sync.
 - Two creates of the same new item with `If-None-Match: *`: the second gets **412**. Without the header the second replaces the first, as `PUT` normally does.

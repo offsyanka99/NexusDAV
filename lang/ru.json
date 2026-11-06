@@ -246,7 +246,7 @@
     "none": "нет",
     "Only the owner's calendar can be shared.": "Можно открыть доступ только к календарю владельца.",
     "Read and write": "Чтение и запись",
-    "Read and write lets the sharee change and delete the owner's items for everyone. A client may need the book set or added again after the access changes. Thunderbird keeps its own Read-only flag.": "Чтение и запись позволяет получателю изменять и удалять элементы владельца для всех. Клиенту может понадобиться заново настроить или добавить книгу после смены доступа. Thunderbird хранит собственный флаг «Только чтение».",
+    "Read and write lets the sharee change and delete the owner's items for everyone. After the access changes, a client may need the calendar or address book set or added again. Thunderbird keeps its own Read-only flag.": "Чтение и запись позволяет получателю изменять и удалять элементы владельца для всех. После смены доступа клиенту может понадобиться заново настроить или добавить календарь или адресную книгу. Thunderbird хранит собственный флаг «Только для чтения».",
     "Read only": "Только чтение",
     "Remove": "Убрать",
     "Remove share": "Убрать общий доступ",
