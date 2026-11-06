@@ -6,8 +6,10 @@ use App\Models\AddressBook;
 use App\Models\CalendarInstance;
 use App\Models\User;
 use App\Services\UserService;
+use Closure;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
+use Sabre\DAV\Exception\MethodNotAllowed;
 
 /**
  * Admin create, edit, and delete for calendars and address books.
@@ -36,7 +38,7 @@ final class CollectionService
             $components[] = 'VJOURNAL';
         }
 
-        DB::transaction(function () use ($user, $uri, $displayName, $description, $color, $components): void {
+        $this->createOrRefuse(function () use ($user, $uri, $displayName, $description, $color, $components): void {
             $this->calendars()->createCollection(
                 $user->principal_uri,
                 $uri,
@@ -50,7 +52,7 @@ final class CollectionService
 
     public function updateCalendar(User $user, CalendarInstance $instance, string $displayName, ?string $description, string $color, bool $tasks, bool $notes): void
     {
-        $this->assertOwns($instance->principaluri, $user);
+        $this->assertOwnsCalendar($instance, $user);
         $displayName = $this->displayName($displayName);
         $description = $this->description($description);
         $color = $this->color($color);
@@ -66,7 +68,7 @@ final class CollectionService
 
     public function deleteCalendar(User $user, CalendarInstance $instance): void
     {
-        $this->assertOwns($instance->principaluri, $user);
+        $this->assertOwnsCalendar($instance, $user);
         $uri = (string) $instance->uri;
         $calendarId = (int) $instance->calendarid;
         $instanceId = (int) $instance->getKey();
@@ -83,7 +85,7 @@ final class CollectionService
         $displayName = $this->displayName($displayName);
         $description = $this->description($description);
 
-        DB::transaction(function () use ($user, $uri, $displayName, $description): void {
+        $this->createOrRefuse(function () use ($user, $uri, $displayName, $description): void {
             $this->books()->createCollection($user->principal_uri, $uri, $displayName, $description);
         });
     }
@@ -112,30 +114,28 @@ final class CollectionService
         });
     }
 
+    /**
+     * Names used by owned calendars, received shares and subscriptions are
+     * all taken: they share one calendar home (HomeNamespace).
+     */
     public function suggestedCalendarUri(User $user): string
     {
-        return $this->suggestedUri($user, 'calendarinstances', UserService::DEFAULT_CALENDAR_URI, 'calendar');
+        return $this->suggestedUri(HomeNamespace::calendarUris($user->principal_uri), UserService::DEFAULT_CALENDAR_URI, 'calendar');
     }
 
     public function suggestedAddressBookUri(User $user): string
     {
-        return $this->suggestedUri($user, 'addressbooks', UserService::DEFAULT_ADDRESS_BOOK_URI, 'contacts');
+        return $this->suggestedUri(HomeNamespace::addressBookUris($user->principal_uri), UserService::DEFAULT_ADDRESS_BOOK_URI, 'contacts');
     }
 
     public function calendarUriTaken(User $user, string $uri): bool
     {
-        return DB::table('calendarinstances')
-            ->where('principaluri', $user->principal_uri)
-            ->where('uri', $uri)
-            ->exists();
+        return HomeNamespace::calendarUriTaken($user->principal_uri, $uri);
     }
 
     public function addressBookUriTaken(User $user, string $uri): bool
     {
-        return DB::table('addressbooks')
-            ->where('principaluri', $user->principal_uri)
-            ->where('uri', $uri)
-            ->exists();
+        return HomeNamespace::addressBookUriTaken($user->principal_uri, $uri);
     }
 
     /**
@@ -265,13 +265,11 @@ final class CollectionService
         return $components;
     }
 
-    private function suggestedUri(User $user, string $table, string $preferred, string $prefix): string
+    /**
+     * @param  array<string, true>  $taken
+     */
+    private function suggestedUri(array $taken, string $preferred, string $prefix): string
     {
-        $taken = array_fill_keys(
-            DB::table($table)->where('principaluri', $user->principal_uri)->pluck('uri')->all(),
-            true,
-        );
-
         if (! isset($taken[$preferred])) {
             return $preferred;
         }
@@ -298,6 +296,33 @@ final class CollectionService
     {
         if ($principalUri !== $user->principal_uri) {
             throw new InvalidArgumentException('That collection belongs to another user.');
+        }
+    }
+
+    /**
+     * A calendar shared with this user is a calendarinstances row of theirs
+     * too. It is not theirs to edit or delete here.
+     */
+    private function assertOwnsCalendar(CalendarInstance $instance, User $user): void
+    {
+        $this->assertOwns($instance->principaluri, $user);
+
+        if ((int) $instance->getAttribute('access') !== CalendarInstance::OWNER) {
+            throw new InvalidArgumentException('That collection belongs to another user.');
+        }
+    }
+
+    /**
+     * The backend checks the name again under the principal lock; a name a
+     * share or a subscription took in the meantime is the same error as one
+     * the panel saw.
+     */
+    private function createOrRefuse(Closure $create): void
+    {
+        try {
+            DB::transaction($create);
+        } catch (MethodNotAllowed) {
+            throw new InvalidArgumentException('That URI is already used.');
         }
     }
 

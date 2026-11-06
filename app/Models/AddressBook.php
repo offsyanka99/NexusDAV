@@ -18,4 +18,14 @@ class AddressBook extends Model
     {
         return $this->hasMany(Card::class, 'addressbookid');
     }
+
+    /**
+     * The sharees' copies. The owner has none: this row is the owner's.
+     *
+     * @return HasMany<AddressBookInstance, $this>
+     */
+    public function shares(): HasMany
+    {
+        return $this->hasMany(AddressBookInstance::class, 'addressbookid');
+    }
 }

@@ -60,6 +60,8 @@ app/
       AddressBookBackend.php
       DavDataCleaner.php    # removes a user's sabre rows on delete, and one collection's properties and locks
       CollectionService.php # admin create, edit, and delete of calendars and address books
+      SharingService.php    # share, change access, unshare; lists sharees, received shares and every instance
+      HomeNamespace.php     # one set of names per home across its two tables, and the lock writers take
     UserService.php         # Create user + principal + default calendar and address book
     AuthThrottle.php        # IP plus username limit for admin login and DAV
     DiagnosticEventWriter.php  # stores rejected logins and DAV errors with their request ID; prunes expired rows on write

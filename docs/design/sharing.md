@@ -118,6 +118,8 @@ PR 23 changes `DavWriteLock` for both kinds of collection. Its tests, and PR 25'
 - Deleting the owner's address book, from the panel or over DAV, deletes the `addressbooks` row. The foreign key removes its shares.
 - Deleting a user: their own address books go, and with them the shares of those books. `DavDataCleaner` also deletes `addressbookinstances` where `principaluri` is the deleted user, the same way it already deletes `calendarinstances` the user received.
 - Locks and dead properties for the share live under the sharee's path `addressbooks/<sharee username>/<instance uri>`. Removing the instance removes that path. It does not remove the owner's cards.
+- Deleting the owner's calendar or address book also removes each sharee's locks and dead properties for it (`CalendarBackend::deleteCalendar`, `AddressBookBackend::deleteAddressBook`), the same as an unshare.
+- Received calendar shares are rows of the sharee in `calendarinstances`. Everything that means "the user's calendars" reads access `1` only: the user's `calendarInstances` relation (the panel's Calendars table and counts), the Dashboard count, and `CollectionService`, which refuses to edit or delete a received share as if it were owned.
 
 ### Listing every instance
 
@@ -142,7 +144,7 @@ The ACL entries are not `{DAV:}share`, `{DAV:}bind`, or `{DAV:}unbind`. sabre ex
 
 ### What is not advertised
 
-Decision 2. Shares are created only in the admin panel.
+Decision 2. In Version 1.x shares are created only in the admin panel, and never by a client.
 
 - Do not register `Sabre\DAV\Sharing\Plugin` or `Sabre\CalDAV\SharingPlugin`. The first advertises `resource-sharing` and handles `POST` of `application/davsharing+xml`. The second advertises `{http://calendarserver.org/ns/}invite` and handles a calendarserver share or invite-reply `POST`.
 - `OPTIONS` does not list `resource-sharing`. No `{DAV:}invite`, `{DAV:}share-access`, `{DAV:}share-resource-uri`, or `shared` / `shared-owner` resource type.
@@ -164,7 +166,8 @@ sabre's share insert forces `transparent` to `1` and sets the URI to a UUID. Thi
 
 ## Rules (from the plan)
 
-- Shares are created only from the admin panel (Decision 2). Clients see and use shared collections. Sharing is not advertised to them.
+- In Version 1.x shares are created only from the admin panel (Decision 2). Clients see and use shared collections. Sharing is not advertised to them.
+- The user portal (Version 2) will let users share their own collections through the same `SharingService`, as the [Who does what](../apps/admin.md#who-does-what) table says. Nothing in the storage or the service ties a share to an admin, so the portal needs no new tables. It will need its own rules: a user may share only a collection they own (a received share cannot be shared on, which `SharingService` already refuses), the list of users offered as sharees must not leak other users' principals (Decision 5), the access choice must say that a read-write sharee changes the owner's items for everyone, and a record of who shared what may be wanted.
 - No share with the owner. The sharee's principal and the book's `principaluri` are compared as strings.
 - Individual users on this server only. No groups, no `mailto:` href (Decision 3).
 - A disabled owner or sharee keeps the row. Disabling stops sign-in only (Settled question 1). Enabling does not recreate a share. The other party still syncs while the owner is disabled.

@@ -141,7 +141,10 @@ class User extends Authenticatable implements FilamentUser, HasName
      */
     public function calendarInstances(): HasMany
     {
-        return $this->hasMany(CalendarInstance::class, 'principaluri', 'principal_uri');
+        // Owned calendars only. A calendar shared with this user is also a
+        // calendarinstances row of theirs, with access 2 or 3.
+        return $this->hasMany(CalendarInstance::class, 'principaluri', 'principal_uri')
+            ->where('access', CalendarInstance::OWNER);
     }
 
     /**

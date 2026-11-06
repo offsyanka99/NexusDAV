@@ -10,7 +10,9 @@ use RuntimeException;
 use Sabre\CalDAV\Backend\PDO as SabreCalendarBackend;
 use Sabre\CalDAV\Xml\Property\SupportedCalendarComponentSet;
 use Sabre\DAV\Exception\Forbidden;
+use Sabre\DAV\Exception\MethodNotAllowed;
 use Sabre\DAV\PropPatch;
+use Sabre\DAV\Sharing\Plugin as SharingPlugin;
 use Sabre\DAV\Sync\Plugin as SyncPlugin;
 
 /**
@@ -41,6 +43,17 @@ final class CalendarBackend extends SabreCalendarBackend
     {
         DavLimits::assertName($calendarUri, 'The calendar name');
         DavLimits::assertProperties($properties, DavLimits::CALENDAR);
+
+        // A subscription of the same name is in another table, with its own
+        // unique key. Two children of one name would hide each other. The
+        // instance table is read again too: a share may have taken the name
+        // since the caller looked, and sabre's insert would end in a 500.
+        HomeNamespace::lock((string) $principalUri);
+
+        if (DB::table('calendarsubscriptions')->where('principaluri', $principalUri)->where('uri', $calendarUri)->exists()
+            || DB::table('calendarinstances')->where('principaluri', $principalUri)->where('uri', $calendarUri)->exists()) {
+            throw new MethodNotAllowed('The resource you tried to create already exists');
+        }
 
         $name = '{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set';
         $allowed = $this->allowedComponents();
@@ -166,6 +179,32 @@ final class CalendarBackend extends SabreCalendarBackend
         return 'UTC';
     }
 
+    /**
+     * sabre deletes every instance when the owner deletes the calendar, and
+     * only the sharee's instance when a sharee does. The sharees' locks and
+     * properties live under their own paths, so they are removed here.
+     */
+    public function deleteCalendar($calendarId)
+    {
+        if (is_array($calendarId) && count($calendarId) === 2) {
+            [$id, $instanceId] = $calendarId;
+            $access = (int) DB::table('calendarinstances')->where('id', $instanceId)->value('access');
+
+            if ($access === SharingPlugin::ACCESS_SHAREDOWNER) {
+                $shares = DB::table('calendarinstances')
+                    ->where('calendarid', $id)
+                    ->where('access', '!=', SharingPlugin::ACCESS_SHAREDOWNER)
+                    ->get(['principaluri', 'uri']);
+
+                foreach ($shares as $share) {
+                    app(DavDataCleaner::class)->deletePath(SharingService::sharePath(true, (string) $share->principaluri, (string) $share->uri));
+                }
+            }
+        }
+
+        parent::deleteCalendar($calendarId);
+    }
+
     public function updateCalendar($calendarId, PropPatch $propPatch)
     {
         DavLimits::refuse($propPatch, DavLimits::CALENDAR);
@@ -180,6 +219,12 @@ final class CalendarBackend extends SabreCalendarBackend
     {
         DavLimits::assertName($uri, 'The subscription name');
         DavLimits::assertProperties($properties, DavLimits::SUBSCRIPTION);
+
+        HomeNamespace::lock((string) $principalUri);
+
+        if (DB::table('calendarinstances')->where('principaluri', $principalUri)->where('uri', $uri)->exists()) {
+            throw new MethodNotAllowed('The resource you tried to create already exists');
+        }
 
         return parent::createSubscription($principalUri, $uri, $properties);
     }

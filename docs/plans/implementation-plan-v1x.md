@@ -42,7 +42,7 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 | 10 | PR 18 | M2 | Fixes from the client pass (done) | Medium, re-rated after PR 13 | 13 |
 | 11 | PR 19 | M2 | M2 release (done, 0.2.0) | Medium | 12, 13–18 |
 | 12 | PR 20 | M3 | Spike: address book sharing design | Medium | — |
-| 13 | PR 21 | M3 | Share storage and `SharingService` | High | 20 |
+| 13 | PR 21 | M3 | Share storage and `SharingService` (done) | High | 20 |
 | 14 | PR 22 | M3 | Share management in the admin panel | High | 11, 21 |
 | 15 | PR 23 | M3 | Shared calendars over DAV and the Sharing switch | High | 14, 21 |
 | 16 | PR 24 | M3 | Shared address books: reading and sync | High | 14, 21 |
@@ -97,7 +97,7 @@ Why this order:
 | # | Decision | Choice |
 |---|---|---|
 | 1 | Release slicing | Milestones in dependency order; a version is given at release time |
-| 2 | Who creates shares | **The admin panel only.** Clients see and use shared collections. Sharing requests sent by a client are refused, and sharing is not advertised to clients |
+| 2 | Who creates shares | **In Version 1.x, the admin panel only.** Clients see and use shared collections. Sharing requests sent by a client are refused, and sharing is not advertised to clients. The user portal (Version 2) will let users share their own collections through the same `SharingService`; that is the plan in [admin.md](../apps/admin.md#who-does-what) and is not ruled out here |
 | 3 | Share with whom | Individual users on this server. Access is **read-only** or **read-write**. No groups |
 | 4 | Meaning of "ACL" in 1.x | The access level of each share, enforced through sabre's `DAVACL`. No general ACL editing (no `ACL` method, no custom privileges) |
 | 5 | Isolation | Version 1 Decision 14 stays: another user's principal and homes answer 404. A sharee reaches a shared collection only through their own home |
@@ -367,7 +367,7 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 
 **Goal:** an admin can share a user's calendar or address book with another user, read-only or read-write. The other user's clients see it in their own home.
 
-### PR 20 — Spike: address book sharing design (Effort: Medium)
+### PR 20 — Spike: address book sharing design (Effort: Medium) — ✅ done
 
 - A throwaway prototype of a shared address book node in the sharee's address book home: read and read-write access, the owner's sync token and changes, the sharee's own display name, and leaving the share.
 - A check of the calendar side with sabre's `calendarinstances`, without loading sabre's sharing plugin: the sharee's instance appears, `current-user-privilege-set` is right, and the owner's principal still answers 404.
@@ -380,7 +380,7 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 
 **Done when:** the design note is merged, and the prototype synced a read-only and a read-write shared address book in DAVx5 and Thunderbird. (Met; the note is merged with this PR.)
 
-**Status:** [sharing.md](../design/sharing.md) records the decisions (`addressbookinstances`, the share URI, the home sync token, and `DAV:owner` as the sharee's principal). **Done:** the prototype ran on a lab server and passed the scripted DAV checks for read-only and read-write shares of an address book and of a calendar, and for leaving a share. In the clients, read-only and read-write address book shares work in DAVx5 and Thunderbird; Thunderbird keeps its own Read-only flag after the access changes, and neither client can delete a shared book ([findings](../design/sharing.md#findings-from-the-prototype)). The spike found three things for later PRs: the PostgreSQL share index and the write lock keyed on the path (PR 21 and PR 23, above), and that renaming a shared calendar bumps the owner's sync token (PR 23). The prototype code was not merged, and its branch, tag, and image were removed after these findings were recorded.
+**Status:** [sharing.md](../design/sharing.md) records the decisions (`addressbookinstances`, the share URI, the home sync token, and `DAV:owner` as the sharee's principal). **Done:** the prototype ran on a lab server and passed the scripted DAV checks for read-only and read-write shares of an address book and of a calendar, and for leaving a share. In the clients, read-only and read-write address book shares work in DAVx5 and Thunderbird; Thunderbird keeps its own Read-only flag after the access changes, and neither client can delete a shared book ([findings](../design/sharing.md#findings-from-the-prototype)). The spike found three things for later PRs: the PostgreSQL share index and the write lock keyed on the path (PR 21 and PR 23, above), and that renaming a shared calendar bumps the owner's sync token (PR 23). The prototype code was merged, and its branch, tag, and image were removed after these findings were recorded.
 
 ### PR 21 — Share storage and `SharingService` (Effort: High)
 
@@ -403,6 +403,15 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 **Tests (both databases):** the rules; changing access; cleanup on collection and user deletion; listing every instance of a collection; one user receiving calendar shares from two owners (it fails on PostgreSQL before the migration), and a second share of the same calendar to the same user being refused.
 
 **Done when:** shares can be created, changed and removed through the service on both databases, and collection and user deletion leave no share rows.
+
+**Status:** done.
+
+- `addressbookinstances` (migration `2026_11_06_000000`) and the PostgreSQL index change on `calendarinstances` (`2026_11_06_000100`, a no-op on SQLite). Checked on a PostgreSQL database with existing calendars, with a rollback and a second run. Without the index change, the test of one user receiving calendar shares from two owners fails on PostgreSQL with the old unique key.
+- `App\Services\Dav\SharingService`: `share` (creates the share, or changes the access of the one the user already has), `changeAccess`, `unshare`, `sharees`, `receivedCalendarShares`, `receivedAddressBookShares` and `instances`. A calendar is passed as the owner's instance; a sharee's instance is refused. `AddressBookInstance` is the model for the new table, and `CalendarInstance::ownerInstance()` names the owner of a received calendar share.
+- The name in the sharee's home follows the design: the owner's URI, then `-<owner username>`, `-2`, and so on, shortened to 200 characters. `App\Services\Dav\HomeNamespace` holds the names of one home across its two tables and the principal lock. Every writer that picks a name takes the lock and reads the same set: shares, `MKCOL` and `MKCALENDAR` (the backends answer 405 for a name the other table has), subscriptions, and the panel's checks and suggestions. A unique-key hit is retried up to five times, each in a new transaction.
+- **Found while building it:** a received calendar share is a `calendarinstances` row of the sharee, so the user's `calendarInstances` relation (the panel's Calendars table and the user's counts) and the Dashboard count would have listed it as an owned calendar, and the panel's Edit would have changed the owner's components. They now read access `1` only, and `CollectionService` refuses a received share. Deleting an owner's collection also removes each sharee's locks and properties for it.
+- **Found in review:** a share could be written for a user deleted a moment earlier, and the next user created with that username would have inherited it (and lost their own default calendar to the name clash). The principal lock now refuses a principal that no longer exists, and deleting a user takes the same lock. `MKCALENDAR` and the panel also re-read the instance table under the lock, so a share that took the name in the meantime is a 405 or the usual "That URI is already used", not a 500. Rolling the index migration back removes the calendar shares first, because sabre's index cannot hold two shares of one sharee and the earlier code would list a share as an owned calendar.
+- Tests: `SharingServiceTest` (21 tests, SQLite and PostgreSQL), including a retry after another writer takes the chosen name, a share for a deleted user, and `MKCOL` of a share's name answering 405. The migrations were also run, rolled back and run again on PostgreSQL with a user holding two calendar shares.
 
 ### PR 22 — Share management in the admin panel (Effort: High)
 

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AppPassword;
+use App\Models\CalendarInstance;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
@@ -46,7 +47,7 @@ final class ServerCounts
         return [
             'users' => User::query()->count(),
             'disabled_users' => User::query()->where('is_active', false)->count(),
-            'calendars' => DB::table('calendarinstances')->count(),
+            'calendars' => DB::table('calendarinstances')->where('access', CalendarInstance::OWNER)->count(),
             'address_books' => DB::table('addressbooks')->count(),
             'app_passwords' => AppPassword::query()
                 ->whereNull('revoked_at')

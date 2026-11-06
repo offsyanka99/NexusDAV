@@ -99,12 +99,13 @@ sabre's own `principals`, `groupmembers` and `users` tables are **not** created.
 | Table | Purpose |
 |-------|---------|
 | `calendars` | One row per calendar. `components` lists `VEVENT`, `VTODO` and `VJOURNAL` |
-| `calendarinstances` | A user's view of a calendar. `principaluri` is `principals/{username}`. `access` 1 is the owner |
+| `calendarinstances` | A user's view of a calendar. `principaluri` is `principals/{username}`. `access` 1 is the owner; 2 (read) and 3 (read and write) are a calendar shared with that user, with `share_href` the same principal and `share_invitestatus` 2 (accepted) |
 | `calendarobjects` | Events, tasks and notes. `calendardata` is the iCalendar body |
 | `calendarchanges` | Sync-collection change log for a calendar |
 | `calendarsubscriptions` | Subscribed calendar feeds |
 | `schedulingobjects` | Scheduling inbox objects. Unused in Version 1, present so the PDO backend can load |
-| `addressbooks` | One row per address book. `principaluri` is `principals/{username}` |
+| `addressbooks` | One row per address book. `principaluri` is `principals/{username}`, the owner |
+| `addressbookinstances` | An address book shared with a user, one row per sharee (not a sabre table). `addressbookid` is the owner's book, `principaluri` and `share_href` the sharee, `access` 2 or 3, `uri` and `displayname` the sharee's own. Cards and the change log stay on the book. See [sharing.md](design/sharing.md#addressbookinstances-table) |
 | `cards` | Contacts. `carddata` is the vCard body |
 | `addressbookchanges` | Sync-collection change log for an address book |
 | `propertystorage` | Dead WebDAV properties, keyed by `path` and `name` |
@@ -116,7 +117,8 @@ Column types follow sabre's SQLite and PostgreSQL scripts for the installed 4.7.
 - `calendars.components` is `varchar(255)`. sabre's PostgreSQL script uses `varchar(21)`, which cannot store `VEVENT,VTODO,VJOURNAL`.
 - `calendarchanges` and `addressbookchanges` have `created_at`, filled by the database when sabre inserts the row. `calendars.synctoken_min` and `addressbooks.synctoken_min` are the oldest token number that collection can still answer: one past the newest change number that was deleted. Rows older than the sync-history setting are deleted on a later DAV write, at most once an hour, and a token below that number gets `valid-sync-token`.
 - Unix-time columns are `bigint` on PostgreSQL: `calendarobjects.firstoccurence`, `lastoccurence` and `lastmodified`, `lastmodified` on `cards`, `calendarsubscriptions` and `schedulingobjects`, and `locks.created`. sabre's script uses 32-bit `integer`, which rejects any event after 19 January 2038. SQLite integers are already 64-bit. `locks.owner` is `text` on PostgreSQL, because sabre stores the client's LOCK owner element as sent.
-- Child rows have foreign keys. Deleting a calendar deletes its instances, objects and changes. Deleting an address book deletes its cards and changes. A principal is stored as a URI string, so those rows are not a foreign key. `DavDataCleaner` deletes them when the user is deleted, including locks and property storage under `principals/{username}`, `calendars/{username}` and `addressbooks/{username}`.
+- `calendarinstances` is unique on (`calendarid`, `share_href`) on both engines: one share per sharee and calendar. sabre's PostgreSQL script has (`principaluri`, `share_href`) instead, which allowed one share per person on the whole server; a migration replaced it.
+- Child rows have foreign keys. Deleting a calendar deletes its instances, objects and changes. Deleting an address book deletes its cards, changes and shares. A principal is stored as a URI string, so those rows are not a foreign key. `DavDataCleaner` deletes them when the user is deleted, including locks and property storage under `principals/{username}`, `calendars/{username}` and `addressbooks/{username}`.
 
 When a user is created in the admin panel:
 
@@ -124,7 +126,7 @@ When a user is created in the admin panel:
 2. Insert into `principals` (`uri = principals/{username}`).
 3. Insert a default calendar and a default address book, both with URI `default`, and set `users.collections_provisioned`. The calendar display name is `Calendar` and its color is `#1A73E8`. The address book display name is `Contacts`. `calendars.components` is `VEVENT`, plus `VTODO` when tasks are on and `VJOURNAL` when notes are on. The rows use `insertOrIgnore` on `(principaluri, uri)`.
 
-The calendar home (`calendars/{username}`) and the address book home (`addressbooks/{username}`) are not rows. sabre serves them from the principal. The admin panel lists collections through Eloquent models and creates, updates, and deletes them through the sabre PDO backends. Deleting a collection also removes its property storage and locks, the same path `DavDataCleaner` uses for the user's home. Deleting the user deletes the principal, which removes the homes, and also deletes the app passwords and the user's sabre rows. `nexusdav:prepare` claims `collections_provisioned` once for users who have never had the defaults, including the first admin. Deleting the default calendar or address book stays deleted across a later prepare.
+The calendar home (`calendars/{username}`) and the address book home (`addressbooks/{username}`) are not rows. sabre serves them from the principal. Each home's names come from two tables, which must not share a name: `calendarinstances` and `calendarsubscriptions`, and `addressbooks` and `addressbookinstances` (`HomeNamespace`). The admin panel lists collections through Eloquent models and creates, updates, and deletes them through the sabre PDO backends. Deleting a collection also removes its property storage and locks, the same path `DavDataCleaner` uses for the user's home. Deleting the user deletes the principal, which removes the homes, and also deletes the app passwords and the user's sabre rows: their collections with every share of them, and the shares they received. Deleting a collection removes its shares too, with the locks and properties each sharee kept under their own path. The panel lists only owned calendars (`access` 1). `nexusdav:prepare` claims `collections_provisioned` once for users who have never had the defaults, including the first admin. Deleting the default calendar or address book stays deleted across a later prepare.
 
 ## Relationships
 
@@ -132,12 +134,14 @@ The calendar home (`calendars/{username}`) and the address book home (`addressbo
 users 1—— 1 principals
 users 1—— * app_passwords
 principals 1—— * calendarinstances   (principaluri)
-principals 1—— * addressbooks        (principaluri)
+principals 1—— * addressbooks        (principaluri, the owner)
+principals 1—— * addressbookinstances (principaluri, the sharee)
 calendars 1—— * calendarinstances
 calendars 1—— * calendarobjects
 calendars 1—— * calendarchanges
 addressbooks 1—— * cards
 addressbooks 1—— * addressbookchanges
+addressbooks 1—— * addressbookinstances
 ```
 
 ## Notes

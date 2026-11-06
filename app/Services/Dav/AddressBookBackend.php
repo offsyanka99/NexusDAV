@@ -7,6 +7,7 @@ use PDO;
 use RuntimeException;
 use Sabre\CardDAV\Backend\PDO as SabreAddressBookBackend;
 use Sabre\CardDAV\Plugin as CardDavPlugin;
+use Sabre\DAV\Exception\MethodNotAllowed;
 use Sabre\DAV\PropPatch;
 use Sabre\DAV\Sync\Plugin as SyncPlugin;
 
@@ -110,7 +111,33 @@ final class AddressBookBackend extends SabreAddressBookBackend
         DavLimits::assertName($url, 'The address book name');
         DavLimits::assertProperties($properties, DavLimits::ADDRESS_BOOK);
 
+        // A received share is not in this table, so the unique key cannot
+        // see it. Two children of one name would hide each other. Both tables
+        // are read under the lock, so a race ends in 405, not a 500.
+        HomeNamespace::lock((string) $principalUri);
+
+        if (HomeNamespace::addressBookUriTaken((string) $principalUri, (string) $url)) {
+            throw new MethodNotAllowed('The resource you tried to create already exists');
+        }
+
         return parent::createAddressBook($principalUri, $url, $properties);
+    }
+
+    /**
+     * The owner's book goes with its shares, and with the locks and
+     * properties each sharee kept under their own path for it.
+     */
+    public function deleteAddressBook($addressBookId)
+    {
+        $shares = DB::table('addressbookinstances')->where('addressbookid', $addressBookId)->get(['principaluri', 'uri']);
+
+        foreach ($shares as $share) {
+            app(DavDataCleaner::class)->deletePath(SharingService::sharePath(false, (string) $share->principaluri, (string) $share->uri));
+        }
+
+        DB::table('addressbookinstances')->where('addressbookid', $addressBookId)->delete();
+
+        parent::deleteAddressBook($addressBookId);
     }
 
     public function updateAddressBook($addressBookId, PropPatch $propPatch)
