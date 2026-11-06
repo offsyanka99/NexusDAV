@@ -11,12 +11,15 @@ use App\Models\AddressBook;
 use App\Models\AddressBookInstance;
 use App\Models\CalendarInstance;
 use App\Models\User;
+use App\Services\AppPasswordService;
 use App\Services\Dav\SharingService;
 use App\Services\UserService;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use Livewire\Livewire;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Tests\TestCase;
 
 /**
@@ -115,6 +118,60 @@ class ShareAdminTest extends TestCase
             $this->assertSame(SharingService::READ, (int) $sharees->first()?->getAttribute('access'));
             $this->assertSame('principals/bob', (string) $sharees->first()?->getAttribute('principaluri'));
         }
+    }
+
+    public function test_a_read_only_calendar_share_is_not_served_over_caldav(): void
+    {
+        $ada = $this->user('ada', 'Ada Lovelace');
+        $bob = $this->user('bob', 'Bob Baker');
+        $calendar = $this->calendar($ada);
+        $adaToken = app(AppPasswordService::class)->issue($ada, 'phone')['token'];
+        $bobToken = app(AppPasswordService::class)->issue($bob, 'phone')['token'];
+        $secret = 'Ada Private Event';
+        $guessed = 'Bob Guessed Write';
+
+        $created = $this->dav('PUT', '/dav/calendars/ada/default/ada.ics', 'ada', $adaToken, [
+            'Content-Type' => 'text/calendar',
+        ], $this->event($secret));
+        $this->assertContains($created->getStatusCode(), [201, 204], $this->body($created));
+
+        Livewire::test(CalendarsRelationManager::class, [
+            'ownerRecord' => $ada,
+            'pageClass' => EditUser::class,
+        ])
+            ->callTableAction('share', $calendar, data: [
+                'sharee_id' => $bob->getKey(),
+                'share_access' => SharingService::READ,
+            ])
+            ->assertHasNoTableActionErrors()
+            ->assertNotified('Shares saved');
+
+        $share = $this->shareFor($calendar, $bob);
+        $shareUri = (string) $share->getAttribute('uri');
+        $this->assertSame(SharingService::READ, (int) $share->getAttribute('access'));
+        $this->assertNotSame('default', $shareUri);
+
+        $home = $this->dav('PROPFIND', '/dav/calendars/bob/', 'bob', $bobToken, ['Depth' => '1'], $this->propfind());
+        $home->assertStatus(207);
+        $listed = $this->body($home);
+        $this->assertStringContainsString('/dav/calendars/bob/default/', $listed);
+        $this->assertStringNotContainsString('/dav/calendars/bob/'.$shareUri.'/', $listed);
+        $this->assertStringNotContainsString('Calendar (Ada Lovelace)', $listed);
+        $this->assertStringNotContainsString($secret, $listed);
+
+        $put = $this->dav('PUT', '/dav/calendars/bob/'.$shareUri.'/guessed.ics', 'bob', $bobToken, [
+            'Content-Type' => 'text/calendar',
+        ], $this->event($guessed));
+        $written = $this->body($put);
+        $this->assertNotContains($put->getStatusCode(), [200, 201, 204], $written);
+        $this->assertStringNotContainsString($secret, $written);
+
+        $owner = $this->dav('GET', '/dav/calendars/ada/default/ada.ics', 'ada', $adaToken);
+        $owner->assertOk();
+        $stored = $this->body($owner);
+        $this->assertStringContainsString($secret, $stored);
+        $this->assertStringNotContainsString($guessed, $stored);
+        $this->dav('GET', '/dav/calendars/ada/default/guessed.ics', 'ada', $adaToken)->assertNotFound();
     }
 
     public function test_delete_confirmations_list_the_shares_that_go_away(): void
@@ -299,5 +356,63 @@ class ShareAdminTest extends TestCase
     private function hasId(array $options, int $id): bool
     {
         return array_key_exists($id, $options) || array_key_exists((string) $id, $options);
+    }
+
+    /**
+     * @param  array<string, string>  $headers
+     */
+    private function dav(string $method, string $uri, ?string $username = null, ?string $password = null, array $headers = [], ?string $body = null): TestResponse
+    {
+        $server = [];
+
+        foreach ($headers as $name => $value) {
+            $server['HTTP_'.strtoupper(str_replace('-', '_', $name))] = $value;
+        }
+
+        if ($username !== null) {
+            $server['HTTP_AUTHORIZATION'] = 'Basic '.base64_encode($username.':'.(string) $password);
+        }
+
+        return $this->call($method, $uri, [], [], [], $server, $body);
+    }
+
+    private function body(TestResponse $response): string
+    {
+        if ($response->baseResponse instanceof StreamedResponse) {
+            return $response->streamedContent();
+        }
+
+        return (string) $response->getContent();
+    }
+
+    private function propfind(): string
+    {
+        return <<<'XML'
+<?xml version="1.0" encoding="utf-8" ?>
+<D:propfind xmlns:D="DAV:">
+  <D:prop>
+    <D:displayname/>
+    <D:resourcetype/>
+  </D:prop>
+</D:propfind>
+XML;
+    }
+
+    private function event(string $summary): string
+    {
+        return implode("\r\n", [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//NexusDAV//EN',
+            'BEGIN:VEVENT',
+            'UID:share-hidden@nexusdav.test',
+            'DTSTAMP:20261028T120000Z',
+            'DTSTART:20261028T130000Z',
+            'DTEND:20261028T140000Z',
+            'SUMMARY:'.$summary,
+            'END:VEVENT',
+            'END:VCALENDAR',
+            '',
+        ]);
     }
 }

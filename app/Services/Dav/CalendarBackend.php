@@ -95,6 +95,13 @@ final class CalendarBackend extends SabreCalendarBackend
         $calendars = [];
 
         foreach (parent::getCalendarsForUser($principalUri) as $calendar) {
+            // A share row is an ordinary calendar until PR 23 builds the shared
+            // node. The stock node ignores sabre's read-only flag, so listing
+            // it would grant write on the owner's events.
+            if ((int) ($calendar['share-access'] ?? SharingPlugin::ACCESS_SHAREDOWNER) !== SharingPlugin::ACCESS_SHAREDOWNER) {
+                continue;
+            }
+
             if (isset($calendar[$name]) && $calendar[$name] instanceof SupportedCalendarComponentSet) {
                 $calendar[$name] = new SupportedCalendarComponentSet(array_values(array_filter(
                     $calendar[$name]->getValue(),

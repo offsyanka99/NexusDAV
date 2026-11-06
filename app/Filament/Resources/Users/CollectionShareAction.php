@@ -13,7 +13,6 @@ use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
-use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Exceptions\Halt;
@@ -85,13 +84,9 @@ final class CollectionShareAction
         return TextColumn::make('sharees_count')
             ->label(__('Shared'))
             ->alignEnd()
-            ->state(function (Model $record): string {
-                if (! $record instanceof CalendarInstance && ! $record instanceof AddressBook) {
-                    return Number::format(0);
-                }
-
-                return Number::format(app(SharingService::class)->sharees($record)->count());
-            });
+            ->state(fn (CalendarInstance|AddressBook $record): string => Number::format(
+                app(SharingService::class)->sharees($record)->count(),
+            ));
     }
 
     public static function deletionNote(User $user): string
@@ -265,8 +260,7 @@ final class CollectionShareAction
      */
     private static function remove(Repeater $component, array $arguments): void
     {
-        $livewire = $component->getLivewire();
-        $record = $livewire instanceof RelationManager ? $livewire->getMountedAction(0)?->getRecord() : null;
+        $record = $component->getRecord();
 
         if (! $record instanceof CalendarInstance && ! $record instanceof AddressBook) {
             self::halt(__('That collection no longer exists.'));
@@ -392,18 +386,6 @@ final class CollectionShareAction
     private static function collectionFrom(Select $component): CalendarInstance|AddressBook|null
     {
         $record = $component->getRecord();
-
-        if ($record instanceof CalendarInstance || $record instanceof AddressBook) {
-            return $record;
-        }
-
-        $livewire = $component->getLivewire();
-
-        if (! $livewire instanceof RelationManager) {
-            return null;
-        }
-
-        $record = $livewire->getMountedAction()?->getRecord();
 
         return $record instanceof CalendarInstance || $record instanceof AddressBook ? $record : null;
     }
