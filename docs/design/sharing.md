@@ -27,16 +27,14 @@ Mirrors the parts of `calendarinstances` that apply to address books. Address bo
 | `addressbookid` | bigint, foreign key to `addressbooks.id`, cascade on delete | The owner's book. `cards` and `addressbookchanges` use this id |
 | `principaluri` | varchar(255) | The sharee, `principals/<username>`. Never the owner |
 | `uri` | varchar(200) | The name in the sharee's home |
-| `displayname` | varchar(255), nullable | Starts as "<name> (<owner's display name>)" (Decision 17). The sharee can rename it |
+| `displayname` | varchar(255), nullable | Starts as "<name> (<owner's display name>)" (Decision 17), cut to 255 characters. The sharee can rename it |
 | `description` | text, nullable | Copied from the owner's address book when the share is created. A later change by the sharee stays on this row |
 | `access` | smallint | `2` read-only or `3` read-write. sabre's `ACCESS_READ` and `ACCESS_READWRITE`. No other value |
 | `share_href` | varchar(100), not null | The sharee again, `principals/<username>`, the same string as `principaluri`. sabre stores the invite href here. This server has no invites; the column is kept so calendar and address book shares match |
-| `share_displayname` | varchar(100), nullable | The sharee's display name at the time of the share, as on `calendarinstances`. Not the collection name. A later change of the user's display name does not rewrite it |
+| `share_displayname` | varchar(100), nullable | The sharee's display name at the time of the share, cut to 100 characters, as on `calendarinstances`. Not the collection name. A later change of the user's display name does not rewrite it |
 | `share_invitestatus` | smallint, default `2` | `2` accepted (`INVITE_ACCEPTED`). No `1`, `3`, or `4` |
-| `created_at` | timestamp | |
-| `updated_at` | timestamp | |
 
-The owner's display name for the initial collection name is read from the owner's user record when the share is created. It is not a column of its own.
+The owner's display name for the initial collection name is read from the owner's user record when the share is created. It is not a column of its own. That initial name is the same "<name> (<owner's display name>)" string on an address book and on a calendar (Decision 17), not a copy of the owner's display name. `users.display_name` and the collection name are each up to 255 characters, so the combined form can be 513. Cut it to 255 before insert: shorten the owner's display name inside the parentheses first. If that name is shortened away, omit the parentheses and cut the collection name to 255. PostgreSQL rejects a longer `varchar(255)` and SQLite stores it, so the cut is what makes both engines keep the same name. `share_displayname` is only the sharee's user display name, cut to 100. A later `PROPPATCH` longer than 255 is refused (`DavLimits`), not cut.
 
 A second share for the same sharee and address book updates `access` on the existing row. It does not insert another row.
 
@@ -54,7 +52,9 @@ A second share for the same sharee and address book updates `access` on the exis
 
 `addressbookinstances` therefore uses unique (`addressbookid`, `share_href`) on both engines. That index also lists the sharees of one book. PR 21 drops `calendarinstances`'s PostgreSQL unique (`principaluri`, `share_href`) and adds unique (`calendarid`, `share_href`), the SQLite index, before a user can receive two calendar shares. The (`principaluri`, `calendarid`) index stays.
 
-Also unique (`principaluri`, `uri`) on `addressbookinstances`. The two tables do not share a unique index. A new share must not use a URI that the sharee's `addressbooks` or `addressbookinstances` already has, and `MKCOL` or the admin panel must not create an address book on a URI one of their shares uses (`addressBookUriTaken` and `createAddressBook`). The check and the insert run in one transaction that locks the sharee's `principals` row first, so the two writers cannot pass the check together. The unique key on each table is what rejects a duplicate in that table. `insertOrIgnore` is for the bootstrap rows, not for a share: a skipped insert is not a successful share.
+Also unique (`principaluri`, `uri`) on `addressbookinstances`. That key and the one on `addressbooks` are separate, so one principal still needs a single URI namespace: both tables together. `AddressBookBackend::createAddressBook` (what `MKCOL` calls) and share creation both refuse a URI the other table already has for that principal. `suggestedAddressBookUri` and `addressBookUriTaken` use the same check, or the panel offers a share's name.
+
+The check and the insert run in one transaction. Before the read, both writers `UPDATE` the sharee's `principals` row through the query builder, setting `uri` to itself. That is a real write lock. `SELECT … FOR UPDATE` is not: SQLite compiles the lock clause to nothing, so two transactions can both see the URI free, and `getChild` and `HomeSync` then keep one child of that name and drop the other. If the insert hits the unique key, roll back and try the next candidate in a new transaction. PostgreSQL aborts the transaction on that error, so the retry cannot continue in the same one. `insertOrIgnore` stays the bootstrap path, not a share: a skipped insert is not a successful share.
 
 ### URI
 
@@ -70,6 +70,8 @@ Each candidate matches `CollectionService::SLUG_PATTERN` (at most 200 characters
 
 `getAddressBooksForUser` keeps the owned books it already returns and appends one entry per instance row for that principal. The panel's address book relation stays the `addressbooks` table; received shares are not owned books.
 
+`AddressBookHome::getChild` and `getChildren` build a shared node for an instance row, and sabre's `AddressBook` for an owned book. The stock node grants `{DAV:}all` to `{DAV:}owner` and its `delete` removes the `addressbooks` row. With `principaluri` set to the sharee, that would let a read-only sharee write cards and delete the owner's book. The shared node overrides `getACL`, `getChildACL`, `propPatch`, and `delete`, and it reads the instance `access`, not `DAV:owner`.
+
 The DAV entry:
 
 - `id` is `addressbooks.id`. Card and change calls use that id. The instance id is remembered beside it for `PROPPATCH` and `DELETE`, the way a calendar id is `[calendar id, instance id]`. Passing the instance id to the card backend reads or writes the wrong book.
@@ -77,9 +79,9 @@ The DAV entry:
 - `principaluri` is the sharee's, because `AddressBook::getOwner()` returns it.
 - The sync token and the ctag are `SyncToken::format(addressbooks.id, addressbooks.synctoken)`, then the ctag prefix `AddressBookBackend` already adds. Not a token of the sharee's own.
 
-The shared node does not use stock `AddressBook::propPatch` or `delete`. Those update and delete the `addressbooks` row. `PROPPATCH` of `{DAV:}displayname` and `{urn:ietf:params:xml:ns:carddav}addressbook-description` writes the instance. Any other property is refused. `DELETE` deletes the instance row only.
+`PROPPATCH` of `{DAV:}displayname` and `{urn:ietf:params:xml:ns:carddav}addressbook-description` writes the instance. Any other property is refused. `DELETE` deletes the instance row only.
 
-The collection's `sync-collection` checks the token with `SyncToken::resolve` against the owner's id, current token, and `synctoken_min`, then reads `addressbookchanges` for that book. Removing the share does not move the owner's token. A token from before the share was removed and given again is still the owner's token: it is accepted while it is inside the kept history, and it gets 403 `valid-sync-token` only for the cases `SyncToken` already rejects (wrong book id, ahead of the current number, older than `synctoken_min`, or malformed). The sharee's client drops the book because the home sync reports the child deleted, then added if it is shared again.
+The collection's `sync-collection` on a share accepts only a token whose id is this `addressbooks.id`. A plain number is 403 `valid-sync-token`. Decision 20 still accepts a plain number on an owned book: `SyncToken::resolve` treats `^[1-9][0-9]{0,9}$` as a change number with no collection id. A share can reuse a URI the sharee's client already synced. `HomeSync` then reports that name as modified, and the client sends the old plain token. Reading the owner's change log from that number skips deletes the client still has and returns the other book's history. An id-scoped token for a different book is already rejected. A token from before the share was removed and given again is still the owner's id-scoped token: it is accepted while it is inside the kept history. Unshare does not bump the owner's token. The sharee's client drops the book because the home sync reports the child deleted, then added if it is shared again. The same plain-number refusal applies to a shared calendar, whose id is `calendars.id`. Owned calendars keep Decision 20.
 
 A rename does not change the owner's token, so `HomeSync` does not report the child as modified. Another device of the sharee sees the new name on its next `PROPFIND`. That is not a reason to give the sharee a separate collection token.
 
@@ -126,9 +128,9 @@ The instance properties are not a sharee list. A `PROPFIND` does not show other 
 
 Calendar shares use the existing `calendarinstances` table. The owner already has the access `1` row. A sharee gets access `2` or `3`, `share_invitestatus` `2`, and `share_href` the sharee's principal. No share with the owner, and one row per sharee per calendar, once the PostgreSQL `share_href` index above is replaced.
 
-The sharee's display name, color, order, and timezone are copied from the owner's instance and then live on the sharee's row. Changing them does not change the owner's row and does not write `calendarchanges` or bump `calendars.synctoken`. Objects and the change log stay on the owner's `calendars.id`. The sync token the sharee sees is that calendar's token (`SyncToken` already uses `calendars.id`, the first element of sabre's `[calendar id, instance id]`). `getCalendarsForUser` already returns every instance for the principal, so the calendar home lists a share as soon as the row exists. `HomeSync` includes it with no further change.
+The sharee's display name starts as the same "<name> (<owner's display name>)" string as an address book, cut to 255. Color, order, and timezone are copied from the owner's instance. Those values then live on the sharee's row. Changing them does not change the owner's row and does not write `calendarchanges` or bump `calendars.synctoken`. Objects and the change log stay on the owner's `calendars.id`. The sync token the sharee sees is that calendar's token (`SyncToken` already uses `calendars.id`, the first element of sabre's `[calendar id, instance id]`). `getCalendarsForUser` already returns every instance for the principal, so the calendar home lists a share as soon as the row exists. `HomeSync` includes it with no further change.
 
-sabre's share insert forces `transparent` to `1` and sets the URI to a UUID. This project does neither. Transparency stays the column default. The URI rule is the same as for address books, checked against the sharee's `calendarinstances` rows (one table, not two).
+sabre's share insert forces `transparent` to `1` and sets the URI to a UUID. This project does neither. Transparency stays the column default. The URI candidates are the same as for address books. `calendarinstances` and `calendarsubscriptions` are one namespace for that principal: each has its own unique (`principaluri`, `uri`), and neither covers the other. The share-URI loop, `createCalendar`, and `createSubscription` all reject a name the other table already has. `suggestedCalendarUri` and `calendarUriTaken` use that same check. `CalendarHome::getChild` returns the calendar and never a subscription of the same name, and `HomeSync` keeps one child per name. Take the same `principals` row `UPDATE` before the read, and roll back and retry the next candidate when the unique key fails.
 
 `DELETE` by the sharee removes only their instance. sabre's `deleteCalendar` already does that when access is not `1`. The owner's `DELETE` removes the calendar and, by the foreign key, every instance.
 
