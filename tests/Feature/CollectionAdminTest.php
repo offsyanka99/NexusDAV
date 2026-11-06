@@ -14,6 +14,7 @@ use App\Services\Dav\CollectionService;
 use App\Services\Dav\SyncToken;
 use App\Services\UserService;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\ColorPicker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
@@ -312,6 +313,19 @@ class CollectionAdminTest extends TestCase
         $before = DB::table('calendarinstances')->where('principaluri', 'principals/ada')->count();
 
         $this->actingAs($admin);
+
+        $default = CalendarInstance::query()->where('principaluri', 'principals/ada')->where('uri', 'default')->firstOrFail();
+
+        foreach (['create' => null, 'edit' => $default] as $action => $record) {
+            $mounted = Livewire::test(CalendarsRelationManager::class, [
+                'ownerRecord' => $ada,
+                'pageClass' => EditUser::class,
+            ])->mountTableAction($action, $record);
+
+            $mounted
+                ->assertSchemaComponentExists('color', null, fn (ColorPicker $field): bool => $field->getFormat() === 'hex')
+                ->assertMountedActionModalSee('Use #RRGGBB.');
+        }
 
         foreach (['inbox', 'outbox', 'notifications', 'Bad Slug', 'a/b', '..'] as $uri) {
             Livewire::test(CalendarsRelationManager::class, [

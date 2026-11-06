@@ -57,7 +57,7 @@ Table columns:
 - Name (example: `Canadian Holidays`)
 - Events, Tasks and Notes: the number of each stored in the calendar (example: `38`, `5`, `2`). `—` when the calendar does not accept that type and holds none of it. The Tasks and Notes columns are hidden while that switch is off on the Settings page.
 - DAV path (example: `/dav/calendars/test_user/holidays-ca/`)
-- Actions (Edit, Delete)
+- Actions (`->iconButton()`) (Share, Edit, Delete)
 
 **Add Calendar** button at the top of the table.
 
@@ -65,7 +65,7 @@ Add Calendar modal fields:
 - URI: prefilled with the first free slug (`default`, then `calendar`, `calendar-2`, …); lowercase letters, numbers, `_` and `-`; unique for the user; `inbox`, `outbox` and `notifications` are reserved
 - Display name
 - Description
-- Color (`#RRGGBB`, default `#1A73E8`)
+- Color: Filament's color picker. The swatch opens a hue and saturation panel, and the field still shows the hex code. The value is stored as `#RRGGBB` (default `#1A73E8`)
 - **[checkbox]** Tasks (VTODO): checked by default; unavailable when Tasks is off on the Settings page
 - **[checkbox]** Notes (VJOURNAL): checked by default; unavailable when Notes is off on the Settings page
 - Cancel and Save buttons

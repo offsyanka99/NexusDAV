@@ -11,6 +11,7 @@ use App\Support\PanelErrorTranslator;
 use Closure;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Checkbox;
+use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -241,12 +242,12 @@ class CalendarsRelationManager extends RelationManager
             ->maxLength(2000);
     }
 
-    private function colorField(): TextInput
+    private function colorField(): ColorPicker
     {
-        return TextInput::make('color')
+        return ColorPicker::make('color')
             ->label(__('Color'))
+            ->hex()
             ->required()
-            ->trim()
             ->regex(CollectionService::COLOR_PATTERN)
             ->default(fn (): string => UserService::DEFAULT_CALENDAR_COLOR)
             ->helperText(__('Use #RRGGBB.'));
