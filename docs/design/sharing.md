@@ -196,7 +196,25 @@ An owner with two contacts shared the default address book with a second user, f
 | Read-write: `MOVE` out of the share into the sharee's own book | 201: the contact leaves the owner's book. That is `unbind`, which write includes |
 | Leaving the share (`DELETE` of the shared book by the sharee) | 204. The owner's book, its 2 contacts and its sync token are unchanged. The path is 404 for the sharee, and the home lists only the sharee's own book |
 
-The prototype's automated checks (`SharingSpikeTest`, 7 tests) pass on SQLite and PostgreSQL. They also cover a shared **calendar** with `calendarinstances`: the sharee's copy is listed as "Calendar (owner)", read-only refuses a `PUT` and shows no `write` or `share` privilege, read-write saves into the owner's calendar, and the owner's principal answers 404.
+The same owner and sharee, with the owner's default **calendar** shared through `calendarinstances` (sabre's own table and node, nothing overridden):
+
+| Check | Result |
+|---|---|
+| The share is listed as "Owner Calendar (owner)"; `DAV:owner` is the sharee | Pass |
+| Read-only: privileges | `read`, `read-free-busy`, `read-acl`, `read-current-user-privilege-set`, `write-properties`. No `write`, no `share` |
+| Read-only: `PUT` new, `PUT` update, `DELETE`, `MOVE` out | All **403**. The owner's event is unchanged |
+| Properties that would advertise sharing (`invite`, `share-access`, `shared-url`, `allowed-sharing-modes`, `share-resource-uri`), the resource type, and `OPTIONS` | None shown: 404 for each, a plain calendar resource type, no `resource-sharing` |
+| Sync token of the share and of the owner's calendar | The same value |
+| Owner's principal and calendar path for the sharee | **404** |
+| Read-write: privileges | `read`, `write` (with `bind`, `unbind`, `write-content`, `write-properties`). No `share` |
+| Read-write: the sharee creates an event; the owner reads it with the same `ETag`; the owner's sync from before shows it | Pass |
+| Read-write: the owner creates an event; the sharee's sync from its earlier token shows exactly that event | Pass |
+| Read-write: update with `If-Match`, then the same stale `If-Match` again | 204, then **412** |
+| Read-write: the same `If-Match` through the owner's path and the sharee's path at the same moment (12 runs) | Every run: one **204** and one **412** (SQLite only, as for address books) |
+| Read-write: delete by the sharee and by the owner | 204. Each side's sync reports both as deleted |
+| **The sharee renames their copy** | The sharee's name changes and the owner's name does not, but **the owner's sync token moves by one** (`5-4` to `5-5`, and again on every rename). sabre's `updateCalendar` records a change. The design requires that a rename by the sharee does not touch the owner's token, so PR 23 must override it. Address books do not have the problem, because the prototype stores their rename itself |
+
+The prototype's automated checks (`SharingSpikeTest`, 7 tests) pass on SQLite and PostgreSQL.
 
 ### With the clients (maintainer, 6 November 2026)
 
@@ -205,15 +223,17 @@ DAVx5 and Thunderbird on the same lab server (SQLite, over HTTPS), the sharee's 
 | Check | DAVx5 (Android) | Thunderbird |
 |---|---|---|
 | Read-only share: the book appears with the owner's contacts | Pass | Pass |
-| Read-only share: the client shows it as read-only and refuses to save a contact | Pass: marked read-only, a contact cannot be saved | Pass: a contact cannot be added |
-| Read-write share, after the owner changed the access on the server: can the sharee create a contact? | Pass: a contact was created and synced | **Still read-only** (see below) |
-| Read-write share: a contact created by the sharee reaches the other client | Pass: Thunderbird shows the contact DAVx5 created | n/a (could not create) |
-| Leaving the share, sharee's own name, shared calendar | ⬜ | ⬜ |
+| Read-only share: the client treats it as read-only | Pass: marked read-only, a contact cannot be saved | Pass: a contact cannot be added |
+| Read-write share, after the access was changed on the server: create a contact | Pass: created and synced after a refresh | **Needed a manual step**: the book stayed read-only until **Read-only** was unticked in its properties and the application restarted |
+| Read-write share: a contact created by the sharee reaches the other client | Pass: Thunderbird shows the contact DAVx5 created | Pass once the book is editable |
+| Read-write share: deleting a contact | Pass: the sharee's `DELETE` (204) removes it from the owner's book too | n/a |
+| Leaving the share | **No Delete option for an address book**: DAVx5 can only switch syncing off for it | Removing a book only removes it on the device and sends nothing |
+| The sharee's own name for the copy | n/a: no rename in DAVx5 | A rename stays on the device and changes nothing on the server or in DAVx5 |
+| A shared calendar in DAVx5 with jtx Board and in Thunderbird | ⬜ (PR 23) | ⬜ (PR 23) |
 
-**Thunderbird kept the share read-only after the access changed.** The server answered correctly at that moment: the sharee's `current-user-privilege-set` on the share held `write`, `bind`, `unbind` and `write-content`, and the contact DAVx5 had created was in the owner's book. So the access level is remembered by the client, most likely from the moment the address book was added, and a change on the server is not picked up. Still to try: restart Thunderbird, and remove and add the book again. If only re-adding helps, then:
+What this means for the design:
 
-- the admin panel (PR 22) should say, next to the access choice, that a client may need the address book added again after the access changes, and the guide's Troubleshooting should say the same for Thunderbird;
-- going from read-write to read-only is safe whatever the client remembers, because the server refuses the write (403) and the client then takes the server's version on its next sync;
-- going from read-only to read-write needs no server change; the client that remembers read-only only lacks the ability to try.
-
-DAVx5 picked up the change after a refresh of the account.
+- **Thunderbird keeps its own Read-only flag for the address book.** The server answered correctly after the access changed (the sharee's privilege set held `write`, `bind`, `unbind` and `write-content`, and the contact DAVx5 created was in the owner's book), but Thunderbird did not take it over. The panel (PR 22) should say next to the access choice that a client may need the book set or added again after the access changes, and the guide's Troubleshooting should explain the Thunderbird step. Going from read-write to read-only is safe whatever the client remembers: the server refuses the write (403) and the client takes the server's version on its next sync.
+- **Leaving a share from a client is syncing it off, not a `DELETE`.** Neither client sends a `DELETE` for the shared book, so the owner's data is never touched. The server side works for any client that does send it (found over DAV above). PR 25's rule stays as written, and the guide should say that a sharee stops a share on the device and an admin removes it in the panel.
+- **A read-write sharee changes the owner's contacts for everyone.** Deleting or changing a contact in the share changes the owner's book and every other sharee's. The panel's access choice (**Read and write**) should say so.
+- **The sharee's own name cannot be set from DAVx5 or Thunderbird,** so the rename is only reachable from other clients. The design keeps it, because it is cheap and sabre does the same for calendars.
