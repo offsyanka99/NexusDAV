@@ -88,7 +88,7 @@ The DAV entry:
 - `principaluri` is the sharee's, because `AddressBook::getOwner()` returns it.
 - The sync token and the ctag are `SyncToken::format(addressbooks.id, addressbooks.synctoken)`, then the ctag prefix `AddressBookBackend` already adds. Not a token of the sharee's own.
 
-`PROPPATCH` of `{DAV:}displayname` and `{urn:ietf:params:xml:ns:carddav}addressbook-description` writes the instance. Any other property is refused. `DELETE` deletes the instance row only.
+`PROPPATCH` of `{DAV:}displayname` and `{urn:ietf:params:xml:ns:carddav}addressbook-description` writes the instance. Any other property is a dead property: sabre's property storage keeps it under the sharee's own path, where the owner cannot read it (found in the spike; the share node does not refuse it, and the sharee holds `{DAV:}write-properties`). `DELETE` deletes the instance row only.
 
 The collection's `sync-collection` on a share accepts only a token whose id is this `addressbooks.id`. A plain number is 403 `valid-sync-token`. Decision 20 still accepts a plain number on an owned book: `SyncToken::resolve` treats `^[1-9][0-9]{0,9}$` as a change number with no collection id. A share can reuse a URI the sharee's client already synced. `HomeSync` then reports that name as modified, and the client sends the old plain token. Reading the owner's change log from that number skips deletes the client still has and returns the other book's history. An id-scoped token for a different book is already rejected. A token from before the share was removed and given again is still the owner's id-scoped token: it is accepted while it is inside the kept history. Unshare does not bump the owner's token. The sharee's client drops the book because the home sync reports the child deleted, then added if it is shared again. The same plain-number refusal applies to a shared calendar, whose id is `calendars.id`. Owned calendars keep Decision 20.
 
@@ -171,9 +171,37 @@ sabre's share insert forces `transparent` to `1` and sets the URI to a UUID. Thi
 
 ## Findings from the prototype
 
-The hand test is the maintainer's (Decision 15) and was not run in this spike. Nothing below was tried with a client.
+The prototype is on the branch `spike/pr-20-address-book-share-prototype` (tag `v0.2.1-spike.1`) and is never merged. It ran as a separate app on the lab server (SQLite, behind HTTPS).
 
-- Read-only shared address book in DAVx5 and Thunderbird: ⬜
+### Over DAV (6 November 2026, SQLite, scripted requests)
+
+An owner with two contacts shared the default address book with a second user, first read-only and then read-write.
+
+| Check | Result |
+|---|---|
+| The share is listed in the sharee's home as "Contacts (owner)", with the owner's contacts | Pass |
+| Read-only: `current-user-privilege-set` | `read`, `read-acl`, `read-current-user-privilege-set`, `write-properties` only. No `write`, `bind`, `unbind` or `write-content` |
+| Read-only: `PUT` new, `PUT` update (with and without `If-Match`), `DELETE`, `MOVE` out, `LOCK` | All **403**. The owner's contacts and sync token are unchanged |
+| Read-only: `COPY` of a contact into the sharee's own book | 201. Copying needs only read on the source; the copy is the sharee's |
+| Sync token of the share and of the owner's book | The same value (`4-9`). One change log serves both |
+| Owner's principal and book path for the sharee | **404** |
+| Rename the sharee's copy | Changes the sharee's name only. The owner's name and sync token stay the same |
+| `PROPPATCH` of an unknown property | Accepted and kept under the sharee's own path; the owner reads 404. Not refused as the first version of this note said (the text above is corrected) |
+| Read-write: privileges | `read`, `write` (with `bind`, `unbind`, `write-content`, `write-properties`). No `share` |
+| Read-write: sharee creates a contact | 201. The owner reads it with the same `ETag`, and the owner's sync from before shows it |
+| Read-write: owner creates a contact | The sharee's sync from its earlier token shows exactly that contact |
+| Read-write: sharee updates with `If-Match`; the same stale `If-Match` again | 204, then **412**. The owner reads the new name |
+| Read-write: the same `If-Match` sent through the owner's path and the sharee's path at the same moment (12 runs) | Every run: one **204** and one **412**. This is SQLite, which has one write lock for the whole database; the PostgreSQL case described under [Write lock](#write-lock) is not covered by this run |
+| Read-write: delete by the sharee and by the owner | 204. Each side's sync reports both contacts as deleted |
+| Read-write: `MOVE` out of the share into the sharee's own book | 201: the contact leaves the owner's book. That is `unbind`, which write includes |
+| Leaving the share (`DELETE` of the shared book by the sharee) | 204. The owner's book, its 2 contacts and its sync token are unchanged. The path is 404 for the sharee, and the home lists only the sharee's own book |
+
+The prototype's automated checks (`SharingSpikeTest`, 7 tests) pass on SQLite and PostgreSQL. They also cover a shared **calendar** with `calendarinstances`: the sharee's copy is listed as "Calendar (owner)", read-only refuses a `PUT` and shows no `write` or `share` privilege, read-write saves into the owner's calendar, and the owner's principal answers 404.
+
+### With the clients (maintainer)
+
+- Read-only shared address book in DAVx5: ⬜ (the sharee's DAVx5 synced the share without errors and no write reached the server; whether the Contacts app disables editing is still to be recorded)
+- Read-only shared address book in Thunderbird: ⬜
 - Read-write shared address book in DAVx5 and Thunderbird (create, edit and delete a contact; the owner sees the change): ⬜
 - Leaving the share from the client: ⬜
-- Calendar side with `calendarinstances`: the sharee's instance appears, `current-user-privilege-set` matches the access level, and the owner's principal answers 404: ⬜
+- A shared calendar in DAVx5 (with jtx Board) and Thunderbird: ⬜ (so far only the automated tests above cover calendars)
