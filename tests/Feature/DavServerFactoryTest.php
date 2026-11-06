@@ -30,6 +30,8 @@ class DavServerFactoryTest extends TestCase
         $this->assertNotNull($server->getPlugin('acl'));
         $this->assertNotNull($server->getPlugin('auth'));
         $this->assertNull($server->getPlugin('browser'));
+        $this->assertNull($server->getPlugin('sharing'));
+        $this->assertNull($server->getPlugin('caldav-sharing'));
         $this->assertSame([
             'caldav' => true,
             'carddav' => true,

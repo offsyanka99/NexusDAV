@@ -95,6 +95,14 @@ final class DavServerFactory
             $this->refuseDisabledService($request);
         });
 
+        // Shares are created in the admin panel. sabre's sharing plugins are
+        // not loaded; a client share or invite-reply is still refused.
+        $server->on('method:POST', function (RequestInterface $request): void {
+            if ($this->clientShareRequest($request)) {
+                throw new Forbidden('Sharing is not available from a client.');
+            }
+        });
+
         // sabre turns any exception into a response. Its own DAV exceptions
         // are expected client errors; anything else is a server bug that
         // would otherwise leave no trace. DavController logs a busy
@@ -106,6 +114,24 @@ final class DavServerFactory
         });
 
         return $server;
+    }
+
+    private function clientShareRequest(RequestInterface $request): bool
+    {
+        $type = strtolower((string) $request->getHeader('Content-Type'));
+
+        if (str_contains($type, 'application/davsharing+xml')) {
+            return true;
+        }
+
+        if (! str_contains($type, 'xml')) {
+            return false;
+        }
+
+        $body = $request->getBodyAsString();
+        $request->setBody($body);
+
+        return preg_match('/<(?:[A-Za-z0-9]+:)?(?:share-resource|invite-reply|publish-calendar|unpublish-calendar|share)\b/', $body) === 1;
     }
 
     private function refuseDisabledService(RequestInterface $request): void

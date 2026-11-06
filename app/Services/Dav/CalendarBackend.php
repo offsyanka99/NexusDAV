@@ -8,6 +8,8 @@ use InvalidArgumentException;
 use PDO;
 use RuntimeException;
 use Sabre\CalDAV\Backend\PDO as SabreCalendarBackend;
+use Sabre\CalDAV\Plugin as CalDavPlugin;
+use Sabre\CalDAV\Xml\Property\ScheduleCalendarTransp;
 use Sabre\CalDAV\Xml\Property\SupportedCalendarComponentSet;
 use Sabre\DAV\Exception\Forbidden;
 use Sabre\DAV\Exception\MethodNotAllowed;
@@ -95,10 +97,8 @@ final class CalendarBackend extends SabreCalendarBackend
         $calendars = [];
 
         foreach (parent::getCalendarsForUser($principalUri) as $calendar) {
-            // A share row is an ordinary calendar until PR 23 builds the shared
-            // node. The stock node ignores sabre's read-only flag, so listing
-            // it would grant write on the owner's events.
-            if ((int) ($calendar['share-access'] ?? SharingPlugin::ACCESS_SHAREDOWNER) !== SharingPlugin::ACCESS_SHAREDOWNER) {
+            // Sharing off keeps the rows and leaves the sharee's copy out of the home.
+            if (! $this->enabled('sharing') && (int) ($calendar['share-access'] ?? SharingPlugin::ACCESS_SHAREDOWNER) !== SharingPlugin::ACCESS_SHAREDOWNER) {
                 continue;
             }
 
@@ -143,6 +143,13 @@ final class CalendarBackend extends SabreCalendarBackend
         $from = null;
 
         if (! SyncToken::isInitial($syncToken)) {
+            // A share can reuse a URI the client already synced. A plain number
+            // would read this calendar from the old collection's position.
+            // Owned calendars still accept one (Decision 20).
+            if (preg_match('/^[1-9][0-9]{0,9}$/', (string) $syncToken) === 1 && $this->isShare($calendarId)) {
+                return null;
+            }
+
             $from = SyncToken::resolve($syncToken, $id, (int) $row->synctoken, (int) $row->synctoken_min);
 
             if ($from === null) {
@@ -195,9 +202,9 @@ final class CalendarBackend extends SabreCalendarBackend
     {
         if (is_array($calendarId) && count($calendarId) === 2) {
             [$id, $instanceId] = $calendarId;
-            $access = (int) DB::table('calendarinstances')->where('id', $instanceId)->value('access');
+            $instance = DB::table('calendarinstances')->where('id', $instanceId)->first(['access', 'principaluri', 'uri']);
 
-            if ($access === SharingPlugin::ACCESS_SHAREDOWNER) {
+            if ($instance !== null && (int) $instance->access === SharingPlugin::ACCESS_SHAREDOWNER) {
                 $shares = DB::table('calendarinstances')
                     ->where('calendarid', $id)
                     ->where('access', '!=', SharingPlugin::ACCESS_SHAREDOWNER)
@@ -206,6 +213,8 @@ final class CalendarBackend extends SabreCalendarBackend
                 foreach ($shares as $share) {
                     app(DavDataCleaner::class)->deletePath(SharingService::sharePath(true, (string) $share->principaluri, (string) $share->uri));
                 }
+            } elseif ($instance !== null) {
+                app(DavDataCleaner::class)->deletePath(SharingService::sharePath(true, (string) $instance->principaluri, (string) $instance->uri));
             }
         }
 
@@ -216,7 +225,72 @@ final class CalendarBackend extends SabreCalendarBackend
     {
         DavLimits::refuse($propPatch, DavLimits::CALENDAR);
 
+        // sabre records a calendarchanges row for every instance property.
+        // A sharee's name, color and order live on their row and must not
+        // move the owner's sync token.
+        if ($this->isShare($calendarId)) {
+            $this->updateShareInstance($calendarId, $propPatch);
+        }
+
         parent::updateCalendar($calendarId, $propPatch);
+    }
+
+    /**
+     * A received share, access 2 or 3. The owner's instance is access 1.
+     */
+    private function isShare(mixed $calendarId): bool
+    {
+        if (! is_array($calendarId) || ! isset($calendarId[1])) {
+            return false;
+        }
+
+        $access = DB::table('calendarinstances')->where('id', $calendarId[1])->value('access');
+
+        return $access !== null && (int) $access !== SharingPlugin::ACCESS_SHAREDOWNER;
+    }
+
+    /**
+     * Writes the sharee's instance columns and claims the properties so
+     * sabre's update does not record a change.
+     *
+     * @param  array<int, mixed>  $calendarId
+     */
+    private function updateShareInstance(array $calendarId, PropPatch $propPatch): void
+    {
+        $instanceId = (int) $calendarId[1];
+        $supported = array_keys($this->propertyMap);
+        $supported[] = '{'.CalDavPlugin::NS_CALDAV.'}schedule-calendar-transp';
+
+        $propPatch->handle($supported, function (array $mutations) use ($instanceId): bool {
+            $values = [];
+
+            foreach ($mutations as $propertyName => $propertyValue) {
+                if ($propertyName === '{'.CalDavPlugin::NS_CALDAV.'}schedule-calendar-transp') {
+                    if (! $propertyValue instanceof ScheduleCalendarTransp) {
+                        return false;
+                    }
+
+                    $values['transparent'] = $propertyValue->getValue() === 'transparent' ? 1 : 0;
+
+                    continue;
+                }
+
+                $column = $this->propertyMap[$propertyName] ?? null;
+
+                if (! is_string($column) || (! is_scalar($propertyValue) && $propertyValue !== null)) {
+                    return false;
+                }
+
+                // The column is an integer. A PROPPATCH value arrives as text.
+                $values[$column] = $column === 'calendarorder' ? (int) $propertyValue : $propertyValue;
+            }
+
+            if ($values !== []) {
+                DB::table('calendarinstances')->where('id', $instanceId)->update($values);
+            }
+
+            return true;
+        });
     }
 
     /**

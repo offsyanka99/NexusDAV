@@ -31,6 +31,7 @@ final class SettingsService
         'carddav' => ['config' => 'nexusdav.features.carddav', 'env' => 'NEXUSDAV_CARDDAV', 'type' => 'bool', 'default' => true],
         'tasks' => ['config' => 'nexusdav.features.tasks', 'env' => 'NEXUSDAV_TASKS', 'type' => 'bool', 'default' => true],
         'notes' => ['config' => 'nexusdav.features.notes', 'env' => 'NEXUSDAV_NOTES', 'type' => 'bool', 'default' => true],
+        'sharing' => ['config' => 'nexusdav.features.sharing', 'env' => 'NEXUSDAV_SHARING', 'type' => 'bool', 'default' => true],
         'default_locale' => ['config' => 'nexusdav.default_locale', 'env' => 'NEXUSDAV_LOCALE', 'type' => 'locale', 'default' => 'en'],
         'log_level' => ['config' => 'logging.channels.stderr.level', 'env' => 'LOG_LEVEL', 'type' => 'choice', 'options' => self::LOG_LEVELS, 'default' => 'debug'],
         'timezone' => ['config' => 'nexusdav.default_timezone', 'env' => 'NEXUSDAV_TIMEZONE', 'type' => 'timezone', 'default' => 'UTC'],

@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\CalendarInstance;
 use App\Models\User;
 use App\Services\AppPasswordService;
+use App\Services\Dav\SharingService;
 use App\Services\UserService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -180,6 +182,52 @@ class ConcurrentWritesTest extends TestCase
         $this->assertSame('5', $held[0]['retry_after']);
         $this->assertSame(0, DB::table('calendarobjects')->where('uri', 'never.ics')->count());
         $this->assertSame(1, DB::table('calendarobjects')->where('uri', 'late.ics')->count());
+    }
+
+    /**
+     * The owner's path and the sharee's path are one calendar. One If-Match
+     * wins; the other is 412. On PostgreSQL that only holds if both paths
+     * take the lock of calendars.id.
+     */
+    public function test_the_same_if_match_through_the_owner_and_the_sharee_one_wins(): void
+    {
+        $bob = app(UserService::class)->create(['username' => 'bob', 'display_name' => 'Bob', 'email' => 'bob@example.com']);
+        $bobPassword = app(AppPasswordService::class)->issue($bob, 'phone')['token'];
+        $share = app(SharingService::class)->share(
+            CalendarInstance::query()->where('principaluri', 'principals/ada')->where('uri', 'default')->where('access', 1)->firstOrFail(),
+            $bob,
+            SharingService::READ_WRITE,
+        );
+
+        $etag = $this->store('shared.ics', $this->event('shared', 'Original'))->assertCreated()->headers->get('ETag');
+        $this->assertNotNull($etag);
+
+        $headers = ['If-Match' => $etag, 'Content-Type' => 'text/calendar'];
+        $results = $this->together([
+            [
+                'method' => 'PUT',
+                'uri' => '/dav/calendars/ada/default/shared.ics',
+                'user' => 'ada',
+                'password' => $this->password,
+                'headers' => $headers,
+                'body' => $this->event('shared', 'Title A'),
+                'hold_ms' => self::HOLD_MS,
+            ],
+            [
+                'method' => 'PUT',
+                'uri' => '/dav/calendars/bob/'.$share->uri.'/shared.ics',
+                'user' => 'bob',
+                'password' => $bobPassword,
+                'headers' => $headers,
+                'body' => $this->event('shared', 'Title B'),
+                'hold_ms' => self::HOLD_MS,
+            ],
+        ]);
+
+        $this->assertSame([204, 412], $this->statuses($results), json_encode($results));
+        $winner = $results[0]['status'] === 204 ? 'Title A' : 'Title B';
+        $this->assertStringContainsString('SUMMARY:'.$winner, $this->body($this->fetch('shared.ics')->assertOk()));
+        $this->assertSame(1, DB::table('calendarobjects')->where('uri', 'shared.ics')->count());
     }
 
     private function lockDatabase(): \PDO

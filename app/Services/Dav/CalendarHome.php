@@ -2,7 +2,9 @@
 
 namespace App\Services\Dav;
 
+use Sabre\CalDAV\Backend\SubscriptionSupport;
 use Sabre\CalDAV\CalendarHome as SabreCalendarHome;
+use Sabre\CalDAV\Subscriptions\Subscription;
 use Sabre\DAV\Exception\MethodNotAllowed;
 use Sabre\DAV\Exception\NotFound;
 use Sabre\DAV\MkCol;
@@ -25,6 +27,14 @@ final class CalendarHome extends SabreCalendarHome implements ISyncCollection
             throw new NotFound('Node with name \''.$name.'\' could not be found');
         }
 
+        foreach ($this->caldavBackend->getCalendarsForUser($this->principalUri()) as $calendar) {
+            if (is_array($calendar) && ($calendar['uri'] ?? null) === $name) {
+                return new CalendarNode($this->caldavBackend, $calendar);
+            }
+        }
+
+        // Subscriptions, or NotFound. Calendars are built above: sabre's own
+        // child would be a SharedCalendar, whose ACL grants share and proxy.
         return parent::getChild($name);
     }
 
@@ -32,12 +42,20 @@ final class CalendarHome extends SabreCalendarHome implements ISyncCollection
     {
         $children = [];
 
-        foreach (parent::getChildren() as $child) {
-            if ($this->schedulingNode($child->getName())) {
+        foreach ($this->caldavBackend->getCalendarsForUser($this->principalUri()) as $calendar) {
+            if (! is_array($calendar) || ! is_string($calendar['uri'] ?? null) || $this->schedulingNode($calendar['uri'])) {
                 continue;
             }
 
-            $children[] = $child;
+            $children[] = new CalendarNode($this->caldavBackend, $calendar);
+        }
+
+        if ($this->caldavBackend instanceof SubscriptionSupport) {
+            foreach ($this->caldavBackend->getSubscriptionsForUser($this->principalUri()) as $subscription) {
+                if (is_array($subscription) && is_string($subscription['uri'] ?? null) && ! $this->schedulingNode($subscription['uri'])) {
+                    $children[] = new Subscription($this->caldavBackend, $subscription);
+                }
+            }
         }
 
         return $children;
@@ -59,5 +77,12 @@ final class CalendarHome extends SabreCalendarHome implements ISyncCollection
     private function schedulingNode(string $name): bool
     {
         return in_array($name, self::RESERVED_NAMES, true);
+    }
+
+    private function principalUri(): string
+    {
+        $uri = $this->principalInfo['uri'] ?? '';
+
+        return is_string($uri) ? $uri : '';
     }
 }

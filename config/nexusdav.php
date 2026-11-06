@@ -70,7 +70,8 @@ return [
     |
     | Read by DavServerFactory. CalDAV and CardDAV decide which roots and
     | plugins are loaded. Tasks (VTODO) and notes (VJOURNAL) decide which
-    | calendar components a calendar may hold. All are on by default.
+    | calendar components a calendar may hold. Sharing decides whether a
+    | sharee's copy is listed. All are on by default.
     |
     */
 
@@ -79,6 +80,7 @@ return [
         'carddav' => env('NEXUSDAV_CARDDAV', true),
         'tasks' => env('NEXUSDAV_TASKS', true),
         'notes' => env('NEXUSDAV_NOTES', true),
+        'sharing' => env('NEXUSDAV_SHARING', true),
     ],
 
     /*
