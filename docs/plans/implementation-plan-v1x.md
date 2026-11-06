@@ -380,13 +380,14 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 
 **Done when:** the design note is merged, and the prototype synced a read-only and a read-write shared address book in DAVx5 and Thunderbird.
 
-**Status:** [sharing.md](../design/sharing.md) records the decisions (`addressbookinstances`, the share URI, the home sync token, and `DAV:owner` as the sharee's principal). The client hand test was not run in this spike; it stays with the maintainer (Decision 15). The prototype code is not merged.
+**Status:** [sharing.md](../design/sharing.md) records the decisions (`addressbookinstances`, the share URI, the home sync token, and `DAV:owner` as the sharee's principal). The client hand test was not run in this spike; it stays with the maintainer (Decision 15). The prototype code is not merged. Checking the design against the existing code found two things that PR 21 and PR 23 now carry: `calendarinstances` allows only one share per person on PostgreSQL (a unique index on `principaluri` and `share_href`), and the PR 16 write lock is keyed on the request path, which a shared collection has two of.
 
 ### PR 21 — Share storage and `SharingService` (Effort: High)
 
 - The migration for address book shares, in the shape chosen in PR 20.
 - Calendar shares use `calendarinstances` rows: access `2` (read) or `3` (read-write), invite status accepted, and `share_href` set to the sharee's principal.
 - Address book shares use `addressbookinstances` rows linked to `addressbooks` ([sharing.md](../design/sharing.md#addressbookinstances-table)).
+- **A migration on `calendarinstances` for PostgreSQL:** drop the unique (`principaluri`, `share_href`) and add unique (`calendarid`, `share_href`), the index SQLite already has. As it is, one person can receive only one share on the whole server, because `share_href` is the sharee. The unique (`principaluri`, `calendarid`) stays. The migration must be safe on a table with rows ([sharing.md](../design/sharing.md#indexes-and-constraints)).
 - `SharingService`: share, change the access, unshare, list the sharees of a collection, list the shares a user received, and list every instance of a collection (M5 needs it).
 - The sharee's copy:
   - Its display name starts as "<name> (<owner's display name>)" (Decision 17)
@@ -399,7 +400,7 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 - Cleanup: deleting a collection, from the panel or over DAV, removes all its shares; deleting a user removes the shares they own and the shares they received (`DavDataCleaner`).
 - No panel and no DAV changes yet. Nothing can be shared in a build from this PR alone.
 
-**Tests (both databases):** the rules; changing access; cleanup on collection and user deletion; listing every instance of a collection.
+**Tests (both databases):** the rules; changing access; cleanup on collection and user deletion; listing every instance of a collection; one user receiving calendar shares from two owners (it fails on PostgreSQL before the migration), and a second share of the same calendar to the same user being refused.
 
 **Done when:** shares can be created, changed and removed through the service on both databases, and collection and user deletion leave no share rows.
 
@@ -430,9 +431,10 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 - Isolation: the owner's principal and homes still answer 404 to the sharee; a third user sees nothing.
 - The Tasks and Notes switches apply to shared calendars.
 - Sync: the sharee's tokens follow the owner's calendar (PR 14). A removed share is reported as deleted in the sharee's home sync.
+- **Write lock by collection id.** `DavWriteLock` (PR 16) keys its PostgreSQL advisory lock on the request path, `calendars/<user>/<uri>`. A shared collection has two paths, the owner's and the sharee's, so writes through both would not wait for each other and `If-Match` would stop protecting them. The lock is keyed on `calendars.id` or `addressbooks.id` instead, looked up from the path (the owner's row, or a share row's `calendarid` or `addressbookid`), and falls back to the path when the collection does not exist yet (`MKCOL`, `MKCALENDAR`). `MOVE` and `COPY` lock the source and the destination in one sorted order, as now ([sharing.md](../design/sharing.md#write-lock)). It covers address books too, so PR 24 and PR 25 reuse it.
 - **Sharing switch:** a `sharing` entry in `SettingsService::DEFINITIONS` (`NEXUSDAV_SHARING`, default on). When off, sharee copies are hidden and their URLs answer 404; the rows are kept. The panel field comes in PR 26.
 
-**Tests (both databases):** every method against read-only and read-write shares; isolation; the switch; the sharee's incremental sync after an owner change; a disabled owner.
+**Tests (both databases):** every method against read-only and read-write shares; isolation; the switch; the sharee's incremental sync after an owner change; a disabled owner; two processes writing the same event with the same `If-Match`, one through the owner's path and one through the sharee's, where one gets 204 and the other 412 (`ConcurrentWritesTest` style, PostgreSQL included).
 
 **Done when:**
 - A calendar shared read-only and read-write syncs correctly in DAVx5 (with tasks and notes in jtx Board) and in Thunderbird.
@@ -459,7 +461,7 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 - Read-only shares still refuse writes; `current-user-privilege-set` shows write for read-write shares.
 - Locks and dead properties on shared paths are kept under the sharee's path and removed with the share.
 
-**Tests (both databases):** writes from the sharee seen by the owner and by another sharee; read-only refusals; leaving a share; cleanup of locks and properties.
+**Tests (both databases):** writes from the sharee seen by the owner and by another sharee; read-only refusals; leaving a share; cleanup of locks and properties; the same two-path `If-Match` race as in PR 23, for a contact.
 
 **Done when:** a contact changed in DAVx5 through a read-write share shows up in the owner's Thunderbird and the other way round, read-only shares still refuse writes, and leaving a share keeps the owner's data.
 

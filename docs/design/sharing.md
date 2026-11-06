@@ -2,6 +2,15 @@
 
 Design note for the spike in [PR 20](../plans/implementation-plan-v1x.md#pr-20--spike-address-book-sharing-design-effort-medium). The decisions below keep address book sharing consistent with the calendar model (sabre's `calendarinstances`) and with principal isolation (Decision 5). sabre/dav 4.7.1 has calendar sharing and no address book sharing plugin. CardDAV stays on sabre's `addressbooks` table. Shares are a separate instance row, not a second ACL store.
 
+## In short
+
+- A share is a row in `addressbookinstances`, linked to the owner's `addressbooks` row. Calendars keep using `calendarinstances`.
+- The sharee sees the share in their own home. The URI is the owner's, with `-<owner username>` added on a clash.
+- Cards and the change log stay on the owner's book. The sharee's sync token is the owner's, so one change log serves everyone.
+- `DAV:owner` is the sharee. What they may do comes from the access level (read-only or read-write), never from being the owner.
+- The sharee can rename their copy and leave the share; neither touches the owner's data or token.
+- Two things found while checking the existing code: `calendarinstances` allows one share per person on PostgreSQL ([indexes](#indexes-and-constraints)), and the PR 16 write lock is keyed on the path, which a share has two of ([write lock](#write-lock)).
+
 ## Decisions
 
 | Topic | Choice | Reason |
@@ -87,6 +96,23 @@ A rename does not change the owner's token, so `HomeSync` does not report the ch
 
 When Sharing is off, instance rows stay in the table and are left out of `getAddressBooksForUser`. Their URL answers 404. That switch is PR 23; this note does not add it.
 
+### Write lock
+
+`DavWriteLock` (PR 16) makes a write to a collection wait for other writes to it. SQLite takes its one database write lock, so every writer already waits. PostgreSQL takes `pg_advisory_xact_lock`, keyed on the collection taken from the request path: `calendars/<user>/<uri>` or `addressbooks/<user>/<uri>`.
+
+A shared collection has two paths, the owner's and the sharee's. A write through each would take a different lock on PostgreSQL, and two clients holding the same `If-Match` could both succeed: the silent overwrite PR 16 removed. So the key is the underlying collection, not the path:
+
+- `addressbooks/<user>/<uri>`: the `addressbooks` row with that `principaluri` and `uri` (the owner), else the `addressbookinstances` row with that `principaluri` and `uri`, and its `addressbookid`. The key is built from that `addressbooks.id`.
+- `calendars/<user>/<uri>`: the `calendarinstances` row with that `principaluri` and `uri`, and its `calendarid`. The owner's row and every sharee's row carry the same `calendarid`. The key is built from `calendars.id`.
+- No row: a `MKCOL` or `MKCALENDAR` of a new collection, or a path that does not exist. The key stays the path. A collection that does not exist yet has one path, and the URI rule above stops a share from taking the same name.
+- `MOVE` and `COPY` resolve the source and the destination in the same way and take the keys in sorted order, as now.
+
+The lookup runs before the lock, after the ACL check. If the share is removed in the milliseconds between the check and the write, the write lands on the owner's book as it was allowed a moment earlier; that gap is accepted. An id never changes, so a rename cannot move a collection to another key.
+
+WebDAV locks (`LOCK`) are stored per path, so a lock taken through one path does not stop a write through the other. DAVx5 and Thunderbird do not lock events or contacts, so this stays a documented limit of shares.
+
+PR 23 changes `DavWriteLock` for both kinds of collection. Its tests, and PR 25's, run two processes writing the same item with the same `If-Match`, one through each path, on PostgreSQL as well as SQLite: one gets 204 and the other 412.
+
 ### Cleanup
 
 - Deleting the owner's address book, from the panel or over DAV, deletes the `addressbooks` row. The foreign key removes its shares.
@@ -105,6 +131,8 @@ The only principal in the ACL is the sharee's principal, the same URL as `DAV:ow
 
 - Access `2`: `{DAV:}read` on the collection and on each card. `{DAV:}write-properties` on the collection only, so the sharee can change their own display name and description. Not `{DAV:}write`.
 - Access `3`: `{DAV:}read` and `{DAV:}write` on the collection and on each card. `{DAV:}write-properties` is already part of `{DAV:}write`.
+
+A read-only sharee holds `{DAV:}write-properties` on the collection, so they can also store dead properties there. Those live under the sharee's own path and nobody else reads them, so this is harmless. Cards stay read-only.
 
 The ACL entries are not `{DAV:}share`, `{DAV:}bind`, or `{DAV:}unbind`. sabre expands `{DAV:}write` on a collection to include bind and unbind, and creating or deleting a card checks those. Granting `{DAV:}write` is how a read-write sharee saves a contact. It does not let them share the book on. A read-only sharee does not get `{DAV:}write`, so a `PUT` or a `DELETE` of a card is 403.
 
