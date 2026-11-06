@@ -171,7 +171,7 @@ sabre's share insert forces `transparent` to `1` and sets the URI to a UUID. Thi
 
 ## Findings from the prototype
 
-The prototype is on the branch `spike/pr-20-address-book-share-prototype` (tag `v0.2.1-spike.1`) and is never merged. It ran as a separate app on the lab server (SQLite, behind HTTPS).
+The prototype ran as a separate app on the lab server (SQLite, behind HTTPS). It was not merged. Its branch, tag, and image were removed after the findings below were recorded.
 
 ### Over DAV (6 November 2026, SQLite, scripted requests)
 
