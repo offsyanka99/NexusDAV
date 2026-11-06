@@ -155,9 +155,28 @@ In the admin panel on each server, with the language set to English and then Rus
 | 9c | Open the container log in Dozzle (or `docker compose logs`) while a client syncs, and then request `/admin` without signing in | Request lines show `INFO`, a 4xx shows `WARNING` and a 5xx `ERROR`, so Dozzle colours them |
 | 9d | **Diagnostics** after the whole run | No 5xx rows. 4xx rows are only discovery probes, the 412 from step 5 and the 403 from step 6 |
 
-### 10. Offline for longer than the sync history (optional, takes two days)
+### 10. Offline for longer than the sync history (optional)
 
-The sync history is kept for **Keep sync history for (days)**, at least 1. With a client that has synced, set it to 1 in **Settings**, take the client offline for two days while another device changes and deletes events, then sync. **Pass:** the client takes one full resync (Thunderbird logs a 403 `valid-sync-token`, then a full 207) and ends up with exactly the server's events, the deleted ones gone. Restore the setting afterwards. The automated tests cover the same path; run this step once on the release candidate.
+The sync history is kept for **Keep sync history for (days)** (default 90, at least 1). A client that was offline longer than that must get one **403** `valid-sync-token` and then sync the collection from the start. Two things make a real run take long, and a run that skips them proves nothing:
+
+- The history is trimmed only when a DAV write happens, at most once an hour. A client that comes back after only reading gets no trimming.
+- Only changes older than the setting are trimmed. A client that was offline for exactly the setting, with its other device changing things a few minutes after it went offline, still finds those changes.
+
+**Real client (about 26 hours):** set the setting to 1 day and sync the client. Take it offline, and a few minutes later change and delete some events from another device. About 25 hours after those changes, edit any event from another device (that write trims the history). Then bring the client back and sync.
+
+**Fast check without a client (about 5 minutes per server).** It uses the same server code:
+
+1. With a test calendar `step10` of the test user, take a sync token with a `sync-collection` REPORT (empty token, sync level 1), then add and delete a few events and note the calendar's number in the token (`.../sync/<id>-<n>`).
+2. In the server container, make that calendar's change rows look old and run the pruner (replace `<id>`). Every database uses the same command:
+
+   ```bash
+   docker exec -u nexusdav <container> php artisan tinker --execute='DB::table("calendarchanges")->where("calendarid", <id>)->update(["created_at" => now()->subDays(100)]); Cache::forget("nexusdav.sync_history.prune"); app(App\Services\Dav\SyncHistoryPruner::class)->afterWrite(); echo json_encode(DB::table("calendars")->where("id", <id>)->first(["id","synctoken","synctoken_min"])), "\n";'
+   ```
+
+   `synctoken_min` must now be above the number in your token. The command also trims other history older than the saved setting, so other test clients may get one full resync.
+3. A `sync-collection` with the old token answers **403** `valid-sync-token`. One without a token lists exactly the events that exist, and its new token works for the next change.
+
+**Pass:** the 403, then a full listing that matches the server, then a working incremental sync. For a real client: one full resync, and its events match the server (the deleted ones are gone).
 
 ## When a step fails
 
@@ -222,7 +241,7 @@ DAVx5's debug log of that contacts sync shows 153 requests to the server taking 
 
 ### Pass 2 (M2 release candidate, PR 19)
 
-Step 10 runs on 5 November. Run on the release candidate (the tag that will be released), with both servers on that build.
+Run on the release candidate (the tag that will be released), with both servers on that build.
 
 | Run log | |
 |---|---|
@@ -250,4 +269,4 @@ Step 10 runs on 5 November. Run on the release candidate (the tag that will be r
 | 7 Large collection, first sync | ✅ | ✅ | ✅ | ✅ | Android phone, iPad and Thunderbird (linux) |
 | 8 Many uploads at once | ➖ | ➖ | ➖ | ➖ | PostgreSQL: ✅ 5,000 × 201 · SQLite: ✅ 5,000 × 201 (16 parallel writers, no client needed, 4 November 2026) |
 | 9 Admin panel | ➖ | ➖ | ➖ | ➖ | PostgreSQL: ✅ · SQLite: ✅ |
-| 10 Offline longer than the history (optional) | ⬜ | ⬜ | ⬜ | ⬜ | |
+| 10 Offline longer than the history (optional) | ➖ | ➖ | ➖ | ➖ | PostgreSQL: ✅ · SQLite: ✅ by the fast check (5 November 2026): old token 403 `valid-sync-token`, full listing of the 4 existing events, new token works. No real client was offline long enough: an iPad offline for 24 h 4 min got no 403, because nothing had been trimmed yet (see the step text) |

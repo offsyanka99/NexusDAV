@@ -14,7 +14,7 @@ The work is split into five milestones and 31 PRs, listed in the order they are 
 
 Sources: [guide](../guide.md), [apps](../apps/README.md), the [admin panel](../apps/admin.md) description, the design notes for [Settings](../design/admin-settings.md), [Configuration](../design/admin-configuration.md) and the [Dashboard](../design/admin-dashboard.md), the pinned WebDAV-Push draft, and the current code.
 
-**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is in progress: PR 13 to PR 18 are done (0.1.6 has PR 17); PR 19, the release run, is next. M3 to M5 are not started.
+**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). PR 20, the sharing spike, is next. M3 to M5 are not started. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
 
 Effort levels are the same as in Version 1:
 - **Low** — small, mostly boilerplate or config
@@ -38,9 +38,9 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 | 6 | PR 14 | M2 | Sync tokens that cannot be trusted (done, 0.1.4) | High | — |
 | 7 | PR 15 | M2 | Sync history retention (done) | Medium | 14 |
 | 8 | PR 16 | M2 | Atomic conditional writes (done) | High | — |
-| 9 | PR 17 | M2 | Busy database: retry, then 503 | Medium | 16 |
-| 10 | PR 18 | M2 | Fixes from the client pass | Medium, re-rated after PR 13 | 13 |
-| 11 | PR 19 | M2 | M2 release | Medium | 12, 13–18 |
+| 9 | PR 17 | M2 | Busy database: retry, then 503 (done, 0.1.6) | Medium | 16 |
+| 10 | PR 18 | M2 | Fixes from the client pass (done) | Medium, re-rated after PR 13 | 13 |
+| 11 | PR 19 | M2 | M2 release (done, 0.2.0) | Medium | 12, 13–18 |
 | 12 | PR 20 | M3 | Spike: address book sharing design | Medium | — |
 | 13 | PR 21 | M3 | Share storage and `SharingService` | High | 20 |
 | 14 | PR 22 | M3 | Share management in the admin panel | High | 11, 21 |
@@ -311,7 +311,7 @@ Issue #3 has a first case from the client pass: one 500 "database is locked" in 
 - Tag `v0.1.5` (no GitHub Release page) publishes PR 15, PR 16, the readable log levels and the Calendars table columns for lab testing.
 - #3 stays open: the lab error was a plain `INSERT` that waited the full 5 s for the lock, which this PR does not shorten. PR 17 (retry, then 503) covers that. The race that this PR removes, a read followed by a write in a deferred transaction, could not be reproduced locally either before or after.
 
-### PR 17 — Busy database: retry, then 503 (Effort: Medium)
+### PR 17 — Busy database: retry, then 503 (Effort: Medium) — ✅ done
 
 - An SQLite busy error after the 5-second timeout, or a PostgreSQL serialization failure (`40001`) or deadlock (`40P01`) inside a DAV write: the transaction from PR 16 is retried up to three times after a short random wait. The request body is kept so the write can be replayed; CalDAV and CardDAV bodies are small.
 - After the retries, or on a busy error during a read: 503 with `Retry-After`, stored on Diagnostics like other DAV errors, with the request ID in the log.
@@ -332,8 +332,9 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 - Tests: `BusyDatabaseTest` (retry then success, 503 after four tries with its Diagnostics row, the three PostgreSQL states, a read answered 503 at once, a 500 without the exception text, a busy "last used" update). `ConcurrentWritesTest` holds a real SQLite write lock from a second connection: released after 0.4 s the write succeeds through a retry (and gets 503 with retries switched off), held for good it gets 503.
 - Tag `v0.1.6` (no GitHub Release page), also with the expiry date picker that follows Time format and Week starts on.
 - Tag `v0.1.7` (no GitHub Release page): the client pass 2 test round on 0.1.6, the **Close messages after** setting (`NEXUSDAV_NOTIFICATION_SECONDS`), the commit shown on the Dashboard (`0.1.7+<commit>`), the Calendars and Address books tables that wrap long URIs, and the PR 18 and PR 19 docs.
+- Tag `v0.2.0`, the M2 release: everything from 0.1.3 to 0.1.7, plus the Language menu that shows which language is in use (and the notice when the server default changes), and the inactivity timeout that returns an idle admin to the sign-in page with a message that stays until closed.
 
-### PR 18 — Fixes from the client pass (Effort: Medium, re-rated after PR 13)
+### PR 18 — Fixes from the client pass (Effort: Medium, re-rated after PR 13) — ✅ done
 
 - One fix and one regression test for each `m2-client-pass` issue that PR 14 to PR 17 did not already fix, or a documented limitation in the guide's Troubleshooting.
 - When the list is long, split it into one PR per area (CalDAV, CardDAV, discovery).
@@ -358,7 +359,7 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
   - [data-model.md](../data-model.md) (new columns) and [architecture.md](../architecture.md)
 - Release notes: the new token format, legacy tokens still accepted, and the 90-day history default.
 
-**Status:** prepared. The docs for the 503, the retry and the history setting are written; the checklist has new steps 8 to 10 and an empty Pass 2 table ([client-checklist.md](../testing/client-checklist.md#pass-2-m2-release-candidate-pr-19)). The run on 0.1.6 passed on 4 November 2026 with DAVx5, Thunderbird and an iPad on both databases; only the optional step 10 (offline longer than the history) is left for 5 November. What is left after that is the release notes.
+**Status:** done, released as **0.2.0** (with a GitHub Release page and notes). The checklist (Pass 2) passed on 0.1.6 with DAVx5, Thunderbird and an iPad on both databases, with step 10 as a server-side check; 0.1.7 and 0.2.0 changed the admin panel only. The guide, [dav-endpoints.md](../dav-endpoints.md), [data-model.md](../data-model.md) and [architecture.md](../architecture.md) match.
 
 **Done when:** the checklist passes with both clients on both databases, the docs match, and the release is published.
 

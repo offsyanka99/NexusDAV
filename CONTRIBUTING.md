@@ -78,7 +78,7 @@ Maintainers publish a release by pushing a version tag. The [release workflow](.
 3. Check that the workflow passed and that the package is public (the first push creates it as private; change it under the package settings).
 4. Write the release notes on GitHub: changes, upgrade steps, and anything an admin must do.
 
-Tags are `v<major>.<minor>.<patch>`, with an optional pre-release suffix such as `-rc.1`. The image gets the exact version, `<major>.<minor>`, `<major>` from 1.0 on, and `latest` for a release without a suffix. A pre-release gets only its exact tag. The Dashboard shows the version and the tagged commit, for example `0.1.6+4f82db8`.
+Tags are `v<major>.<minor>.<patch>`, with an optional pre-release suffix such as `-rc.1`. The image gets the exact version, `<major>.<minor>`, `<major>` from 1.0 on, and `latest` for a release without a suffix. A pre-release gets only its exact tag. Release numbers stay 0.x until the Version 1.x plan is finished; "Version 1.x" in the documents is the feature plan, not a release number. The Dashboard shows the version and the tagged commit, for example `0.1.6+4f82db8`.
 
 ### Code conventions
 

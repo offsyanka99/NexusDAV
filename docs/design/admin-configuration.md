@@ -19,7 +19,7 @@ The Configuration page holds server-wide preferences that are not tied to a spec
 - Window in seconds (`NEXUSDAV_RATE_LIMIT_DECAY_SECONDS`, default `60`)
 
 **Sessions** section:
-- Session lifetime (`SESSION_LIFETIME`, default `120`): Laravel's session lifetime, minutes of inactivity before an admin is signed out
+- Session lifetime (`SESSION_LIFETIME`, default `120`): Laravel's session lifetime, minutes of inactivity before an admin is signed out. A script on each signed-in page counts the same time from the last answer of the server (shared between tabs through the browser's local storage), signs the admin out and opens the sign-in page with `?timeout=1`, which shows a warning that stays until closed. A Livewire request refused with 419 or 401, or redirected to the sign-in page, does the same.
 - Secure cookies (`SESSION_SECURE_COOKIE`): on by default when `APP_URL` is `https`. Turning it on is refused unless the panel is open over HTTPS, so an admin cannot sign themselves out by accident
 
 **Notifications** section:
@@ -37,7 +37,7 @@ Built in 0.1.2 (milestone M1 of the [Version 1.x plan](../plans/implementation-p
 **Language** section, above Time:
 - Server default language (`NEXUSDAV_LOCALE`, default `en`). The options are the shipped languages, each in its own name (English, Русский); a new `lang/<code>.json` adds one. Used on the login page and for every admin who has not chosen a language.
 
-Each admin can choose their own language under **Language** in the user menu. **Server default** clears the choice. The page reloads in the new language.
+Each admin can choose their own language under **Language** in the user menu. The item shows the language in use, with "Server default (…)" when it is not the admin's own choice. **Server default** clears the choice. The page reloads in the new language. A language chosen in the user menu always wins over this setting; when the server default is saved, an admin who has their own language is told that it stays.
 
 ## Version 2
 

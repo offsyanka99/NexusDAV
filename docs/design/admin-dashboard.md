@@ -21,7 +21,7 @@ The page uses the standard Filament panel layout (navigation, then page header, 
 | Dashboard                                                             |
 +-----------------------------------------------------------------------+
 | [ Server status ]                                                     |
-|  ● Application OK  ● Database OK (PostgreSQL)  NexusDAV 0.1.7+4f82db8  |
+|  ● Application OK  ● Database OK (PostgreSQL)  NexusDAV 0.2.0+4f82db8  |
 +-----------------------------------------------------------------------+
 | [ Services ]                                                          |
 |  CalDAV  ● On     CardDAV  ● On     Tasks  ● On     Notes  ○ Off      |

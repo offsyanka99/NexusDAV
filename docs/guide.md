@@ -12,7 +12,7 @@ Related documents:
 - [Implementation plan (v1.x)](plans/implementation-plan-v1x.md) — milestones and PRs for the Version 1.x features
 - [Plan for Version 2 and later](plans/version-2-and-later.md) — features for 2.0, 2.x and beyond
 
-Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `0.1.7` (first release `0.1.0`). 0.1.2 added the first Version 1.x milestone, an admin panel in English and Russian. The server passes automated sync tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
+Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `0.2.0` (first release `0.1.0`). "Version 1" and "Version 1.x" in these documents name the feature plan, not release numbers: releases stay 0.x until the plan is finished and 1.0.0 is tagged. 0.2.0 completes the first two milestones of the Version 1.x plan, the admin panel in English and Russian (M1) and reliable sync (M2). The server passes automated sync tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
 
 NexusDAV is built for homelabs and small teams that want calendars, contacts, tasks, notes and files without running a full groupware suite.
 
@@ -30,7 +30,7 @@ Current limitations:
 
 ## Quick start
 
-1. Get the Compose files and create your environment file. The Compose files pull the published image, `ghcr.io/offsyanka99/nexusdav:0.1.7`:
+1. Get the Compose files and create your environment file. The Compose files pull the published image, `ghcr.io/offsyanka99/nexusdav:0.2.0`:
 
    ```bash
    git clone https://github.com/offsyanka99/NexusDAV.git
@@ -78,7 +78,7 @@ TrueNAS SCALE 24.10 (Electric Eel) and later run Apps on Docker, so a Docker Com
 4. **Apps > Discover Apps**, then **Custom App** (top right) **> Install via YAML**. Paste the edited file and install.
 5. Continue from step 4 of [Quick start](#quick-start).
 
-`PUID` and `PGID` default to `568`, the UID TrueNAS SCALE apps conventionally run as, so the dataset's ownership matches what the container expects. Put it behind an HTTPS reverse proxy before exposing it outside your network — Nginx Proxy Manager and Caddy are themselves TrueNAS SCALE apps, or use one of the files in [docs/proxy](proxy/).
+`PUID` and `PGID` default to `568`, the UID TrueNAS SCALE apps conventionally run as, so the dataset's ownership matches what the container expects. Each container is capped at 1 CPU. NexusDAV is limited to 768 MB, and PostgreSQL to 1 GB. Those are ceilings; raise them in the YAML if the app is stopped for running out of memory during a large sync. Put it behind an HTTPS reverse proxy before exposing it outside your network — Nginx Proxy Manager and Caddy are themselves TrueNAS SCALE apps, or use one of the files in [docs/proxy](proxy/).
 
 ## Requirements
 
@@ -184,6 +184,8 @@ These settings are changed on the **Settings** and **Configuration** pages. A ch
 | Keep diagnostics for (days) | Configuration | `NEXUSDAV_DIAGNOSTICS_RETENTION_DAYS` | `30` |
 | Close messages after (seconds) | Configuration | `NEXUSDAV_NOTIFICATION_SECONDS` | `6` (0 keeps them until closed) |
 
+**Inactivity timeout:** an admin who does nothing for the session lifetime is returned to the sign-in page by the panel itself, with a message ("You were signed out because of inactivity") that stays until it is closed. A page load, a save or any other action that reaches the server counts as activity; reading a page without clicking does not. The time is shared between browser tabs, so activity in one tab keeps the other tabs signed in. A page that finds the server session already gone (for example after a restart that lost sessions, or a server-side sign-out) takes the same path instead of showing "This page has expired".
+
 **Admin panel messages:** success and info messages close by themselves after **Close messages after** seconds. `0` keeps them until you close them. Errors and warnings always stay until closed, and so does the one-time app password secret.
 
 What the service switches do:
@@ -191,7 +193,7 @@ What the service switches do:
 - **CalDAV or CardDAV off:** paths under `/dav/calendars/` or `/dav/addressbooks/` answer 403 with "CalDAV is turned off on this server." (or CardDAV). Discovery no longer offers the home. Stored data is kept and comes back when the service is turned on.
 - **Tasks or Notes off:** calendars stop listing `VTODO` or `VJOURNAL` as supported, so no task or note can be created or changed. Existing ones stay readable and can be deleted.
 
-**Language.** The admin panel ships in English and Russian. Each admin chooses a language under **Language** in the user menu; **Server default** clears the choice and follows the Configuration setting. The login page always uses the server default. A value of `NEXUSDAV_LOCALE` that is not a shipped language falls back to English. Only the panel is translated: DAV responses, `/health`, the container log and the reasons stored for Diagnostics stay in English, so log searches keep working; the Diagnostics page shows those reasons in the admin's language. To add a language, see [CONTRIBUTING.md](../CONTRIBUTING.md#translations).
+**Language.** The admin panel ships in English and Russian. Each admin chooses a language under **Language** in the user menu; the item shows the language in use, and "Server default (…)" when it is not the admin's own choice. **Server default** clears the choice and follows the Configuration setting. A language chosen in the user menu always wins over the Configuration setting, so changing the server default does not change an admin who chose their own (Configuration says so when you save). The login page always uses the server default. A value of `NEXUSDAV_LOCALE` that is not a shipped language falls back to English. Only the panel is translated: DAV responses, `/health`, the container log and the reasons stored for Diagnostics stay in English, so log searches keep working; the Diagnostics page shows those reasons in the admin's language. To add a language, see [CONTRIBUTING.md](../CONTRIBUTING.md#translations).
 
 The server time zone applies to users without their own time zone, becomes the `calendar-timezone` of new calendars (the owner's own zone wins when set), and is the zone the panel shows times in. Turning on secure cookies is refused unless the panel is open over HTTPS, so an admin cannot sign themselves out by accident.
 
@@ -309,7 +311,7 @@ NexusDAV targets standards-compliant clients. The table shows the Version 1 targ
 - **iPad, native Contacts:** a first sync of 2,000 contacts (74 s) on 0.1.4.
 - **iPad (iOS 18.5):** the checklist steps 1 to 7 on 0.1.6; notes were tested on the Android phone only.
 
-0.1.2 and 0.1.3 changed only the admin panel (languages) and a test tool. On 0.1.3 everything passed except a calendar deleted and created again with the same name while a client was offline: the client kept the old events. 0.1.4 fixes that in the server's sync tokens (see [DAV endpoints](dav-endpoints.md#sync-tokens)), and both clients passed that step on 0.1.4. 0.1.5 adds sync history retention, safe concurrent writes and readable log levels; 0.1.6 retries a write when the database is busy and answers 503 instead of 500 when it stays busy. 0.1.7 adds a setting that closes admin panel messages by themselves, shows the commit next to the version on the Dashboard, and keeps the Edit and Delete buttons in view for long calendar and address book names. The client checklist passed on 0.1.6 with DAVx5, Thunderbird and an iPad, on both databases, except the optional step 10 (offline longer than the sync history), which runs on 5 November ([results](testing/client-checklist.md#pass-2-m2-release-candidate-pr-19)).
+0.1.2 and 0.1.3 changed only the admin panel (languages) and a test tool. On 0.1.3 everything passed except a calendar deleted and created again with the same name while a client was offline: the client kept the old events. 0.1.4 fixes that in the server's sync tokens (see [DAV endpoints](dav-endpoints.md#sync-tokens)), and both clients passed that step on 0.1.4. 0.1.5 adds sync history retention, safe concurrent writes and readable log levels; 0.1.6 retries a write when the database is busy and answers 503 instead of 500 when it stays busy. 0.1.7 adds a setting that closes admin panel messages by themselves, shows the commit next to the version on the Dashboard, and keeps the Edit and Delete buttons in view for long calendar and address book names. 0.2.0 closes admin panel messages by themselves after the configured time, returns an idle admin to the sign-in page when the session lifetime has passed, and shows which language the panel is in and why. The client checklist passed on 0.1.6 with DAVx5, Thunderbird and an iPad, on both databases (later changes are in the admin panel only), and the optional step 10 (offline longer than the sync history) passed as a server-side check on 5 November ([results](testing/client-checklist.md#pass-2-m2-release-candidate-pr-19)).
 
 **What was tested by automated clients** (SQLite, November 2026; recorded on 0.1.0 and unchanged up to 0.1.4, whose sync-token change is covered by its own tests):
 
@@ -480,7 +482,7 @@ Export the settings before an upgrade and keep the file with your other backups.
 **Upgrade**
 
 1. Back up first.
-2. Read the release notes, then change the tag on the `image:` line in `compose.yaml` (for example from `0.1.6` to `0.1.7`). Keep an exact version rather than `latest`, so an upgrade happens only when you choose it.
+2. Read the release notes, then change the tag on the `image:` line in `compose.yaml` (for example from `0.1.7` to `0.2.0`). Keep an exact version rather than `latest`, so an upgrade happens only when you choose it.
 3. Run `docker compose pull` and `docker compose up -d`, with the same `-f` files as at install. Database migrations run automatically on start. With `compose.build.yaml`, update the checkout instead and run `up -d --build`.
 4. Upgrade one minor version at a time. There is no rollback other than restoring the backup.
 

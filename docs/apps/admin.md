@@ -12,7 +12,7 @@ Sign-in lands on the **Dashboard**. The Dashboard shows the server at a glance: 
 
 A menu links to the other admin pages. The items include **Settings**, **Configuration**, **Users** and **Diagnostics**, plus the other pages described below as they arrive. Whether that menu sits on the left or along the top is not decided yet.
 
-The user menu (top right) has a **Language** item (since 0.1.2). Each admin chooses English or Russian there, or **Server default** to follow the Configuration page. The login page uses the server default.
+The user menu (top right) has a **Language** item (since 0.1.2). Each admin chooses English or Russian there, or **Server default** to follow the Configuration page. The menu item shows the language in use. A language chosen there always wins over the Configuration page. The login page uses the server default.
 
 ### Settings
 
@@ -43,7 +43,7 @@ The Configuration page holds server-wide preferences. A UI draft is kept in [doc
 **Version 1.**
 - Server time zone, time format and week start day. The time zone applies to users without their own, to new calendars, and to times shown in the panel.
 - Rate limiting settings: failures per username, failures per address, and the window.
-- Session settings: lifetime (minutes of inactivity) and secure cookies. Secure cookies are on by default when `APP_URL` is `https`, and can be turned on only over HTTPS.
+- Session settings: lifetime (minutes of inactivity; the panel then returns to the sign-in page by itself, with a message that stays until closed) and secure cookies. Secure cookies are on by default when `APP_URL` is `https`, and can be turned on only over HTTPS.
 - How long failed logins and DAV errors are kept for Diagnostics.
 - Changes apply from the next request, with no restart. Locked fields work as on Settings.
 
@@ -63,7 +63,7 @@ The Users page lists all accounts. An administrator can search the list by usern
 
 Selecting a user shows their basic information together with the calendars and address books that belong to them. From there the administrator can create a new calendar or address book for that user.
 
-Creating a calendar includes choosing a URI, display name, description, color, and whether the collection holds tasks (VTODO) or notes (VJOURNAL). Creating an address book includes a URI, display name and description.
+Creating a calendar includes choosing a URI, display name, description, a color, and whether the collection holds tasks (VTODO) or notes (VJOURNAL). The color is Filament's color picker: the swatch opens a hue and saturation panel, the field still shows the hex code, and the stored value is `#RRGGBB` (default `#1A73E8`). Creating an address book includes a URI, display name and description.
 
 A more detailed UI draft is kept in [docs/design/admin-users.md](../design/admin-users.md).
 
