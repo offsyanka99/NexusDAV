@@ -198,10 +198,22 @@ An owner with two contacts shared the default address book with a second user, f
 
 The prototype's automated checks (`SharingSpikeTest`, 7 tests) pass on SQLite and PostgreSQL. They also cover a shared **calendar** with `calendarinstances`: the sharee's copy is listed as "Calendar (owner)", read-only refuses a `PUT` and shows no `write` or `share` privilege, read-write saves into the owner's calendar, and the owner's principal answers 404.
 
-### With the clients (maintainer)
+### With the clients (maintainer, 6 November 2026)
 
-- Read-only shared address book in DAVx5: ⬜ (the sharee's DAVx5 synced the share without errors and no write reached the server; whether the Contacts app disables editing is still to be recorded)
-- Read-only shared address book in Thunderbird: ⬜
-- Read-write shared address book in DAVx5 and Thunderbird (create, edit and delete a contact; the owner sees the change): ⬜
-- Leaving the share from the client: ⬜
-- A shared calendar in DAVx5 (with jtx Board) and Thunderbird: ⬜ (so far only the automated tests above cover calendars)
+DAVx5 and Thunderbird on the same lab server (SQLite, over HTTPS), the sharee's account in each.
+
+| Check | DAVx5 (Android) | Thunderbird |
+|---|---|---|
+| Read-only share: the book appears with the owner's contacts | Pass | Pass |
+| Read-only share: the client shows it as read-only and refuses to save a contact | Pass: marked read-only, a contact cannot be saved | Pass: a contact cannot be added |
+| Read-write share, after the owner changed the access on the server: can the sharee create a contact? | Pass: a contact was created and synced | **Still read-only** (see below) |
+| Read-write share: a contact created by the sharee reaches the other client | Pass: Thunderbird shows the contact DAVx5 created | n/a (could not create) |
+| Leaving the share, sharee's own name, shared calendar | ⬜ | ⬜ |
+
+**Thunderbird kept the share read-only after the access changed.** The server answered correctly at that moment: the sharee's `current-user-privilege-set` on the share held `write`, `bind`, `unbind` and `write-content`, and the contact DAVx5 had created was in the owner's book. So the access level is remembered by the client, most likely from the moment the address book was added, and a change on the server is not picked up. Still to try: restart Thunderbird, and remove and add the book again. If only re-adding helps, then:
+
+- the admin panel (PR 22) should say, next to the access choice, that a client may need the address book added again after the access changes, and the guide's Troubleshooting should say the same for Thunderbird;
+- going from read-write to read-only is safe whatever the client remembers, because the server refuses the write (403) and the client then takes the server's version on its next sync;
+- going from read-only to read-write needs no server change; the client that remembers read-only only lacks the ability to try.
+
+DAVx5 picked up the change after a refresh of the account.
