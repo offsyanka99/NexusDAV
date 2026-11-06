@@ -17,7 +17,9 @@ use Throwable;
  * the second silently replaces the first, and two creates of the same new URI
  * end in a 500 from the unique index. Writes to the same collection now wait
  * for each other: SQLite takes the database write lock at BEGIN (IMMEDIATE),
- * PostgreSQL a transaction-level advisory lock per collection.
+ * PostgreSQL a transaction-level advisory lock on the calendar or address
+ * book id, so the owner's path and a sharee's path take the same lock. A
+ * collection that does not exist yet stays keyed on its path.
  */
 final class DavWriteLock
 {
@@ -30,10 +32,14 @@ final class DavWriteLock
     private const PRIORITY = 110;
 
     /**
-     * Arbitrary first key of pg_advisory_xact_lock(int, int), so these locks
-     * do not collide with any other advisory lock user.
+     * First key of pg_advisory_xact_lock(int, int). Separate namespaces so a
+     * calendar id, an address book id and a path hash do not share a lock.
      */
-    private const PG_NAMESPACE = 0x4E44;
+    private const PG_CALENDAR = 0x4E44;
+
+    private const PG_ADDRESSBOOK = 0x4E45;
+
+    private const PG_PATH = 0x4E46;
 
     private bool $open = false;
 
@@ -95,22 +101,24 @@ final class DavWriteLock
             return;
         }
 
-        $collections = $this->collections($server, $request);
+        $paths = $this->paths($server, $request);
 
-        if ($collections === []) {
+        if ($paths === []) {
             return;
         }
 
         DB::beginTransaction();
         $this->open = true;
 
+        $locks = $this->locks($paths);
+
         if (DB::connection()->getDriverName() === 'pgsql') {
             // Same wait as SQLite's busy_timeout, then an error instead of
             // waiting for ever behind a stuck request.
             DB::statement("SET LOCAL lock_timeout = '5s'");
 
-            foreach ($collections as $collection) {
-                DB::select('SELECT pg_advisory_xact_lock(?, ?)', [self::PG_NAMESPACE, $this->key($collection)]);
+            foreach ($locks as $lock) {
+                DB::select('SELECT pg_advisory_xact_lock(?, ?)', [$lock['namespace'], $lock['key']]);
             }
         }
 
@@ -121,12 +129,11 @@ final class DavWriteLock
     }
 
     /**
-     * The calendars and address books the request writes to, sorted so two
-     * requests that lock the same pair (MOVE, COPY) take them in one order.
+     * Collection paths the request writes, including a MOVE or COPY destination.
      *
      * @return list<string>
      */
-    private function collections(Server $server, RequestInterface $request): array
+    private function paths(Server $server, RequestInterface $request): array
     {
         $paths = [$request->getPath()];
         $destination = $request->getHeader('Destination');
@@ -149,15 +156,74 @@ final class DavWriteLock
             }
         }
 
-        $collections = array_keys($collections);
-        sort($collections);
-
-        return $collections;
+        return array_keys($collections);
     }
 
-    private function key(string $collection): int
+    /**
+     * One lock per collection id, in one sorted order, so two requests that
+     * lock the same pair cannot deadlock. A missing row keeps the path.
+     *
+     * @param  list<string>  $paths
+     * @return list<array{namespace: int, key: int}>
+     */
+    private function locks(array $paths): array
     {
-        $hash = crc32($collection);
+        $locks = [];
+
+        foreach ($paths as $path) {
+            $lock = $this->resolve($path);
+            $locks[$lock['namespace'].':'.$lock['key']] = $lock;
+        }
+
+        ksort($locks, SORT_STRING);
+
+        return array_values($locks);
+    }
+
+    /**
+     * @return array{namespace: int, key: int}
+     */
+    private function resolve(string $collection): array
+    {
+        [$root, $user, $uri] = explode('/', $collection, 3);
+        $principal = 'principals/'.$user;
+
+        if ($root === 'calendars') {
+            $id = DB::table('calendarinstances')->where('principaluri', $principal)->where('uri', $uri)->value('calendarid');
+
+            if ($id !== null) {
+                return ['namespace' => self::PG_CALENDAR, 'key' => $this->idKey((int) $id)];
+            }
+        } else {
+            $id = DB::table('addressbooks')->where('principaluri', $principal)->where('uri', $uri)->value('id');
+
+            if ($id === null) {
+                $id = DB::table('addressbookinstances')->where('principaluri', $principal)->where('uri', $uri)->value('addressbookid');
+            }
+
+            if ($id !== null) {
+                return ['namespace' => self::PG_ADDRESSBOOK, 'key' => $this->idKey((int) $id)];
+            }
+        }
+
+        return ['namespace' => self::PG_PATH, 'key' => $this->hashKey($collection)];
+    }
+
+    /**
+     * pg_advisory_xact_lock's second argument is a signed 32-bit int.
+     */
+    private function idKey(int $id): int
+    {
+        if ($id >= 1 && $id <= 0x7FFFFFFF) {
+            return $id;
+        }
+
+        return $this->hashKey('id:'.$id);
+    }
+
+    private function hashKey(string $value): int
+    {
+        $hash = crc32($value);
 
         return $hash > 0x7FFFFFFF ? $hash - 0x100000000 : $hash;
     }
