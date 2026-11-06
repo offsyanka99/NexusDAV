@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\RelationManagers;
 
+use App\Filament\Resources\Users\CollectionShareAction;
 use App\Models\CalendarInstance;
 use App\Models\User;
 use App\Services\Dav\CalendarHome;
@@ -58,6 +59,7 @@ class CalendarsRelationManager extends RelationManager
                     ->visible(fn (): bool => $this->componentAllowed('VTODO')),
                 $this->countColumn('notes_count', __('Notes'), 'VJOURNAL')
                     ->visible(fn (): bool => $this->componentAllowed('VJOURNAL')),
+                CollectionShareAction::column(),
                 TextColumn::make('dav_path')
                     ->label(__('DAV path'))
                     ->fontFamily(FontFamily::Mono)
@@ -164,12 +166,13 @@ class CalendarsRelationManager extends RelationManager
                             ->title(__('Calendar saved'))
                             ->send();
                     }),
+                CollectionShareAction::make(),
                 Action::make('delete')
                     ->label(__('Delete'))
                     ->icon(Heroicon::OutlinedTrash)
                     ->color('danger')
                     ->requiresConfirmation()
-                    ->modalDescription(__('The calendar and its events, tasks, and notes will be deleted.'))
+                    ->modalDescription(__('The calendar and its events, tasks, notes, and shares will be deleted.'))
                     ->action(function (CalendarInstance $record): void {
                         app(CollectionService::class)->deleteCalendar($this->owner(), $record);
 

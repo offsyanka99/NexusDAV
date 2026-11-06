@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\RelationManagers;
 
+use App\Filament\Resources\Users\CollectionShareAction;
 use App\Models\AddressBook;
 use App\Models\User;
 use App\Services\Dav\CollectionService;
@@ -46,6 +47,7 @@ class AddressBooksRelationManager extends RelationManager
                 TextColumn::make('cards_count')
                     ->label(__('Contacts'))
                     ->counts('cards'),
+                CollectionShareAction::column(),
                 TextColumn::make('dav_path')
                     ->label(__('DAV path'))
                     ->fontFamily(FontFamily::Mono)
@@ -130,12 +132,13 @@ class AddressBooksRelationManager extends RelationManager
                             ->title(__('Address book saved'))
                             ->send();
                     }),
+                CollectionShareAction::make(),
                 Action::make('delete')
                     ->label(__('Delete'))
                     ->icon(Heroicon::OutlinedTrash)
                     ->color('danger')
                     ->requiresConfirmation()
-                    ->modalDescription(__('The address book and its contacts will be deleted.'))
+                    ->modalDescription(__('The address book, its contacts, and its shares will be deleted.'))
                     ->action(function (AddressBook $record): void {
                         app(CollectionService::class)->deleteAddressBook($this->owner(), $record);
 

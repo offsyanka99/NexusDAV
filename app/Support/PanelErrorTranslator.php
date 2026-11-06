@@ -20,6 +20,13 @@ final class PanelErrorTranslator
             'Display name is too long.' => __('Display name is too long.'),
             'Color must be #RRGGBB.' => __('Color must be #RRGGBB.'),
             'That collection belongs to another user.' => __('That collection belongs to another user.'),
+            'A collection cannot be shared with its owner.' => __('A collection cannot be shared with its owner.'),
+            'That user no longer exists.' => __('That user no longer exists.'),
+            'That collection no longer exists.' => __('That collection no longer exists.'),
+            'That user has no share of this collection.' => __('That user has no share of this collection.'),
+            'Access must be read only or read and write.' => __('Access must be read only or read and write.'),
+            "Only the owner's calendar can be shared." => __("Only the owner's calendar can be shared."),
+            'That collection has no owner.' => __('That collection has no owner.'),
             'App password name must be between 1 and 255 characters.' => __('App password name must be between 1 and 255 characters.'),
             default => null,
         };

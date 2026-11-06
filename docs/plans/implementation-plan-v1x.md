@@ -429,6 +429,13 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 
 **Done when:** an admin can add, change and remove the sharees of any calendar or address book, and the rows match what `SharingService` reads.
 
+**Status:** done.
+
+- A **Share** action on each owned calendar and address book. The modal lists each sharee and their access, adds a user found by username, display name or email (the owner and current sharees are not offered), and changes access on save. **Read and write** says that the sharee changes and deletes the owner's items for everyone, and that a client may need the book set or added again (Thunderbird keeps its own Read-only flag). Remove asks for confirmation and calls `unshare`.
+- The tables show how many sharees `SharingService::sharees` returns. Deleting a collection says its shares are removed. Deleting a user lists the shares they own and the shares they received.
+- The panel calls `share`, `changeAccess`, `unshare` and `sharees`. It does not write the share tables. Nothing here is served over DAV (PR 23 and PR 24).
+- Tests: `ShareAdminTest` (SQLite and PostgreSQL).
+
 ### PR 23 — Shared calendars over DAV and the Sharing switch (Effort: High)
 
 - Shared calendars appear in the sharee's calendar home, with their tasks and notes, and in the home's sync token.
