@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AddressBook;
 use App\Models\CalendarInstance;
 use App\Models\User;
 use App\Services\AppPasswordService;
@@ -228,6 +229,62 @@ class ConcurrentWritesTest extends TestCase
         $winner = $results[0]['status'] === 204 ? 'Title A' : 'Title B';
         $this->assertStringContainsString('SUMMARY:'.$winner, $this->body($this->fetch('shared.ics')->assertOk()));
         $this->assertSame(1, DB::table('calendarobjects')->where('uri', 'shared.ics')->count());
+    }
+
+    /**
+     * The same race for a contact: the owner's book and the sharee's copy of
+     * it are one address book, so one If-Match wins.
+     */
+    public function test_the_same_if_match_on_a_contact_through_the_owner_and_the_sharee_one_wins(): void
+    {
+        $bob = app(UserService::class)->create(['username' => 'bob', 'display_name' => 'Bob', 'email' => 'bob@example.com']);
+        $bobPassword = app(AppPasswordService::class)->issue($bob, 'phone')['token'];
+        $share = app(SharingService::class)->share(
+            AddressBook::query()->where('principaluri', 'principals/ada')->where('uri', 'default')->firstOrFail(),
+            $bob,
+            SharingService::READ_WRITE,
+        );
+
+        $created = $this->call('PUT', '/dav/addressbooks/ada/default/shared.vcf', [], [], [], [
+            'HTTP_AUTHORIZATION' => 'Basic '.base64_encode('ada:'.$this->password),
+            'CONTENT_TYPE' => 'text/vcard',
+        ], $this->contact('shared', 'Original'));
+        $created->assertCreated();
+        $etag = $created->headers->get('ETag');
+        $this->assertNotNull($etag);
+
+        $headers = ['If-Match' => $etag, 'Content-Type' => 'text/vcard'];
+        $results = $this->together([
+            [
+                'method' => 'PUT',
+                'uri' => '/dav/addressbooks/ada/default/shared.vcf',
+                'user' => 'ada',
+                'password' => $this->password,
+                'headers' => $headers,
+                'body' => $this->contact('shared', 'Name A'),
+                'hold_ms' => self::HOLD_MS,
+            ],
+            [
+                'method' => 'PUT',
+                'uri' => '/dav/addressbooks/bob/'.$share->uri.'/shared.vcf',
+                'user' => 'bob',
+                'password' => $bobPassword,
+                'headers' => $headers,
+                'body' => $this->contact('shared', 'Name B'),
+                'hold_ms' => self::HOLD_MS,
+            ],
+        ]);
+
+        $this->assertSame([204, 412], $this->statuses($results), json_encode($results));
+        $winner = $results[0]['status'] === 204 ? 'Name A' : 'Name B';
+        $stored = $this->call('GET', '/dav/addressbooks/ada/default/shared.vcf', [], [], [], ['HTTP_AUTHORIZATION' => 'Basic '.base64_encode('ada:'.$this->password)]);
+        $this->assertStringContainsString('FN:'.$winner, $this->body($stored->assertOk()));
+        $this->assertSame(1, DB::table('cards')->where('uri', 'shared.vcf')->count());
+    }
+
+    private function contact(string $uid, string $name): string
+    {
+        return "BEGIN:VCARD\r\nVERSION:3.0\r\nUID:$uid\r\nFN:$name\r\nN:$name;;;;\r\nEND:VCARD\r\n";
     }
 
     private function lockDatabase(): \PDO

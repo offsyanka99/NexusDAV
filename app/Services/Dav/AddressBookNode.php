@@ -2,19 +2,24 @@
 
 namespace App\Services\Dav;
 
+use RuntimeException;
 use Sabre\CardDAV\AddressBook;
 use Sabre\CardDAV\Card;
-use Sabre\DAV\Exception\Forbidden;
 use Sabre\DAV\PropPatch;
+use Sabre\DAV\Sharing\Plugin as SharingPlugin;
 
 /**
  * An address book someone shared, in the sharee's home (docs/design/sharing.md).
  *
  * DAV:owner is the sharee, as for calendars, so sabre's own ACL (everything
  * for the owner) would let a read-only sharee write and delete the owner's
- * book. Privileges come from the share instead. Reading is all that is
- * served for now: writes, renaming and leaving a share arrive with PR 25, so
- * the node refuses each of them rather than passing it to the owner's book.
+ * book. Privileges come from the share's access instead, never from that
+ * owner property: read only gets read, and write-properties on the book for
+ * the sharee's own name; read and write adds write. No share privilege.
+ *
+ * Cards and the change log stay on the owner's book, so a sharee's write moves
+ * the owner's sync token. The sharee's name and description, and leaving the
+ * share, touch only the sharee's own row.
  */
 final class AddressBookNode extends AddressBook
 {
@@ -23,7 +28,11 @@ final class AddressBookNode extends AddressBook
      */
     public function getACL()
     {
-        return $this->readOnly();
+        if ($this->access() === SharingPlugin::ACCESS_READWRITE) {
+            return $this->aces(['{DAV:}read', '{DAV:}write']);
+        }
+
+        return $this->aces(['{DAV:}read', '{DAV:}write-properties']);
     }
 
     /**
@@ -31,7 +40,11 @@ final class AddressBookNode extends AddressBook
      */
     public function getChildACL()
     {
-        return $this->readOnly();
+        if ($this->access() === SharingPlugin::ACCESS_READWRITE) {
+            return $this->aces(['{DAV:}read', '{DAV:}write']);
+        }
+
+        return $this->aces(['{DAV:}read']);
     }
 
     /**
@@ -51,22 +64,24 @@ final class AddressBookNode extends AddressBook
         return new Card($this->carddavBackend, $this->addressBookInfo, $card);
     }
 
-    public function createFile($name, $data = null)
-    {
-        throw new Forbidden('This shared address book is read only.');
-    }
-
+    /**
+     * The sharee's name and description live on their own row. The owner's
+     * book, its token and its change log are not touched.
+     */
     public function propPatch(PropPatch $propPatch)
     {
-        throw new Forbidden('This shared address book is read only.');
+        DavLimits::refuse($propPatch, DavLimits::ADDRESS_BOOK);
+
+        $this->books()->updateShare($this->instanceId(), $propPatch);
     }
 
     /**
-     * The stock delete removes the owner's address book.
+     * The stock delete removes the owner's address book. A sharee leaves the
+     * share instead, and the owner's book and cards stay.
      */
     public function delete()
     {
-        throw new Forbidden('This shared address book is read only.');
+        $this->books()->leaveShare($this->instanceId());
     }
 
     /**
@@ -83,15 +98,41 @@ final class AddressBookNode extends AddressBook
         return parent::getChanges($syncToken, $syncLevel, $limit);
     }
 
+    private function access(): int
+    {
+        return (int) ($this->addressBookInfo['share-access'] ?? SharingPlugin::ACCESS_READ);
+    }
+
+    private function instanceId(): int
+    {
+        return (int) ($this->addressBookInfo['share-instance-id'] ?? 0);
+    }
+
+    private function books(): AddressBookBackend
+    {
+        if (! $this->carddavBackend instanceof AddressBookBackend) {
+            throw new RuntimeException('A shared address book needs the address book backend.');
+        }
+
+        return $this->carddavBackend;
+    }
+
     /**
+     * @param  list<string>  $privileges
      * @return list<array{privilege: string, principal: string, protected: true}>
      */
-    private function readOnly(): array
+    private function aces(array $privileges): array
     {
-        return [[
-            'privilege' => '{DAV:}read',
-            'principal' => (string) $this->addressBookInfo['principaluri'],
-            'protected' => true,
-        ]];
+        $acl = [];
+
+        foreach ($privileges as $privilege) {
+            $acl[] = [
+                'privilege' => $privilege,
+                'principal' => (string) $this->addressBookInfo['principaluri'],
+                'protected' => true,
+            ];
+        }
+
+        return $acl;
     }
 }

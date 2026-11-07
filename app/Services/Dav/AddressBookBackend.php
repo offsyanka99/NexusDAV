@@ -171,6 +171,54 @@ final class AddressBookBackend extends SabreAddressBookBackend
         parent::deleteAddressBook($addressBookId);
     }
 
+    /**
+     * Leaves a share: only the sharee's row goes, with the locks and
+     * properties kept under their path. The owner's book and cards stay.
+     */
+    public function leaveShare(int $instanceId): void
+    {
+        DB::transaction(function () use ($instanceId): void {
+            $share = DB::table('addressbookinstances')->where('id', $instanceId)->first(['principaluri', 'uri']);
+
+            if ($share === null) {
+                return;
+            }
+
+            DB::table('addressbookinstances')->where('id', $instanceId)->delete();
+            app(DavDataCleaner::class)->deletePath(SharingService::sharePath(false, (string) $share->principaluri, (string) $share->uri));
+        });
+    }
+
+    /**
+     * The sharee's name and description. They are claimed here so no change
+     * row is written and the owner's sync token does not move.
+     */
+    public function updateShare(int $instanceId, PropPatch $propPatch): void
+    {
+        $columns = [
+            '{DAV:}displayname' => 'displayname',
+            '{'.CardDavPlugin::NS_CARDDAV.'}addressbook-description' => 'description',
+        ];
+
+        $propPatch->handle(array_keys($columns), function (array $mutations) use ($instanceId, $columns): bool {
+            $values = [];
+
+            foreach ($mutations as $name => $value) {
+                if (! is_scalar($value) && $value !== null) {
+                    return false;
+                }
+
+                $values[$columns[$name]] = $value;
+            }
+
+            if ($values !== []) {
+                DB::table('addressbookinstances')->where('id', $instanceId)->update($values);
+            }
+
+            return true;
+        });
+    }
+
     public function updateAddressBook($addressBookId, PropPatch $propPatch)
     {
         DavLimits::refuse($propPatch, DavLimits::ADDRESS_BOOK);

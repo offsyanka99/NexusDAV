@@ -99,10 +99,14 @@ An admin shares a calendar in the panel (see [sharing.md](design/sharing.md)). T
 
 An admin shares an address book in the panel. The sharee's client finds it in their own address book home, under a name of its own, usually the owner's (`default-<owner>` when the sharee already has that name), and named "<name> (<owner's display name>)".
 
-- **Read only for now:** every share is served read-only, also a share the panel stored as read and write. The sharee reads contacts with `PROPFIND`, `GET`, `addressbook-query`, `addressbook-multiget` and `sync-collection`. A `PUT`, `DELETE`, `MOVE`, `LOCK` or `PROPPATCH` is **403**, and so is a `DELETE` or `PROPPATCH` of the shared address book itself. `current-user-privilege-set` holds only `read`, so DAVx5 and Thunderbird show the address book as read-only. Writing, renaming and leaving a share come later (PR 25).
+- **Read only:** the sharee reads contacts with `PROPFIND`, `GET`, `addressbook-query`, `addressbook-multiget` and `sync-collection`. A `PUT`, `DELETE`, `MOVE`, `LOCK` or `PROPPATCH` of a contact is **403**. `current-user-privilege-set` holds `read` and `write-properties` on the address book (for the sharee's own name), so DAVx5 and Thunderbird show it as read-only.
+- **Read and write:** the sharee creates, changes and deletes contacts in the owner's address book. The owner and every other sharee see the change, because the contacts and the sync token are the owner's.
 - `DAV:owner` is the sharee's own principal; the owner's principal still answers 404 to them. Another user's path to the shared address book answers 404.
 - The sync token and the ctag are the owner's address book token, so an owner change reaches the sharee as one incremental change. A bare change number from an older token form is refused with 403 `valid-sync-token`.
 - The sharee's address book home lists the share and its sync token follows it: a new share is reported as added, and a removed one as deleted.
+- The sharee's display name and description are their own. Changing them does not change the owner's address book or its sync token. Another device of the sharee sees the new name on its next `PROPFIND`, not through a sync.
+- `DELETE` of the shared address book by the sharee removes only their share. The owner's address book and contacts stay. DAVx5 and Thunderbird never send it (see the guide's clients section), so a client user stops a share on the device and an admin removes it in the panel.
+- Clients cannot share: a sharing `POST` is **403** (same as for calendars).
 - With **Sharing** off (`NEXUSDAV_SHARING=false`) shared address books are not listed and their paths answer 404; with **CardDAV** off the whole address book tree is refused. The shares are kept.
 
 ## Concurrent writes

@@ -96,68 +96,209 @@ class SharedAddressBooksTest extends TestCase
         $this->assertStringContainsString('/dav/addressbooks/bob/'.$share->uri, $homeSync);
     }
 
-    public function test_every_share_is_read_only_whatever_its_stored_access(): void
+    public function test_a_read_only_share_refuses_writes_and_lists_read_privileges(): void
+    {
+        $this->putCard('/dav/addressbooks/ada/default/zed.vcf', 'zed', 'Zed Zebra');
+        $share = $this->share(SharingService::READ);
+        $url = $this->shareUrl($share);
+        $before = $this->ownerState();
+
+        $options = $this->dav('OPTIONS', $url, 'bob', $this->bobToken)->assertOk();
+        $this->assertStringNotContainsString('sharing', (string) $options->headers->get('DAV'));
+
+        $collection = $this->privileges($this->body($this->dav('PROPFIND', $url, 'bob', $this->bobToken, ['Depth' => '0'], $this->propfind('<d:current-user-privilege-set/><d:acl/>'))->assertStatus(207)));
+        $this->assertContains('read', $collection);
+        $this->assertContains('write-properties', $collection);
+        foreach (['all', 'write', 'write-content', 'bind', 'unbind', 'share'] as $privilege) {
+            $this->assertNotContains($privilege, $collection);
+        }
+
+        $card = $this->privileges($this->body($this->dav('PROPFIND', $url.'zed.vcf', 'bob', $this->bobToken, ['Depth' => '0'], $this->propfind('<d:current-user-privilege-set/>'))->assertStatus(207)));
+        $this->assertContains('read', $card);
+        foreach (['all', 'write', 'write-properties', 'write-content', 'bind', 'unbind'] as $privilege) {
+            $this->assertNotContains($privilege, $card);
+        }
+
+        $acl = $this->body($this->dav('PROPFIND', $url, 'bob', $this->bobToken, ['Depth' => '0'], $this->propfind('<d:acl/>'))->assertStatus(207));
+        $this->assertStringNotContainsString('authenticated', $acl);
+
+        $this->dav('PUT', $url.'new.vcf', 'bob', $this->bobToken, ['Content-Type' => 'text/vcard'], $this->card('new', 'New'))->assertForbidden();
+        $etag = (string) $this->dav('GET', $url.'zed.vcf', 'bob', $this->bobToken)->assertOk()->headers->get('ETag');
+        $this->dav('PUT', $url.'zed.vcf', 'bob', $this->bobToken, ['Content-Type' => 'text/vcard', 'If-Match' => $etag], $this->card('zed', 'Changed'))->assertForbidden();
+        $this->dav('DELETE', $url.'zed.vcf', 'bob', $this->bobToken)->assertForbidden();
+        $this->dav('PROPPATCH', $url.'zed.vcf', 'bob', $this->bobToken, ['Content-Type' => 'application/xml'], $this->rename())->assertForbidden();
+        $this->dav('MOVE', $url.'zed.vcf', 'bob', $this->bobToken, [
+            'Destination' => 'http://localhost/dav/addressbooks/bob/default/moved.vcf',
+            'Overwrite' => 'F',
+        ])->assertForbidden();
+        $this->dav('LOCK', $url.'zed.vcf', 'bob', $this->bobToken, ['Content-Type' => 'application/xml'], $this->lockInfo())->assertForbidden();
+        $this->dav('LOCK', $url, 'bob', $this->bobToken, ['Content-Type' => 'application/xml'], $this->lockInfo())->assertForbidden();
+        $this->dav('MKCOL', $url.'inner/', 'bob', $this->bobToken)->assertForbidden();
+
+        $this->assertSame($before, $this->ownerState());
+        $this->assertSame(1, DB::table('addressbooks')->where('principaluri', 'principals/ada')->count());
+        $this->dav('GET', '/dav/addressbooks/ada/default/zed.vcf', 'ada', $this->adaToken)->assertOk();
+        $this->assertStringContainsString('FN:Zed Zebra', $this->body($this->dav('GET', '/dav/addressbooks/ada/default/zed.vcf', 'ada', $this->adaToken)->assertOk()));
+
+        // A card copied out of a read-only share is the sharee's own copy.
+        $this->dav('COPY', $url.'zed.vcf', 'bob', $this->bobToken, [
+            'Destination' => 'http://localhost/dav/addressbooks/bob/default/copied.vcf',
+            'Overwrite' => 'F',
+        ])->assertSuccessful();
+        $this->assertSame($before, $this->ownerState());
+    }
+
+    public function test_a_read_write_share_lists_write_privileges_and_never_all(): void
+    {
+        $this->putCard('/dav/addressbooks/ada/default/zed.vcf', 'zed', 'Zed Zebra');
+        $url = $this->shareUrl($this->share(SharingService::READ_WRITE));
+
+        $collection = $this->privileges($this->body($this->dav('PROPFIND', $url, 'bob', $this->bobToken, ['Depth' => '0'], $this->propfind('<d:current-user-privilege-set/>'))->assertStatus(207)));
+        foreach (['read', 'write', 'write-properties', 'write-content', 'bind', 'unbind'] as $privilege) {
+            $this->assertContains($privilege, $collection);
+        }
+        foreach (['all', 'share'] as $privilege) {
+            $this->assertNotContains($privilege, $collection);
+        }
+
+        $card = $this->privileges($this->body($this->dav('PROPFIND', $url.'zed.vcf', 'bob', $this->bobToken, ['Depth' => '0'], $this->propfind('<d:current-user-privilege-set/>'))->assertStatus(207)));
+        foreach (['read', 'write', 'write-content'] as $privilege) {
+            $this->assertContains($privilege, $card);
+        }
+        $this->assertNotContains('all', $card);
+    }
+
+    public function test_a_read_write_sharee_creates_changes_and_deletes_contacts_in_the_owners_book(): void
+    {
+        $this->putCard('/dav/addressbooks/ada/default/zed.vcf', 'zed', 'Zed Zebra');
+        $bobShare = $this->share(SharingService::READ_WRITE);
+        $carolShare = app(SharingService::class)->share($this->book(), $this->carol, SharingService::READ);
+        $bobUrl = $this->shareUrl($bobShare);
+        $carolUrl = '/dav/addressbooks/carol/'.$carolShare->uri.'/';
+
+        $ownerToken = $this->syncToken($this->sync('/dav/addressbooks/ada/default/', 'ada', $this->adaToken));
+        $carolSync = $this->syncToken($this->sync($carolUrl, 'carol', $this->carolToken));
+        $before = $this->ownerState();
+
+        $created = $this->dav('PUT', $bobUrl.'new.vcf', 'bob', $this->bobToken, ['Content-Type' => 'text/vcard', 'If-None-Match' => '*'], $this->card('new', 'New Person'));
+        $this->assertSame(201, $created->getStatusCode(), $this->body($created));
+        $this->assertStringContainsString('FN:New Person', $this->body($this->dav('GET', '/dav/addressbooks/ada/default/new.vcf', 'ada', $this->adaToken)->assertOk()));
+        $this->assertSame(1, DB::table('cards')->where('addressbookid', $this->book()->getKey())->where('uri', 'new.vcf')->count());
+
+        $after = $this->ownerState();
+        $this->assertGreaterThan($before['synctoken'], $after['synctoken']);
+        $this->assertGreaterThan($before['changes'], $after['changes']);
+
+        $ownerDelta = $this->body($this->sync('/dav/addressbooks/ada/default/', 'ada', $this->adaToken, $ownerToken)->assertStatus(207));
+        $this->assertStringContainsString('new.vcf', $ownerDelta);
+        $carolDelta = $this->body($this->sync($carolUrl, 'carol', $this->carolToken, $carolSync)->assertStatus(207));
+        $this->assertStringContainsString('new.vcf', $carolDelta);
+        $this->assertStringNotContainsString('zed.vcf', $carolDelta);
+
+        $etag = (string) $this->dav('GET', $bobUrl.'zed.vcf', 'bob', $this->bobToken)->assertOk()->headers->get('ETag');
+        $this->dav('PUT', $bobUrl.'zed.vcf', 'bob', $this->bobToken, ['Content-Type' => 'text/vcard', 'If-Match' => $etag], $this->card('zed', 'Zed Changed'))->assertNoContent();
+        $this->assertStringContainsString('FN:Zed Changed', $this->body($this->dav('GET', '/dav/addressbooks/ada/default/zed.vcf', 'ada', $this->adaToken)->assertOk()));
+        $stale = $this->dav('PUT', $bobUrl.'zed.vcf', 'bob', $this->bobToken, ['Content-Type' => 'text/vcard', 'If-Match' => $etag], $this->card('zed', 'Stale'));
+        $this->assertSame(412, $stale->getStatusCode());
+
+        $this->dav('DELETE', $bobUrl.'new.vcf', 'bob', $this->bobToken)->assertNoContent();
+        $this->dav('GET', '/dav/addressbooks/ada/default/new.vcf', 'ada', $this->adaToken)->assertNotFound();
+        $this->dav('GET', $carolUrl.'new.vcf', 'carol', $this->carolToken)->assertNotFound();
+
+        // And the other way: an owner change reaches the sharee.
+        $bobSync = $this->syncToken($this->sync($bobUrl, 'bob', $this->bobToken));
+        $this->putCard('/dav/addressbooks/ada/default/again.vcf', 'again', 'Again');
+        $this->assertStringContainsString($bobUrl.'again.vcf', $this->body($this->sync($bobUrl, 'bob', $this->bobToken, $bobSync)->assertStatus(207)));
+
+        // A sharee cannot write as the owner or into another book.
+        $this->dav('PUT', '/dav/addressbooks/ada/default/evil.vcf', 'bob', $this->bobToken, ['Content-Type' => 'text/vcard'], $this->card('evil', 'Evil'))->assertNotFound();
+        $this->assertSame(0, DB::table('cards')->where('uri', 'evil.vcf')->count());
+    }
+
+    public function test_a_read_only_sharee_still_cannot_change_a_card_after_the_access_is_lowered(): void
+    {
+        $this->putCard('/dav/addressbooks/ada/default/zed.vcf', 'zed', 'Zed Zebra');
+        $share = $this->share(SharingService::READ_WRITE);
+        $url = $this->shareUrl($share);
+        $this->dav('PUT', $url.'one.vcf', 'bob', $this->bobToken, ['Content-Type' => 'text/vcard'], $this->card('one', 'One'))->assertCreated();
+
+        app(SharingService::class)->changeAccess($this->book(), $this->bob, SharingService::READ);
+
+        $this->dav('PUT', $url.'two.vcf', 'bob', $this->bobToken, ['Content-Type' => 'text/vcard'], $this->card('two', 'Two'))->assertForbidden();
+        $this->dav('DELETE', $url.'one.vcf', 'bob', $this->bobToken)->assertForbidden();
+        $this->assertSame(1, DB::table('cards')->where('uri', 'one.vcf')->count());
+    }
+
+    public function test_the_sharees_name_and_description_stay_on_their_row(): void
+    {
+        $share = $this->share(SharingService::READ);
+        $url = $this->shareUrl($share);
+        $owner = DB::table('addressbooks')->where('id', $this->book()->getKey())->first(['displayname', 'description']);
+        $before = $this->ownerState();
+        $ownerToken = $this->syncTokenOf('/dav/addressbooks/ada/default/', 'ada', $this->adaToken);
+
+        $patched = $this->dav('PROPPATCH', $url, 'bob', $this->bobToken, ['Content-Type' => 'application/xml'], $this->rename());
+        $this->assertSame(207, $patched->getStatusCode(), $this->body($patched));
+        $this->assertStringNotContainsString('403', $this->body($patched));
+
+        $row = DB::table('addressbookinstances')->where('id', $share->getKey())->first(['displayname', 'description']);
+        $this->assertSame('Mine', $row?->displayname);
+        $this->assertSame('My people', $row?->description);
+        $this->assertEquals($owner, DB::table('addressbooks')->where('id', $this->book()->getKey())->first(['displayname', 'description']));
+        $this->assertSame($before, $this->ownerState());
+        $this->assertSame($ownerToken, $this->syncTokenOf('/dav/addressbooks/ada/default/', 'ada', $this->adaToken));
+
+        $props = $this->body($this->dav('PROPFIND', $url, 'bob', $this->bobToken, ['Depth' => '0'], $this->propfind('<d:displayname/>'))->assertStatus(207));
+        $this->assertStringContainsString('Mine', $props);
+        $ownerProps = $this->body($this->dav('PROPFIND', '/dav/addressbooks/ada/default/', 'ada', $this->adaToken, ['Depth' => '0'], $this->propfind('<d:displayname/>'))->assertStatus(207));
+        $this->assertStringNotContainsString('Mine', $ownerProps);
+
+        $long = $this->dav('PROPPATCH', $url, 'bob', $this->bobToken, ['Content-Type' => 'application/xml'], $this->rename(str_repeat('x', 300)));
+        $this->assertStringContainsString('403', $this->body($long));
+        $this->assertSame('Mine', DB::table('addressbookinstances')->where('id', $share->getKey())->value('displayname'));
+
+        $this->dav('PROPPATCH', $url, 'bob', $this->bobToken, ['Content-Type' => 'application/xml'], $this->deadProperty('mine'))->assertStatus(207);
+        $this->assertStringNotContainsString('mine', $this->body($this->dav('PROPFIND', '/dav/addressbooks/ada/default/', 'ada', $this->adaToken, ['Depth' => '0'], '<?xml version="1.0"?><d:propfind xmlns:d="DAV:" xmlns:x="urn:example"><d:prop><x:note/></d:prop></d:propfind>')->assertStatus(207)));
+    }
+
+    public function test_deleting_the_shared_book_removes_only_the_share(): void
     {
         $this->putCard('/dav/addressbooks/ada/default/zed.vcf', 'zed', 'Zed Zebra');
 
         foreach ([SharingService::READ, SharingService::READ_WRITE] as $access) {
             $share = $this->share($access);
             $url = $this->shareUrl($share);
+            $path = 'addressbooks/bob/'.$share->uri;
+            $this->dav('PROPPATCH', $url, 'bob', $this->bobToken, ['Content-Type' => 'application/xml'], $this->deadProperty('mine'))->assertStatus(207);
+            $this->assertGreaterThan(0, DB::table('propertystorage')->where('path', $path)->count());
+            $home = $this->syncToken($this->sync('/dav/addressbooks/bob/', 'bob', $this->bobToken));
             $before = $this->ownerState();
 
-            $options = $this->dav('OPTIONS', $url, 'bob', $this->bobToken)->assertOk();
-            $this->assertStringNotContainsString('sharing', (string) $options->headers->get('DAV'));
+            $this->dav('DELETE', $url, 'bob', $this->bobToken)->assertNoContent();
 
-            $collection = $this->privileges($this->body($this->dav('PROPFIND', $url, 'bob', $this->bobToken, ['Depth' => '0'], $this->propfind('<d:current-user-privilege-set/><d:acl/>'))->assertStatus(207)));
-            $this->assertContains('read', $collection);
-            foreach (['all', 'write', 'write-properties', 'write-content', 'bind', 'unbind', 'share'] as $privilege) {
-                $this->assertNotContains($privilege, $collection);
-            }
-
-            $card = $this->privileges($this->body($this->dav('PROPFIND', $url.'zed.vcf', 'bob', $this->bobToken, ['Depth' => '0'], $this->propfind('<d:current-user-privilege-set/>'))->assertStatus(207)));
-            $this->assertContains('read', $card);
-            foreach (['all', 'write', 'write-properties', 'write-content', 'bind', 'unbind'] as $privilege) {
-                $this->assertNotContains($privilege, $card);
-            }
-
-            $acl = $this->body($this->dav('PROPFIND', $url, 'bob', $this->bobToken, ['Depth' => '0'], $this->propfind('<d:acl/>'))->assertStatus(207));
-            $this->assertStringNotContainsString('authenticated', $acl);
-
-            $this->dav('PUT', $url.'new.vcf', 'bob', $this->bobToken, ['Content-Type' => 'text/vcard'], $this->card('new', 'New'))->assertForbidden();
-            $etag = (string) $this->dav('GET', $url.'zed.vcf', 'bob', $this->bobToken)->assertOk()->headers->get('ETag');
-            $this->dav('PUT', $url.'zed.vcf', 'bob', $this->bobToken, ['Content-Type' => 'text/vcard', 'If-Match' => $etag], $this->card('zed', 'Changed'))->assertForbidden();
-            $this->dav('DELETE', $url.'zed.vcf', 'bob', $this->bobToken)->assertForbidden();
-            $this->dav('PROPPATCH', $url, 'bob', $this->bobToken, ['Content-Type' => 'application/xml'], $this->rename())->assertForbidden();
-            $this->dav('PROPPATCH', $url.'zed.vcf', 'bob', $this->bobToken, ['Content-Type' => 'application/xml'], $this->rename())->assertForbidden();
-            $this->dav('MOVE', $url.'zed.vcf', 'bob', $this->bobToken, [
-                'Destination' => 'http://localhost/dav/addressbooks/bob/default/moved.vcf',
-                'Overwrite' => 'F',
-            ])->assertForbidden();
-            $this->dav('LOCK', $url.'zed.vcf', 'bob', $this->bobToken, ['Content-Type' => 'application/xml'], $this->lockInfo())->assertForbidden();
-            $this->dav('LOCK', $url, 'bob', $this->bobToken, ['Content-Type' => 'application/xml'], $this->lockInfo())->assertForbidden();
-            $this->dav('DELETE', $url, 'bob', $this->bobToken)->assertForbidden();
-            $this->dav('MKCOL', $url.'inner/', 'bob', $this->bobToken)->assertForbidden();
-
-            $this->assertSame($before, $this->ownerState());
+            $this->assertSame(0, DB::table('addressbookinstances')->where('principaluri', 'principals/bob')->count());
             $this->assertSame(1, DB::table('addressbooks')->where('principaluri', 'principals/ada')->count());
-            $this->assertSame(1, DB::table('addressbookinstances')->where('id', $share->getKey())->count());
+            $this->assertSame($before, $this->ownerState());
+            $this->assertSame(0, DB::table('propertystorage')->where('path', $path)->orWhere('path', 'like', $path.'/%')->count());
             $this->dav('GET', '/dav/addressbooks/ada/default/zed.vcf', 'ada', $this->adaToken)->assertOk();
+            $this->dav('PROPFIND', $url, 'bob', $this->bobToken, ['Depth' => '0'])->assertNotFound();
 
-            app(SharingService::class)->unshare($this->book(), $this->bob);
+            $removed = $this->body($this->sync('/dav/addressbooks/bob/', 'bob', $this->bobToken, $home)->assertStatus(207));
+            $this->assertStringContainsString('/dav/addressbooks/bob/'.$share->uri, $removed);
+            $this->assertStringContainsString('404', $removed);
         }
     }
 
-    public function test_a_share_does_not_use_the_default_card_acl(): void
+    public function test_the_default_address_book_of_the_sharee_is_not_touched_by_leaving_a_share(): void
     {
         $this->putCard('/dav/addressbooks/ada/default/zed.vcf', 'zed', 'Zed Zebra');
+        $this->dav('PUT', '/dav/addressbooks/bob/default/mine.vcf', 'bob', $this->bobToken, ['Content-Type' => 'text/vcard'], $this->card('mine', 'Mine'))->assertCreated();
         $share = $this->share(SharingService::READ_WRITE);
-        $url = $this->shareUrl($share);
 
-        // sabre's getChild builds a card with no ACL of its own, which falls
-        // back to everything for the sharee.
-        $this->dav('PUT', $url.'zed.vcf', 'bob', $this->bobToken, ['Content-Type' => 'text/vcard'], $this->card('zed', 'Changed'))->assertForbidden();
-        $this->dav('DELETE', $url.'zed.vcf', 'bob', $this->bobToken)->assertForbidden();
-        $this->assertStringContainsString('FN:Zed Zebra', $this->body($this->dav('GET', '/dav/addressbooks/ada/default/zed.vcf', 'ada', $this->adaToken)->assertOk()));
+        $this->dav('DELETE', $this->shareUrl($share), 'bob', $this->bobToken)->assertNoContent();
+
+        $this->dav('GET', '/dav/addressbooks/bob/default/mine.vcf', 'bob', $this->bobToken)->assertOk();
+        $this->assertSame(1, DB::table('addressbooks')->where('principaluri', 'principals/bob')->count());
     }
 
     public function test_an_owner_change_reaches_the_sharee_as_one_incremental_change(): void
@@ -428,9 +569,14 @@ class SharedAddressBooksTest extends TestCase
         return '<?xml version="1.0"?><card:addressbook-multiget xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav"><d:prop><d:getetag/><card:address-data/></d:prop><d:href>'.$href.'</d:href></card:addressbook-multiget>';
     }
 
-    private function rename(): string
+    private function rename(string $name = 'Mine'): string
     {
-        return '<?xml version="1.0"?><d:propertyupdate xmlns:d="DAV:"><d:set><d:prop><d:displayname>Mine</d:displayname></d:prop></d:set></d:propertyupdate>';
+        return '<?xml version="1.0"?><d:propertyupdate xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav"><d:set><d:prop><d:displayname>'.$name.'</d:displayname><card:addressbook-description>My people</card:addressbook-description></d:prop></d:set></d:propertyupdate>';
+    }
+
+    private function deadProperty(string $value): string
+    {
+        return '<?xml version="1.0"?><d:propertyupdate xmlns:d="DAV:" xmlns:x="urn:example"><d:set><d:prop><x:note>'.$value.'</x:note></d:prop></d:set></d:propertyupdate>';
     }
 
     private function lockInfo(): string

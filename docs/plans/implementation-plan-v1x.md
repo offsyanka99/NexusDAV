@@ -14,7 +14,7 @@ The work is split into five milestones and 31 PRs, listed in the order they are 
 
 Sources: [guide](../guide.md), [apps](../apps/README.md), the [admin panel](../apps/admin.md) description, the design notes for [Settings](../design/admin-settings.md), [Configuration](../design/admin-configuration.md) and the [Dashboard](../design/admin-dashboard.md), the pinned WebDAV-Push draft, and the current code.
 
-**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is in progress: PR 20 to PR 23 are done (PR 23 passed the client test), PR 24 (shared address books, reading and sync) is implemented with its client test open, and PR 25 (writing and leaving a share) is next. M4 and M5 are not started. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
+**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is in progress: PR 20 to PR 23 are done (PR 23 passed the client test), PR 24 (shared address books, reading and sync) and PR 25 (writing and leaving a share) are implemented with their client test open, and PR 26 (received shares in the panel and the Sharing switch) is next. M4 and M5 are not started. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
 
 Effort levels are the same as in Version 1:
 - **Low** — small, mostly boilerplate or config
@@ -46,7 +46,7 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 | 14 | PR 22 | M3 | Share management in the admin panel (done) | High | 11, 21 |
 | 15 | PR 23 | M3 | Shared calendars over DAV and the Sharing switch (done) | High | 14, 21 |
 | 16 | PR 24 | M3 | Shared address books: reading and sync (merged; client test open) | High | 14, 21 |
-| 17 | PR 25 | M3 | Shared address books: writing and leaving a share | High | 16, 24 |
+| 17 | PR 25 | M3 | Shared address books: writing and leaving a share (merged; client test open) | High | 16, 24 |
 | 18 | PR 26 | M3 | Received shares, the Sharing switch in the panel, and the Dashboard | Medium | 22, 23 |
 | 19 | PR 27 | M3 | M3 release | Medium | 19, 21–26 |
 | 20 | PR 28 | M4 | File home: storage, isolation and basic methods | High | — |
@@ -471,7 +471,7 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 - Still open: the hand test with DAVx5 (and jtx Board) and Thunderbird on a shared calendar, read only and read and write.
 ### PR 24 — Shared address books: reading and sync (Effort: High) — implemented
 
-**Built:** `AddressBookNode` (the shared node: privileges from the share, never from `DAV:owner`; it refuses write, rename and `DELETE`, so sabre's stock delete cannot remove the owner's book; a card gets its own read-only ACL, because sabre's `getChild` builds one with none), `AddressBookHome` (builds the shared node for a share and sabre's for an owned book), and `AddressBookBackend::getAddressBooksForUser` (appends the sharee's shares with the owner's id, sync token and ctag, hidden when Sharing is off). The shared node refuses a bare change number as a sync token. Every share is served read-only, whatever access the panel stored. PR 25 lifts that.
+**Built:** `AddressBookNode` (the shared node: privileges from the share, never from `DAV:owner`; it refuses write, rename and `DELETE`, so sabre's stock delete cannot remove the owner's book; a card gets its own read-only ACL, because sabre's `getChild` builds one with none), `AddressBookHome` (builds the shared node for a share and sabre's for an owned book), and `AddressBookBackend::getAddressBooksForUser` (appends the sharee's shares with the owner's id, sync token and ctag, hidden when Sharing is off). The shared node refuses a bare change number as a sync token. PR 24 served every share read-only; PR 25 lifted that.
 
 **Client test (open):** the maintainer checks a shared address book in DAVx5 and Thunderbird: it lists and syncs, it is read-only, and an owner change arrives as one incremental sync.
 
@@ -484,7 +484,11 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 
 **Done when:** a shared address book syncs read-only in DAVx5 and Thunderbird, an incremental sync after an owner change returns only that change, and non-sharees get 404.
 
-### PR 25 — Shared address books: writing and leaving a share (Effort: High)
+### PR 25 — Shared address books: writing and leaving a share (Effort: High) — implemented
+
+**Built:** `AddressBookNode` takes its privileges from the share (read only: `read` and `write-properties` on the book; read and write: `read` and `write`; never `all` or `share`). A write goes to the owner's book, so the owner's token and change log move. `AddressBookBackend::updateShare` keeps the sharee's name and description on their own row, with no change row. `leaveShare` is the node's `delete`: it removes the sharee's row and the locks and properties under their path. The owner's book and cards are never touched by those two. Tests: reads and writes through a read-write share seen by the owner and another sharee, read-only refusals (also after the access is lowered), rename, leaving a share, and the two-path `If-Match` race for a contact (`ConcurrentWritesTest`).
+
+**Client test (open):** DAVx5 and Thunderbird, a contact changed through a read-write share reaches the owner's client and the other way round.
 
 - **Read-write shares:** the sharee can create, change and delete contacts. The owner's sync token and change log move, so the owner's clients and other sharees see the change.
 - The sharee's own display name (`PROPPATCH`) is stored with the share, not on the owner's address book.
