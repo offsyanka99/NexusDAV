@@ -19,7 +19,10 @@ class FirstAdminTest extends TestCase
         $this->setEnv('ADMIN_EMAIL', 'Admin.User+tag@example.com');
         $this->setEnv('ADMIN_PASSWORD', 'correct-horse-battery');
 
-        $this->artisan('nexusdav:prepare')->assertSuccessful();
+        $this->artisan('nexusdav:prepare')
+            ->expectsOutputToContain('NexusDAV v')
+            ->expectsOutputToContain('GitHub: https://github.com/offsyanka99/NexusDAV')
+            ->assertSuccessful();
 
         $admin = User::query()->sole();
         $before = $admin->getAttributes();

@@ -10,6 +10,7 @@ use App\Services\UserService;
 use App\Support\PanelErrorTranslator;
 use Closure;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -99,59 +100,61 @@ class AddressBooksRelationManager extends RelationManager
                     }),
             ])
             ->recordActions([
-                Action::make('edit')
-                    ->label(__('Edit'))
-                    ->icon(Heroicon::OutlinedPencilSquare)
-                    ->modalSubmitActionLabel(__('Save'))
-                    ->fillForm(fn (AddressBook $record): array => [
-                        'uri' => (string) $record->uri,
-                        'display_name' => (string) $record->displayname,
-                        'description' => (string) ($record->description ?? ''),
-                    ])
-                    ->schema([
-                        $this->uriField(true),
-                        $this->displayNameField(),
-                        $this->descriptionField(),
-                    ])
-                    ->action(function (AddressBook $record, array $data): void {
-                        try {
-                            app(CollectionService::class)->updateAddressBook(
-                                $this->owner(),
-                                $record,
-                                (string) ($data['display_name'] ?? ''),
-                                isset($data['description']) ? (string) $data['description'] : null,
-                            );
-                        } catch (InvalidArgumentException $exception) {
+                ActionGroup::make([
+                    Action::make('edit')
+                        ->label(__('Edit'))
+                        ->icon(Heroicon::OutlinedPencilSquare)
+                        ->modalSubmitActionLabel(__('Save'))
+                        ->fillForm(fn (AddressBook $record): array => [
+                            'uri' => (string) $record->uri,
+                            'display_name' => (string) $record->displayname,
+                            'description' => (string) ($record->description ?? ''),
+                        ])
+                        ->schema([
+                            $this->uriField(true),
+                            $this->displayNameField(),
+                            $this->descriptionField(),
+                        ])
+                        ->action(function (AddressBook $record, array $data): void {
+                            try {
+                                app(CollectionService::class)->updateAddressBook(
+                                    $this->owner(),
+                                    $record,
+                                    (string) ($data['display_name'] ?? ''),
+                                    isset($data['description']) ? (string) $data['description'] : null,
+                                );
+                            } catch (InvalidArgumentException $exception) {
+                                Notification::make()
+                                    ->danger()
+                                    ->title(__('Could not save the address book'))
+                                    ->body(PanelErrorTranslator::translate($exception->getMessage()))
+                                    ->send();
+
+                                throw new Halt;
+                            }
+
                             Notification::make()
-                                ->danger()
-                                ->title(__('Could not save the address book'))
-                                ->body(PanelErrorTranslator::translate($exception->getMessage()))
+                                ->success()
+                                ->title(__('Address book saved'))
                                 ->send();
+                        }),
+                    CollectionShareAction::make(),
+                    CollectionShareAction::list(),
+                    Action::make('delete')
+                        ->label(__('Delete'))
+                        ->icon(Heroicon::OutlinedTrash)
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalDescription(__('The address book, its contacts, and its shares will be deleted.'))
+                        ->action(function (AddressBook $record): void {
+                            app(CollectionService::class)->deleteAddressBook($this->owner(), $record);
 
-                            throw new Halt;
-                        }
-
-                        Notification::make()
-                            ->success()
-                            ->title(__('Address book saved'))
-                            ->send();
-                    }),
-                CollectionShareAction::make(),
-                CollectionShareAction::list(),
-                Action::make('delete')
-                    ->label(__('Delete'))
-                    ->icon(Heroicon::OutlinedTrash)
-                    ->color('danger')
-                    ->requiresConfirmation()
-                    ->modalDescription(__('The address book, its contacts, and its shares will be deleted.'))
-                    ->action(function (AddressBook $record): void {
-                        app(CollectionService::class)->deleteAddressBook($this->owner(), $record);
-
-                        Notification::make()
-                            ->success()
-                            ->title(__('Address book deleted'))
-                            ->send();
-                    }),
+                            Notification::make()
+                                ->success()
+                                ->title(__('Address book deleted'))
+                                ->send();
+                        }),
+                ])->iconButton(),
             ]);
     }
 

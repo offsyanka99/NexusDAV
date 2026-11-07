@@ -11,6 +11,7 @@ use App\Services\UserService;
 use App\Support\PanelErrorTranslator;
 use Closure;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\Textarea;
@@ -119,73 +120,75 @@ class CalendarsRelationManager extends RelationManager
                     }),
             ])
             ->recordActions([
-                Action::make('edit')
-                    ->label(__('Edit'))
-                    ->icon(Heroicon::OutlinedPencilSquare)
-                    ->modalSubmitActionLabel(__('Save'))
-                    ->fillForm(function (CalendarInstance $record): array {
-                        $record->loadMissing('calendar');
-                        $components = (string) $record->calendar->components;
+                ActionGroup::make([
+                    Action::make('edit')
+                        ->label(__('Edit'))
+                        ->icon(Heroicon::OutlinedPencilSquare)
+                        ->modalSubmitActionLabel(__('Save'))
+                        ->fillForm(function (CalendarInstance $record): array {
+                            $record->loadMissing('calendar');
+                            $components = (string) $record->calendar->components;
 
-                        return [
-                            'uri' => (string) $record->uri,
-                            'display_name' => (string) $record->displayname,
-                            'description' => (string) ($record->description ?? ''),
-                            'color' => $this->formColor($record->calendarcolor),
-                            'tasks' => str_contains($components, 'VTODO'),
-                            'notes' => str_contains($components, 'VJOURNAL'),
-                        ];
-                    })
-                    ->schema([
-                        $this->uriField(true),
-                        $this->displayNameField(),
-                        $this->descriptionField(),
-                        $this->colorField(),
-                        $this->tasksField(),
-                        $this->notesField(),
-                    ])
-                    ->action(function (CalendarInstance $record, array $data): void {
-                        try {
-                            app(CollectionService::class)->updateCalendar(
-                                $this->owner(),
-                                $record,
-                                (string) ($data['display_name'] ?? ''),
-                                isset($data['description']) ? (string) $data['description'] : null,
-                                (string) ($data['color'] ?? ''),
-                                (bool) ($data['tasks'] ?? false),
-                                (bool) ($data['notes'] ?? false),
-                            );
-                        } catch (InvalidArgumentException $exception) {
+                            return [
+                                'uri' => (string) $record->uri,
+                                'display_name' => (string) $record->displayname,
+                                'description' => (string) ($record->description ?? ''),
+                                'color' => $this->formColor($record->calendarcolor),
+                                'tasks' => str_contains($components, 'VTODO'),
+                                'notes' => str_contains($components, 'VJOURNAL'),
+                            ];
+                        })
+                        ->schema([
+                            $this->uriField(true),
+                            $this->displayNameField(),
+                            $this->descriptionField(),
+                            $this->colorField(),
+                            $this->tasksField(),
+                            $this->notesField(),
+                        ])
+                        ->action(function (CalendarInstance $record, array $data): void {
+                            try {
+                                app(CollectionService::class)->updateCalendar(
+                                    $this->owner(),
+                                    $record,
+                                    (string) ($data['display_name'] ?? ''),
+                                    isset($data['description']) ? (string) $data['description'] : null,
+                                    (string) ($data['color'] ?? ''),
+                                    (bool) ($data['tasks'] ?? false),
+                                    (bool) ($data['notes'] ?? false),
+                                );
+                            } catch (InvalidArgumentException $exception) {
+                                Notification::make()
+                                    ->danger()
+                                    ->title(__('Could not save the calendar'))
+                                    ->body(PanelErrorTranslator::translate($exception->getMessage()))
+                                    ->send();
+
+                                throw new Halt;
+                            }
+
                             Notification::make()
-                                ->danger()
-                                ->title(__('Could not save the calendar'))
-                                ->body(PanelErrorTranslator::translate($exception->getMessage()))
+                                ->success()
+                                ->title(__('Calendar saved'))
                                 ->send();
+                        }),
+                    CollectionShareAction::make(),
+                    CollectionShareAction::list(),
+                    Action::make('delete')
+                        ->label(__('Delete'))
+                        ->icon(Heroicon::OutlinedTrash)
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalDescription(__('The calendar and its events, tasks, notes, and shares will be deleted.'))
+                        ->action(function (CalendarInstance $record): void {
+                            app(CollectionService::class)->deleteCalendar($this->owner(), $record);
 
-                            throw new Halt;
-                        }
-
-                        Notification::make()
-                            ->success()
-                            ->title(__('Calendar saved'))
-                            ->send();
-                    }),
-                CollectionShareAction::make(),
-                CollectionShareAction::list(),
-                Action::make('delete')
-                    ->label(__('Delete'))
-                    ->icon(Heroicon::OutlinedTrash)
-                    ->color('danger')
-                    ->requiresConfirmation()
-                    ->modalDescription(__('The calendar and its events, tasks, notes, and shares will be deleted.'))
-                    ->action(function (CalendarInstance $record): void {
-                        app(CollectionService::class)->deleteCalendar($this->owner(), $record);
-
-                        Notification::make()
-                            ->success()
-                            ->title(__('Calendar deleted'))
-                            ->send();
-                    }),
+                            Notification::make()
+                                ->success()
+                                ->title(__('Calendar deleted'))
+                                ->send();
+                        }),
+                ])->iconButton(),
             ]);
     }
 

@@ -30,6 +30,9 @@ class PrepareApplication extends Command
             return self::FAILURE;
         }
 
+        $this->line('NexusDAV v'.$this->version());
+        $this->line('GitHub: https://github.com/offsyanka99/NexusDAV');
+
         $migrated = $this->call('migrate', ['--force' => true]);
 
         if ($migrated !== self::SUCCESS) {
@@ -104,6 +107,13 @@ class PrepareApplication extends Command
         }
 
         return 'Could not create the first admin because the database rejected the insert.';
+    }
+
+    private function version(): string
+    {
+        $version = config('nexusdav.version');
+
+        return is_string($version) && $version !== '' ? $version : 'dev';
     }
 
     private function read(string $name): ?string
