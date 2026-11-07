@@ -113,6 +113,8 @@ class CollectionSharesTable extends Component implements HasActions, HasSchemas,
                                 ->options(CollectionShareAction::accessOptions())
                                 ->default(SharingService::READ)
                                 ->selectablePlaceholder(false)
+                                // The info icon is the first focusable element, and its tooltip opens on focus.
+                                ->autofocus()
                                 ->required(),
                         ])
                         ->action(function (EloquentCollection $records, array $data): void {
