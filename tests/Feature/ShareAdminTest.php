@@ -7,6 +7,7 @@ use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Filament\Resources\Users\RelationManagers\AddressBooksRelationManager;
 use App\Filament\Resources\Users\RelationManagers\CalendarsRelationManager;
+use App\Livewire\CollectionSharesTable;
 use App\Models\AddressBook;
 use App\Models\AddressBookInstance;
 use App\Models\CalendarInstance;
@@ -14,6 +15,7 @@ use App\Models\User;
 use App\Services\AppPasswordService;
 use App\Services\Dav\SharingService;
 use App\Services\UserService;
+use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -74,7 +76,7 @@ class ShareAdminTest extends TestCase
                 ->mountTableAction('share', $record)
                 ->assertMountedActionModalSee('Thunderbird keeps its own Read-only flag.')
                 ->assertMountedActionModalSee('>Access<svg', false)
-                ->assertSchemaComponentExists('sharee_id', checkComponentUsing: function (Select $select) use ($ada, $bob, $carol, $dave): bool {
+                ->assertSchemaComponentExists('sharee_ids', checkComponentUsing: function (Select $select) use ($ada, $bob, $carol, $dave): bool {
                     $empty = $select->getSearchResults('');
                     $this->assertTrue($this->hasId($empty, (int) $carol->getKey()));
                     $this->assertTrue($this->hasId($empty, (int) $dave->getKey()));
@@ -106,16 +108,104 @@ class ShareAdminTest extends TestCase
                     'pageClass' => EditUser::class,
                 ])
                     ->callTableAction('share', $record, data: [
-                        'sharee_id' => $excluded->getKey(),
+                        'sharee_ids' => [$excluded->getKey()],
                         'share_access' => SharingService::READ_WRITE,
                     ])
-                    ->assertHasFormErrors(['sharee_id']);
+                    ->assertHasFormErrors(['sharee_ids']);
             }
 
             $sharees = $sharing->sharees($record);
             $this->assertCount(1, $sharees);
             $this->assertSame(SharingService::READ, (int) $sharees->first()?->getAttribute('access'));
             $this->assertSame('principals/bob', (string) $sharees->first()?->getAttribute('principaluri'));
+        }
+    }
+
+    public function test_several_users_are_shared_with_at_one_access_level_per_submit(): void
+    {
+        $ada = $this->user('ada', 'Ada Lovelace');
+        $users = [];
+
+        foreach (['u1', 'u2', 'u3', 'u4', 'u5'] as $name) {
+            $users[$name] = $this->user($name, strtoupper($name));
+        }
+
+        foreach ([true, false] as $calendar) {
+            $record = $calendar ? $this->calendar($ada) : $this->book($ada);
+            $manager = $calendar ? CalendarsRelationManager::class : AddressBooksRelationManager::class;
+            $table = fn () => Livewire::test($manager, ['ownerRecord' => $ada, 'pageClass' => EditUser::class]);
+
+            $table()->callTableAction('share', $record, data: [
+                'sharee_ids' => [$users['u1']->getKey(), $users['u3']->getKey(), $users['u4']->getKey()],
+                'share_access' => SharingService::READ,
+            ])->assertHasNoTableActionErrors()->assertNotified('Shares saved');
+
+            $table()->callTableAction('share', $record, data: [
+                'sharee_ids' => [$users['u2']->getKey(), $users['u5']->getKey()],
+                'share_access' => SharingService::READ_WRITE,
+            ])->assertHasNoTableActionErrors();
+
+            foreach (['u1' => 2, 'u3' => 2, 'u4' => 2, 'u2' => 3, 'u5' => 3] as $name => $access) {
+                $this->assertSame($access, (int) $this->shareFor($record, $users[$name])->getAttribute('access'), $name);
+            }
+
+            $table()->assertTableColumnStateSet('sharees_count', '5', $record);
+
+            $table()->callTableAction('share', $record, data: [
+                'sharee_ids' => [$users['u1']->getKey(), $users['u5']->getKey()],
+                'share_access' => SharingService::READ,
+            ])->assertHasFormErrors(['sharee_ids']);
+
+            $table()->callTableAction('share', $record, data: ['sharee_ids' => [], 'share_access' => SharingService::READ])
+                ->assertHasFormErrors(['sharee_ids' => 'required']);
+        }
+    }
+
+    public function test_the_shared_with_table_sets_access_and_removes_several_at_once(): void
+    {
+        $ada = $this->user('ada', 'Ada Lovelace');
+        $names = ['u1', 'u2', 'u3', 'u4'];
+        $users = [];
+        $sharing = app(SharingService::class);
+
+        foreach ($names as $name) {
+            $users[$name] = $this->user($name, 'User '.$name);
+        }
+
+        foreach ([true, false] as $calendar) {
+            $record = $calendar ? $this->calendar($ada) : $this->book($ada);
+
+            foreach ($users as $user) {
+                $sharing->share($record, $user, SharingService::READ);
+            }
+
+            $shares = array_map(fn (User $user) => $this->shareFor($record, $user), $users);
+            $list = Livewire::test(CollectionSharesTable::class, [
+                'kind' => $calendar ? CollectionSharesTable::CALENDAR : CollectionSharesTable::ADDRESS_BOOK,
+                'collectionId' => (int) $record->getKey(),
+            ]);
+
+            $list->assertCountTableRecords(4)
+                ->searchTable('User u3')
+                ->assertCanSeeTableRecords([$shares['u3']])
+                ->assertCanNotSeeTableRecords([$shares['u1']])
+                ->searchTable(null)
+                ->selectTableRecords([$shares['u1']->getKey(), $shares['u3']->getKey(), $shares['u4']->getKey()])
+                ->callAction(TestAction::make('setAccess')->table()->bulk(), data: ['access' => SharingService::READ_WRITE])
+                ->assertNotified('Shares saved');
+
+            foreach (['u1' => 3, 'u2' => 2, 'u3' => 3, 'u4' => 3] as $name => $access) {
+                $this->assertSame($access, (int) $this->shareFor($record, $users[$name])->getAttribute('access'), $name);
+            }
+
+            $list->selectTableRecords([$shares['u2']->getKey(), $shares['u4']->getKey()])
+                ->callAction(TestAction::make('remove')->table()->bulk())
+                ->assertNotified('Shares removed');
+
+            $this->assertCount(2, $sharing->sharees($record));
+            $this->assertNull($this->shareOrNull($record, $users['u2']));
+            $this->assertNull($this->shareOrNull($record, $users['u4']));
+            $this->assertNotNull($this->shareOrNull($record, $users['u1']));
         }
     }
 
@@ -143,7 +233,7 @@ class ShareAdminTest extends TestCase
             'pageClass' => EditUser::class,
         ])
             ->callTableAction('share', $calendar, data: [
-                'sharee_id' => $bob->getKey(),
+                'sharee_ids' => [$bob->getKey()],
                 'share_access' => SharingService::READ,
             ])
             ->assertHasNoTableActionErrors()
@@ -241,7 +331,7 @@ class ShareAdminTest extends TestCase
         $table()
             ->assertTableColumnStateSet('sharees_count', '0', $record)
             ->callTableAction('share', $record, data: [
-                'sharee_id' => $bob->getKey(),
+                'sharee_ids' => [$bob->getKey()],
                 'share_access' => SharingService::READ,
             ])
             ->assertHasNoTableActionErrors()
@@ -254,7 +344,7 @@ class ShareAdminTest extends TestCase
 
         $table()
             ->callTableAction('share', $record, data: [
-                'sharee_id' => $carol->getKey(),
+                'sharee_ids' => [$carol->getKey()],
                 'share_access' => SharingService::READ_WRITE,
             ])
             ->assertHasNoTableActionErrors()
@@ -266,43 +356,28 @@ class ShareAdminTest extends TestCase
         $this->assertSame(SharingService::READ_WRITE, (int) $carolShare->getAttribute('access'));
         $this->assertCount(2, $sharing->sharees($record));
 
-        $page = $table()->mountTableAction('share', $record)
-            ->assertMountedActionModalSee('Bob Baker')
-            ->assertMountedActionModalSee('Carol Clark')
-            ->assertMountedActionModalSee('Thunderbird keeps its own Read-only flag.')
-            ->assertMountedActionModalSee('>Access<svg', false);
-        $state = $page->instance()->mountedActions[0]['data'];
+        $list = fn () => Livewire::test(CollectionSharesTable::class, [
+            'kind' => $calendar ? CollectionSharesTable::CALENDAR : CollectionSharesTable::ADDRESS_BOOK,
+            'collectionId' => (int) $record->getKey(),
+        ]);
 
-        foreach ($state['shares'] as $key => $item) {
-            if ((int) $item['user_id'] === (int) $bob->getKey()) {
-                $state['shares'][$key]['access'] = SharingService::READ_WRITE;
-            }
-        }
+        $table()->mountTableAction('sharedWith', $record)
+            ->assertMountedActionModalSee('Shared with');
 
-        $page->setTableActionData(['shares' => $state['shares']])
-            ->callMountedTableAction()
-            ->assertHasNoTableActionErrors()
-            ->assertNotified('Shares saved');
+        $list()
+            ->assertCanSeeTableRecords([$bobShare, $carolShare])
+            ->assertSee('Bob Baker')
+            ->assertSee('Carol Clark')
+            ->assertSee('Thunderbird keeps its own Read-only flag.')
+            ->call('updateTableColumnState', 'access', $bobShare->getKey(), SharingService::READ_WRITE);
 
         $this->assertSame($bobShare->getKey(), $bobShare->fresh()?->getKey());
         $this->assertSame(SharingService::READ_WRITE, (int) $bobShare->fresh()?->getAttribute('access'));
         $this->assertSame(SharingService::READ_WRITE, (int) $carolShare->fresh()?->getAttribute('access'));
         $this->assertCount(2, $sharing->sharees($record));
 
-        $page = $table()->mountTableAction('share', $record);
-        $itemKey = null;
-
-        foreach ($page->instance()->mountedActions[0]['data']['shares'] as $key => $item) {
-            if ((int) $item['user_id'] === (int) $carol->getKey()) {
-                $itemKey = $key;
-            }
-        }
-
-        $this->assertNotNull($itemKey);
-
-        $page->mountFormComponentAction('shares', 'delete', ['item' => $itemKey], 'mountedActionSchema0')
-            ->assertMountedActionModalSee("This share will be removed. The owner's items stay.")
-            ->callMountedFormComponentAction()
+        $list()
+            ->callAction(TestAction::make('remove')->table($carolShare))
             ->assertNotified('Share removed');
 
         $this->assertNull($carolShare->fresh());
@@ -344,6 +419,11 @@ class ShareAdminTest extends TestCase
             ->where('principaluri', $user->principal_uri)
             ->where('uri', 'default')
             ->firstOrFail();
+    }
+
+    private function shareOrNull(CalendarInstance|AddressBook $record, User $sharee): CalendarInstance|AddressBookInstance|null
+    {
+        return app(SharingService::class)->sharees($record)->firstWhere('principaluri', $sharee->principal_uri);
     }
 
     private function shareFor(CalendarInstance|AddressBook $record, User $sharee): CalendarInstance|AddressBookInstance

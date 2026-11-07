@@ -382,7 +382,7 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 
 **Status:** [sharing.md](../design/sharing.md) records the decisions (`addressbookinstances`, the share URI, the home sync token, and `DAV:owner` as the sharee's principal). **Done:** the prototype ran on a lab server and passed the scripted DAV checks for read-only and read-write shares of an address book and of a calendar, and for leaving a share. In the clients, read-only and read-write address book shares work in DAVx5 and Thunderbird; Thunderbird keeps its own Read-only flag after the access changes, and neither client can delete a shared book ([findings](../design/sharing.md#findings-from-the-prototype)). The spike found three things for later PRs: the PostgreSQL share index and the write lock keyed on the path (PR 21 and PR 23, above), and that renaming a shared calendar bumps the owner's sync token (PR 23). The prototype code was merged, and its branch, tag, and image were removed after these findings were recorded.
 
-### PR 21 — Share storage and `SharingService` (Effort: High)
+### PR 21 — Share storage and `SharingService` (Effort: High) — ✅ done
 
 - The migration for address book shares, in the shape chosen in PR 20.
 - Calendar shares use `calendarinstances` rows: access `2` (read) or `3` (read-write), invite status accepted, and `share_href` set to the sharee's principal.
@@ -413,13 +413,12 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 - **Found in review:** a share could be written for a user deleted a moment earlier, and the next user created with that username would have inherited it (and lost their own default calendar to the name clash). The principal lock now refuses a principal that no longer exists, and deleting a user takes the same lock. `MKCALENDAR` and the panel also re-read the instance table under the lock, so a share that took the name in the meantime is a 405 or the usual "That URI is already used", not a 500. Rolling the index migration back removes the calendar shares first, because sabre's index cannot hold two shares of one sharee and the earlier code would list a share as an owned calendar.
 - Tests: `SharingServiceTest` (21 tests, SQLite and PostgreSQL), including a retry after another writer takes the chosen name, a share for a deleted user, and `MKCOL` of a share's name answering 405. The migrations were also run, rolled back and run again on PostgreSQL with a user holding two calendar shares.
 
-### PR 22 — Share management in the admin panel (Effort: High)
+### PR 22 — Share management in the admin panel (Effort: High) — ✅ done
 
-- A **Share** action on each calendar and address book row of the user page. It opens a **Shared with** list:
-  - Each sharee with their access level
-  - Add a user, found by username, display name or email; the owner and current sharees are left out. Choose **Read only** or **Read and write**
-  - Change the access. The help text says that **Read and write** lets the sharee change and delete the owner's items for everyone, and that a client may need the calendar or address book set or added again after the access changes (Thunderbird keeps its own Read-only flag). The text is a tooltip on an information icon next to **Access**, reachable by keyboard
-  - Remove, with a confirmation
+- Two actions on each calendar and address book row of the user page:
+  - **Share** opens a small form: choose one or more users (found by username, display name or email; the owner and current sharees are left out) and one access level, **Read only** or **Read and write**. Submit again with other users and another level to share with groups at different levels
+  - **Shared with** opens a slide-over with a table of the sharees (search, filter by access, paging). Access is changed in the row, and a row can be removed with a confirmation. **Set access** and **Remove** also work on several selected rows at once
+  - The help text says that **Read and write** lets the sharee change and delete the owner's items for everyone, and that a client may need the calendar or address book set or added again after the access changes (Thunderbird keeps its own Read-only flag). The text is a tooltip on an information icon next to **Access**, reachable by keyboard
 - A shared indicator (number of sharees) in the Calendars and Address books tables.
 - The delete confirmations: deleting a collection says its shares are removed; deleting a user lists the shares they own and received.
 - English and Russian text.

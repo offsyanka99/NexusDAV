@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users;
 
+use App\Livewire\CollectionSharesTable;
 use App\Models\AddressBook;
 use App\Models\CalendarInstance;
 use App\Models\User;
@@ -9,13 +10,11 @@ use App\Services\Dav\SharingService;
 use App\Support\PanelErrorTranslator;
 use Closure;
 use Filament\Actions\Action;
-use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
-use Filament\Schemas\Components\Section;
-use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Livewire;
 use Filament\Support\Enums\IconSize;
+use Filament\Support\Enums\Width;
 use Filament\Support\Exceptions\Halt;
 use Filament\Support\Icons\Heroicon;
 use Filament\Support\View\ComponentAttributeBag as FilamentComponentAttributeBag;
@@ -39,48 +38,37 @@ final class CollectionShareAction
         return Action::make('share')
             ->label(__('Share'))
             ->icon(Heroicon::OutlinedShare)
-            ->modalHeading(__('Shared with'))
-            ->modalSubmitActionLabel(__('Save'))
-            ->fillForm(fn (CalendarInstance|AddressBook $record): array => self::formState($record))
+            ->modalHeading(__('Share'))
+            ->modalSubmitActionLabel(__('Share'))
+            ->fillForm(['sharee_ids' => [], 'share_access' => SharingService::READ])
             ->schema([
-                Repeater::make('shares')
-                    ->hiddenLabel()
-                    ->addable(false)
-                    ->reorderable(false)
-                    ->defaultItems(0)
-                    ->columnSpanFull()
-                    ->itemLabel(fn (array $state): ?string => is_string($state['sharee'] ?? null) ? $state['sharee'] : null)
-                    ->schema([
-                        Hidden::make('user_id'),
-                        Hidden::make('sharee'),
-                        Select::make('access')
-                            ->label(self::accessLabel())
-                            ->validationAttribute(__('Access'))
-                            ->options(self::accessOptions())
-                            ->selectablePlaceholder(false)
-                            ->required()
-                            ->rule(fn (): Closure => self::accessRule()),
-                    ])
-                    ->deleteAction(fn (Action $action): Action => $action
-                        ->label(__('Remove'))
-                        ->modalHeading(__('Remove share'))
-                        ->modalDescription(__("This share will be removed. The owner's items stay."))
-                        ->modalSubmitActionLabel(__('Remove'))
-                        ->requiresConfirmation()
-                        ->before(function (array $arguments, Repeater $component): void {
-                            self::remove($component, $arguments);
-                        })),
-                Section::make(__('Add a user'))
-                    ->compact()
-                    ->columnSpanFull()
-                    ->schema([
-                        self::userSelect(),
-                        self::accessSelect(),
-                    ]),
+                self::userSelect(),
+                self::accessSelect(),
             ])
             ->action(function (CalendarInstance|AddressBook $record, array $data): void {
                 self::save($record, $data);
             });
+    }
+
+    /**
+     * The people the collection is shared with, as a table that scrolls and
+     * pages inside a slide-over. Access and removal are changed there.
+     */
+    public static function list(): Action
+    {
+        return Action::make('sharedWith')
+            ->label(__('Shared with'))
+            ->icon(Heroicon::OutlinedUsers)
+            ->slideOver()
+            ->modalHeading(__('Shared with'))
+            ->modalWidth(Width::ThreeExtraLarge)
+            ->modalSubmitAction(false)
+            ->schema(fn (CalendarInstance|AddressBook $record): array => [
+                Livewire::make(CollectionSharesTable::class, [
+                    'kind' => $record instanceof CalendarInstance ? CollectionSharesTable::CALENDAR : CollectionSharesTable::ADDRESS_BOOK,
+                    'collectionId' => (int) $record->getKey(),
+                ])->key('shares-'.$record::class.'-'.$record->getKey()),
+            ]);
     }
 
     public static function column(): TextColumn
@@ -101,59 +89,30 @@ final class CollectionShareAction
         ]);
     }
 
-    /**
-     * @return array{shares: list<array{user_id: int, sharee: string, access: int}>, sharee_id: null, share_access: int}
-     */
-    private static function formState(CalendarInstance|AddressBook $record): array
-    {
-        $rows = app(SharingService::class)->sharees($record);
-        $users = self::usersByUsername(self::principals($rows));
-        $shares = [];
-
-        foreach ($rows as $share) {
-            $user = $users->get(self::username((string) $share->getAttribute('principaluri')));
-
-            if (! $user instanceof User) {
-                continue;
-            }
-
-            $shares[] = [
-                'user_id' => (int) $user->getKey(),
-                'sharee' => self::userLabel($user),
-                'access' => (int) $share->getAttribute('access'),
-            ];
-        }
-
-        return [
-            'shares' => $shares,
-            'sharee_id' => null,
-            'share_access' => SharingService::READ,
-        ];
-    }
-
     private static function userSelect(): Select
     {
-        return Select::make('sharee_id')
-            ->label(__('User'))
+        return Select::make('sharee_ids')
+            ->label(__('Users'))
+            ->multiple()
+            ->required()
             ->searchable()
             ->placeholder(__('Search by username, display name, or email.'))
             ->getSearchResultsUsing(function (Select $component, ?string $search): array {
                 return self::searchUsers(self::collectionFrom($component), $search);
             })
-            ->getOptionLabelUsing(function (mixed $value): ?string {
-                $id = self::userId($value);
-                $user = $id === null ? null : User::query()->find($id);
+            ->getOptionLabelsUsing(function (array $values): array {
+                $ids = array_values(array_filter(array_map(self::userId(...), $values)));
+                $labels = [];
 
-                return $user instanceof User ? self::userLabel($user) : null;
+                foreach (User::query()->whereKey($ids)->get() as $user) {
+                    $labels[(int) $user->getKey()] = self::userLabel($user);
+                }
+
+                return $labels;
             })
             ->rule(function (Select $component): Closure {
                 return function (string $attribute, mixed $value, Closure $fail) use ($component): void {
-                    if (blank($value)) {
-                        return;
-                    }
-
                     $record = self::collectionFrom($component);
-                    $id = self::userId($value);
 
                     if (! $record instanceof CalendarInstance && ! $record instanceof AddressBook) {
                         $fail(__('That user cannot be chosen.'));
@@ -161,10 +120,16 @@ final class CollectionShareAction
                         return;
                     }
 
-                    $user = $id === null ? null : User::query()->find($id);
+                    $excluded = self::excludedIds($record);
 
-                    if (! $user instanceof User || in_array($id, self::excludedIds($record), true)) {
-                        $fail(__('That user cannot be chosen.'));
+                    foreach (is_array($value) ? $value : [$value] as $item) {
+                        $id = self::userId($item);
+
+                        if ($id === null || in_array($id, $excluded, true) || ! User::query()->whereKey($id)->exists()) {
+                            $fail(__('That user cannot be chosen.'));
+
+                            return;
+                        }
                     }
                 };
             });
@@ -178,74 +143,48 @@ final class CollectionShareAction
             ->options(self::accessOptions())
             ->default(SharingService::READ)
             ->selectablePlaceholder(false)
-            ->required(fn (Get $get): bool => filled($get('sharee_id')))
-            ->rule(fn (Get $get): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get): void {
-                if (blank($get('sharee_id'))) {
-                    return;
-                }
-
-                if (self::accessValue($value) === null) {
-                    $fail(__('Access must be read only or read and write.'));
-                }
-            });
+            ->required()
+            ->rule(fn (): Closure => self::accessRule());
     }
 
     /**
-     * Saving updates access and adds a user. It does not remove anyone: a
-     * form that failed to refill would otherwise drop every share. Removal
-     * is the confirmed delete action.
+     * Shares the collection with every chosen user at one access level.
+     * Users who already have a share keep it: changing access or removing
+     * is done in the "Shared with" table.
      *
      * @param  array<string, mixed>  $data
      */
     private static function save(CalendarInstance|AddressBook $record, array $data): void
     {
-        $sharing = app(SharingService::class);
-        $current = $sharing->sharees($record);
-        $users = self::usersByUsername(self::principals($current));
-        $sharee = self::chosenSharee($record, $data['sharee_id'] ?? null, $data['share_access'] ?? null);
+        $excluded = self::excludedIds($record);
+        $access = self::accessValue($data['share_access'] ?? null);
 
-        /** @var array<int, int> $submitted */
-        $submitted = [];
-
-        foreach (is_array($data['shares'] ?? null) ? $data['shares'] : [] as $item) {
-            if (! is_array($item)) {
-                continue;
-            }
-
-            $id = self::userId($item['user_id'] ?? null);
-
-            if ($id === null) {
-                continue;
-            }
-
-            $access = self::accessValue($item['access'] ?? null);
-
-            if ($access === null) {
-                self::halt(__('Access must be read only or read and write.'));
-            }
-
-            $submitted[$id] = $access;
+        if ($access === null) {
+            self::halt(__('Access must be read only or read and write.'));
         }
 
-        try {
-            foreach ($current as $share) {
-                $user = $users->get(self::username((string) $share->getAttribute('principaluri')));
+        $users = [];
 
-                if (! $user instanceof User) {
-                    continue;
-                }
+        foreach (is_array($data['sharee_ids'] ?? null) ? $data['sharee_ids'] : [] as $item) {
+            $id = self::userId($item);
+            $user = $id === null ? null : User::query()->find($id);
 
-                $id = (int) $user->getKey();
-
-                if (! array_key_exists($id, $submitted) || $submitted[$id] === (int) $share->getAttribute('access')) {
-                    continue;
-                }
-
-                $sharing->changeAccess($record, $user, $submitted[$id]);
+            if (! $user instanceof User || in_array($id, $excluded, true)) {
+                self::halt(__('That user cannot be chosen.'));
             }
 
-            if ($sharee !== null) {
-                $sharing->share($record, $sharee['user'], $sharee['access']);
+            $users[$id] = $user;
+        }
+
+        if ($users === []) {
+            self::halt(__('That user cannot be chosen.'));
+        }
+
+        $sharing = app(SharingService::class);
+
+        try {
+            foreach ($users as $user) {
+                $sharing->share($record, $user, $access);
             }
         } catch (InvalidArgumentException $exception) {
             self::halt(PanelErrorTranslator::translate($exception->getMessage()));
@@ -257,64 +196,6 @@ final class CollectionShareAction
             ->success()
             ->title(__('Shares saved'))
             ->send();
-    }
-
-    /**
-     * @param  array<string, mixed>  $arguments
-     */
-    private static function remove(Repeater $component, array $arguments): void
-    {
-        $record = $component->getRecord();
-
-        if (! $record instanceof CalendarInstance && ! $record instanceof AddressBook) {
-            self::halt(__('That collection no longer exists.'));
-        }
-
-        $state = $component->getRawState();
-        $itemKey = $arguments['item'] ?? null;
-        $item = is_array($state) && (is_int($itemKey) || is_string($itemKey)) ? ($state[$itemKey] ?? null) : null;
-        $id = is_array($item) ? self::userId($item['user_id'] ?? null) : null;
-        $user = $id === null ? null : User::query()->find($id);
-
-        if (! $user instanceof User) {
-            self::halt(__('That user no longer exists.'));
-        }
-
-        try {
-            app(SharingService::class)->unshare($record, $user);
-        } catch (InvalidArgumentException $exception) {
-            self::halt(PanelErrorTranslator::translate($exception->getMessage()));
-        }
-
-        Notification::make()
-            ->success()
-            ->title(__('Share removed'))
-            ->send();
-    }
-
-    /**
-     * @return array{user: User, access: int}|null
-     */
-    private static function chosenSharee(CalendarInstance|AddressBook $record, mixed $shareeId, mixed $access): ?array
-    {
-        if (blank($shareeId)) {
-            return null;
-        }
-
-        $id = self::userId($shareeId);
-        $user = $id === null ? null : User::query()->find($id);
-
-        if (! $user instanceof User || in_array($id, self::excludedIds($record), true)) {
-            self::halt(__('That user cannot be chosen.'));
-        }
-
-        $resolved = self::accessValue($access);
-
-        if ($resolved === null) {
-            self::halt(__('Access must be read only or read and write.'));
-        }
-
-        return ['user' => $user, 'access' => $resolved];
     }
 
     /**
@@ -497,7 +378,7 @@ final class CollectionShareAction
      * @param  iterable<mixed, Model>  $shares
      * @return list<string>
      */
-    private static function principals(iterable $shares): array
+    public static function principals(iterable $shares): array
     {
         $principals = [];
 
@@ -512,7 +393,7 @@ final class CollectionShareAction
      * @param  list<string>  $principals
      * @return Collection<string, User>
      */
-    private static function usersByUsername(array $principals): Collection
+    public static function usersByUsername(array $principals): Collection
     {
         $usernames = [];
 
@@ -549,7 +430,7 @@ final class CollectionShareAction
         return $username !== '' ? $username : $principal;
     }
 
-    private static function username(string $principal): string
+    public static function username(string $principal): string
     {
         $prefix = 'principals/';
 
@@ -571,7 +452,7 @@ final class CollectionShareAction
         return is_string($uri) ? $uri : '';
     }
 
-    private static function userLabel(User $user): string
+    public static function userLabel(User $user): string
     {
         return __(':name (:username) — :email', [
             'name' => $user->display_name,
@@ -583,7 +464,7 @@ final class CollectionShareAction
     /**
      * @return array<int, string>
      */
-    private static function accessOptions(): array
+    public static function accessOptions(): array
     {
         return [
             SharingService::READ => __('Read only'),
@@ -597,7 +478,7 @@ final class CollectionShareAction
      * An HTML label is not used in validation messages; validationAttribute()
      * names the field there.
      */
-    private static function accessLabel(): HtmlString
+    public static function accessLabel(): HtmlString
     {
         $icon = \Filament\Support\generate_icon_html(
             Heroicon::OutlinedInformationCircle,
@@ -652,7 +533,7 @@ final class CollectionShareAction
         return null;
     }
 
-    private static function accessValue(mixed $value): ?int
+    public static function accessValue(mixed $value): ?int
     {
         $access = is_int($value) ? $value : (is_string($value) && preg_match('/^\d+$/', $value) === 1 ? (int) $value : null);
 

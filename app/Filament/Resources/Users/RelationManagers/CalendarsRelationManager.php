@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Number;
 use InvalidArgumentException;
+use Livewire\Attributes\On;
 use RuntimeException;
 
 class CalendarsRelationManager extends RelationManager
@@ -36,6 +37,9 @@ class CalendarsRelationManager extends RelationManager
     {
         return __('Calendars');
     }
+
+    #[On('collection-shares-changed')]
+    public function refreshShares(): void {}
 
     public function table(Table $table): Table
     {
@@ -167,6 +171,7 @@ class CalendarsRelationManager extends RelationManager
                             ->send();
                     }),
                 CollectionShareAction::make(),
+                CollectionShareAction::list(),
                 Action::make('delete')
                     ->label(__('Delete'))
                     ->icon(Heroicon::OutlinedTrash)

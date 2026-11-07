@@ -21,6 +21,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
+use Livewire\Attributes\On;
 use RuntimeException;
 
 class AddressBooksRelationManager extends RelationManager
@@ -31,6 +32,9 @@ class AddressBooksRelationManager extends RelationManager
     {
         return __('Address books');
     }
+
+    #[On('collection-shares-changed')]
+    public function refreshShares(): void {}
 
     public function table(Table $table): Table
     {
@@ -133,6 +137,7 @@ class AddressBooksRelationManager extends RelationManager
                             ->send();
                     }),
                 CollectionShareAction::make(),
+                CollectionShareAction::list(),
                 Action::make('delete')
                     ->label(__('Delete'))
                     ->icon(Heroicon::OutlinedTrash)
