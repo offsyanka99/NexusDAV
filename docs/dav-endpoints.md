@@ -95,7 +95,15 @@ An admin shares a calendar in the panel (see [sharing.md](design/sharing.md)). T
 - Clients cannot share: no sharing plugin is loaded, a sharing `POST` (`share-resource`, CalendarServer `share` or `invite-reply`) is **403**, and no property lists other sharees.
 - With **Sharing** off (`NEXUSDAV_SHARING=false`) shared calendars are not listed and their paths answer 404. The shares are kept.
 
-Shared address books are stored but not served yet.
+## Shared address books
+
+An admin shares an address book in the panel. The sharee's client finds it in their own address book home, under a name of its own, usually the owner's (`default-<owner>` when the sharee already has that name), and named "<name> (<owner's display name>)".
+
+- **Read only for now:** every share is served read-only, also a share the panel stored as read and write. The sharee reads contacts with `PROPFIND`, `GET`, `addressbook-query`, `addressbook-multiget` and `sync-collection`. A `PUT`, `DELETE`, `MOVE`, `LOCK` or `PROPPATCH` is **403**, and so is a `DELETE` or `PROPPATCH` of the shared address book itself. `current-user-privilege-set` holds only `read`, so DAVx5 and Thunderbird show the address book as read-only. Writing, renaming and leaving a share come later (PR 25).
+- `DAV:owner` is the sharee's own principal; the owner's principal still answers 404 to them. Another user's path to the shared address book answers 404.
+- The sync token and the ctag are the owner's address book token, so an owner change reaches the sharee as one incremental change. A bare change number from an older token form is refused with 403 `valid-sync-token`.
+- The sharee's address book home lists the share and its sync token follows it: a new share is reported as added, and a removed one as deleted.
+- With **Sharing** off (`NEXUSDAV_SHARING=false`) shared address books are not listed and their paths answer 404; with **CardDAV** off the whole address book tree is refused. The shares are kept.
 
 ## Concurrent writes
 

@@ -44,6 +44,11 @@ final class AddressBookBackend extends SabreAddressBookBackend
     }
 
     /**
+     * The principal's own books, then the books shared with them. A share is
+     * the owner's book (its id, cards and token) under the sharee's name; the
+     * entry has the sharee's own `uri`, name, description and principal, and
+     * a `share-access` key that tells the home to build a shared node.
+     *
      * @return list<array<string, mixed>>
      */
     public function getAddressBooksForUser($principalUri)
@@ -55,6 +60,32 @@ final class AddressBookBackend extends SabreAddressBookBackend
             $book[self::SYNC_TOKEN] = $token;
             $book[self::CTAG] = SyncPlugin::SYNCTOKEN_PREFIX.$token;
             $books[] = $book;
+        }
+
+        // Sharing off keeps the rows and leaves the sharee's copy out of the home.
+        if (! filter_var(config('nexusdav.features.sharing', true), FILTER_VALIDATE_BOOLEAN)) {
+            return $books;
+        }
+
+        $shares = DB::table('addressbookinstances as i')
+            ->join('addressbooks as b', 'b.id', '=', 'i.addressbookid')
+            ->where('i.principaluri', $principalUri)
+            ->orderBy('i.id')
+            ->get(['i.id as instance_id', 'i.uri', 'i.displayname', 'i.description', 'i.access', 'i.principaluri', 'b.id', 'b.synctoken']);
+
+        foreach ($shares as $share) {
+            $token = SyncToken::format((int) $share->id, (int) $share->synctoken);
+            $books[] = [
+                'id' => $share->id,
+                'uri' => $share->uri,
+                'principaluri' => $share->principaluri,
+                '{DAV:}displayname' => $share->displayname,
+                '{'.CardDavPlugin::NS_CARDDAV.'}addressbook-description' => $share->description,
+                self::CTAG => SyncPlugin::SYNCTOKEN_PREFIX.$token,
+                self::SYNC_TOKEN => $token,
+                'share-instance-id' => (int) $share->instance_id,
+                'share-access' => (int) $share->access,
+            ];
         }
 
         return $books;

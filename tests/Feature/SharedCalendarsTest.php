@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\AddressBook;
 use App\Models\CalendarInstance;
 use App\Models\User;
 use App\Services\AppPasswordService;
@@ -403,17 +402,6 @@ class SharedCalendarsTest extends TestCase
 
         $this->sync('/dav/calendars/ada/default/', 'ada', $this->adaToken, $plain)->assertStatus(207);
         $this->sync($this->shareUrl($share), 'bob', $this->bobToken, $token)->assertStatus(207);
-    }
-
-    public function test_a_shared_address_book_is_not_served(): void
-    {
-        $book = AddressBook::query()->where('principaluri', 'principals/ada')->where('uri', 'default')->firstOrFail();
-        $share = app(SharingService::class)->share($book, $this->bob, SharingService::READ);
-
-        $this->dav('PROPFIND', '/dav/addressbooks/bob/'.$share->uri.'/', 'bob', $this->bobToken, ['Depth' => '1'])->assertNotFound();
-        $home = $this->body($this->dav('PROPFIND', '/dav/addressbooks/bob/', 'bob', $this->bobToken, ['Depth' => '1'])->assertStatus(207));
-        $this->assertStringNotContainsString('/dav/addressbooks/bob/'.$share->uri, $home);
-        $this->assertSame(1, DB::table('addressbookinstances')->count());
     }
 
     private function user(string $username, string $name): User

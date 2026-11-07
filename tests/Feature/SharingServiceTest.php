@@ -395,8 +395,7 @@ class SharingServiceTest extends TestCase
         $this->assertTrue($collections->addressBookUriTaken($this->bob, 'default-ada'));
         $this->assertRefused('That URI is already used.', fn () => $collections->createAddressBook($this->bob, 'default-ada', 'Mine', null));
 
-        // MKCOL: the share is not listed in the home until PR 24, so the
-        // backend is what refuses it.
+        // MKCOL over the share's name.
         $token = app(AppPasswordService::class)->issue($this->bob, 'phone')['token'];
         $this->dav($token, 'MKCOL', '/dav/addressbooks/bob/default-ada/', '<?xml version="1.0"?><d:mkcol xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:carddav"><d:set><d:prop><d:resourcetype><d:collection/><c:addressbook/></d:resourcetype></d:prop></d:set></d:mkcol>')
             ->assertStatus(405);

@@ -96,6 +96,8 @@ A rename does not change the owner's token, so `HomeSync` does not report the ch
 
 When Sharing is off, instance rows stay in the table and are left out of `getAddressBooksForUser`. Their URL answers 404. That switch is PR 23; this note does not add it.
 
+**As built (PR 24).** The entry also carries `share-access` and `share-instance-id`; the home builds an `AddressBookNode` for an entry that has `share-access`, and sabre's node for the rest. The plain-number refusal is in the node's `getChanges`, not in the backend: the backend gets only `addressbooks.id`, the same for the owner and a sharee, so it cannot tell them apart (a calendar's id is `[calendar id, instance id]`). Until PR 25 the node grants `{DAV:}read` only, so every share is read-only and `PROPPATCH`, `PUT`, `DELETE` and a `DELETE` of the book are refused (the book's `delete` and `propPatch` also throw, so a path that skips the ACL check cannot reach the owner's book). Sabre's `AddressBook::getChild` builds a card with no ACL, which falls back to everything for the book's principal, so the node builds its cards with the read-only ACL.
+
 ### Write lock
 
 `DavWriteLock` (PR 16) makes a write to a collection wait for other writes to it. SQLite takes its one database write lock, so every writer already waits. PostgreSQL takes `pg_advisory_xact_lock`, keyed on the collection taken from the request path: `calendars/<user>/<uri>` or `addressbooks/<user>/<uri>`.
