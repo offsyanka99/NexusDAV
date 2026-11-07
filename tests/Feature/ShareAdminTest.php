@@ -7,6 +7,7 @@ use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Filament\Resources\Users\RelationManagers\AddressBooksRelationManager;
 use App\Filament\Resources\Users\RelationManagers\CalendarsRelationManager;
+use App\Filament\Resources\Users\RelationManagers\ReceivedSharesRelationManager;
 use App\Livewire\CollectionSharesTable;
 use App\Models\AddressBook;
 use App\Models\AddressBookInstance;
@@ -207,6 +208,52 @@ class ShareAdminTest extends TestCase
             $this->assertNull($this->shareOrNull($record, $users['u4']));
             $this->assertNotNull($this->shareOrNull($record, $users['u1']));
         }
+    }
+
+    public function test_the_user_page_lists_the_shares_a_user_received_and_removes_them(): void
+    {
+        $ada = $this->user('ada', 'Ada Lovelace');
+        $bob = $this->user('bob', 'Bob Baker');
+        $carol = $this->user('carol', 'Carol Clark');
+        $sharing = app(SharingService::class);
+        $calendar = $sharing->share($this->calendar($ada), $bob, SharingService::READ_WRITE);
+        $book = $sharing->share($this->book($carol), $bob, SharingService::READ);
+        $sharing->share($this->calendar($carol), $ada, SharingService::READ);
+
+        $manager = fn () => Livewire::test(ReceivedSharesRelationManager::class, [
+            'ownerRecord' => $bob,
+            'pageClass' => EditUser::class,
+        ]);
+
+        $manager()
+            ->assertCountTableRecords(2)
+            ->assertSee('Ada Lovelace')
+            ->assertSee('Carol Clark')
+            ->assertSee('Read and write')
+            ->assertSee('Read only')
+            ->assertSee('/dav/calendars/bob/'.$calendar->uri.'/')
+            ->assertSee('/dav/addressbooks/bob/'.$book->uri.'/')
+            ->assertSee('Calendar')
+            ->assertSee('Address book');
+
+        $manager()
+            ->assertCountTableRecords(2)
+            ->callAction(TestAction::make('remove')->table('calendar-'.$calendar->getKey()))
+            ->assertNotified('Share removed');
+
+        $this->assertNull(CalendarInstance::query()->find($calendar->getKey()));
+        $this->assertSame(1, CalendarInstance::query()->where('calendarid', $this->calendar($ada)->calendarid)->count());
+        $this->assertNotNull(AddressBookInstance::query()->find($book->getKey()));
+
+        $manager()
+            ->assertCountTableRecords(1)
+            ->callAction(TestAction::make('remove')->table('address-book-'.$book->getKey()))
+            ->assertNotified('Share removed');
+
+        $this->assertNull(AddressBookInstance::query()->find($book->getKey()));
+        $this->assertSame(1, AddressBook::query()->where('principaluri', 'principals/carol')->count());
+        $this->assertCount(1, $sharing->receivedCalendarShares($ada));
+        $manager()->assertCountTableRecords(0)->assertSee('Nothing is shared with this user');
     }
 
     /**

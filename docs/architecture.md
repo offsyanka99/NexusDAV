@@ -61,6 +61,10 @@ app/
       DavDataCleaner.php    # removes a user's sabre rows on delete, and one collection's properties and locks
       CollectionService.php # admin create, edit, and delete of calendars and address books
       SharingService.php    # share, change access, unshare; lists sharees, received shares and every instance
+      CalendarNode.php      # a calendar in a home, owned or shared: privileges from the share's access
+      AddressBookNode.php   # a shared address book: privileges from the share, name and leaving on the sharee's row
+      AddressBookHome.php   # builds the shared node for a share and sabre's node for an owned book
+      CardDavPlugin.php     # sabre's CardDAV plugin without the HEAD crash
       HomeNamespace.php     # one set of names per home across its two tables, and the lock writers take
     UserService.php         # Create user + principal + default calendar and address book
     AuthThrottle.php        # IP plus username limit for admin login and DAV
@@ -103,6 +107,14 @@ config/
 4. Uses `sync-collection` REPORT for incremental sync.
 5. Events, tasks and notes are stored by the PDO backend.
 
+### 4. Share a calendar or address book (Version 1.x)
+
+1. An admin shares in the panel; the panel calls `SharingService`, which writes one share row per sharee (`calendarinstances` for a calendar, `addressbookinstances` for an address book) under a lock on the sharee's home so names do not clash. Items and the change log stay on the owner's collection.
+2. The sharee's client lists its home. `CalendarBackend` and `AddressBookBackend` add the shares to the home listing (left out when Sharing is off), and `CalendarHome` and `AddressBookHome` build `CalendarNode` and `AddressBookNode` for them.
+3. A share's node takes its privileges from the share's access, never from `DAV:owner` (the sharee's own principal); sabre's `DAVACL` enforces them. The sharee's name, color and order are on their own row, and a `DELETE` of the shared collection removes only that row and its locks and properties.
+4. A sharee's write goes to the owner's collection, so the owner's sync token moves and every other sharee gets the change in their next `sync-collection`. `DavWriteLock` keys the write lock on the collection, so a write through the owner's path and one through a sharee's path wait for each other.
+5. A sync token is the owner's collection token, and a bare change number is refused on a share.
+
 ## Integration points
 
 | Concern | Owner |
@@ -118,7 +130,7 @@ config/
 ## What is intentionally out of Version 1
 
 - User portal
-- Sharing / ACL
+- Sharing by clients and a full ACL (an admin shares calendars and address books in Version 1.x; clients cannot create shares)
 - WebDAV-Push
 - Scheduling
 - Email

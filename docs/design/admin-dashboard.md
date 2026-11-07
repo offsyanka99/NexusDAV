@@ -21,10 +21,10 @@ The page uses the standard Filament panel layout (navigation, then page header, 
 | Dashboard                                                             |
 +-----------------------------------------------------------------------+
 | [ Server status ]                                                     |
-|  ● Application OK  ● Database OK (PostgreSQL)  NexusDAV 0.2.0+4f82db8  |
+|  ● Application OK  ● Database OK (PostgreSQL)  NexusDAV 0.3.0+4f82db8  |
 +-----------------------------------------------------------------------+
 | [ Services ]                                                          |
-|  CalDAV  ● On     CardDAV  ● On     Tasks  ● On     Notes  ○ Off      |
+|  CalDAV ● On   CardDAV ● On   Tasks ● On   Notes ○ Off   Sharing ● On  |
 |                                              Manage in Settings →     |
 +-----------------------------------------------------------------------+
 | [ Users ]    [ Calendars ]   [ Address books ]   [ App passwords ]    |
@@ -63,7 +63,7 @@ Rules:
 
 ### 2. Services
 
-One card listing the four switches from the Settings page: **CalDAV**, **CardDAV**, **Tasks (VTODO)** and **Notes (VJOURNAL)**.
+One card listing the five switches from the Settings page: **CalDAV**, **CardDAV**, **Tasks (VTODO)**, **Notes (VJOURNAL)** and **Sharing**.
 
 - `● On` (green) or `○ Off` (grey).
 - If the value is set by an environment variable, show a small lock icon with the tooltip "Set by environment".

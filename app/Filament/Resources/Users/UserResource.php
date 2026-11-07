@@ -9,6 +9,7 @@ use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Filament\Resources\Users\RelationManagers\AddressBooksRelationManager;
 use App\Filament\Resources\Users\RelationManagers\AppPasswordsRelationManager;
 use App\Filament\Resources\Users\RelationManagers\CalendarsRelationManager;
+use App\Filament\Resources\Users\RelationManagers\ReceivedSharesRelationManager;
 use App\Models\Principal;
 use App\Models\User;
 use App\Services\UserService;
@@ -311,6 +312,7 @@ class UserResource extends Resource
         return [
             CalendarsRelationManager::class,
             AddressBooksRelationManager::class,
+            ReceivedSharesRelationManager::class,
             AppPasswordsRelationManager::class,
         ];
     }

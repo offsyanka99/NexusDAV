@@ -8,7 +8,7 @@ The address book URL looks like `/dav/addressbooks/<username>/<addressbook-id>/`
 
 **Version 1.** The admin panel can create an address book for a user, and a CardDAV client can create one for its own user (extended `MKCOL`). A CardDAV client can create, edit, and delete contacts in it. Sync uses the collection sync token. There is no sharing and no email.
 
-**Version 1.x.** An admin can share an address book with another user on this server, read-only or read-write. The other user's client shows it in their own address book home; clients do not create shares. WebDAV-Push can notify a subscribed client when the address book changes. Push uses the bitfire draft `draft-bitfire-webdav-push-00` at commit `611abe2e8a0cdd7570cb936844b6588f7145b27d`, until that project publishes a release. The admin panel turns push on or off for the server.
+**Version 1.x.** An admin can share an address book with another user on this server, read-only or read-write (released in 0.3.0). The other user's client shows it in their own address book home; clients do not create shares. A read-write sharee changes the owner's contacts for everyone. DAVx5 and Thunderbird cannot delete a shared address book; the sharee switches it off on the device and an admin removes the share in the panel. WebDAV-Push can notify a subscribed client when the address book changes. Push uses the bitfire draft `draft-bitfire-webdav-push-00` at commit `611abe2e8a0cdd7570cb936844b6588f7145b27d`, until that project publishes a release. The admin panel turns push on or off for the server.
 
 **Version 2.** The user portal can manage that person's own address books and contacts. Import and export of `.vcf` files is included. Search can find contacts. Duplicate contacts can be found and merged.
 

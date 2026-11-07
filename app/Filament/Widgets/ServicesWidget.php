@@ -10,7 +10,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Support\Icons\Heroicon;
 
 /**
- * The four service switches, On or Off, with a lock when the environment
+ * The service switches, On or Off, with a lock when the environment
  * decides. Changes are made on the Settings page.
  */
 class ServicesWidget extends SchemaWidget
@@ -25,7 +25,7 @@ class ServicesWidget extends SchemaWidget
     protected function section(Section $section): Section
     {
         return $section
-            ->columns(4)
+            ->columns(5)
             ->footer([
                 Action::make('manageSettings')
                     ->label(__('Manage in Settings'))
@@ -46,6 +46,7 @@ class ServicesWidget extends SchemaWidget
             'carddav' => __('CardDAV'),
             'tasks' => __('Tasks'),
             'notes' => __('Notes'),
+            'sharing' => __('Sharing'),
         ] as $key => $label) {
             $on = (bool) $settings->get($key);
             $entry = TextEntry::make($key)

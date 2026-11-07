@@ -49,7 +49,7 @@ Above the fields, a **User** section shows:
 - Address Books count (example: `1`)
 - Contacts count (example: `93`)
 
-Below the form are three tables.
+Below the form are four tables.
 
 #### Calendars
 Table columns:
@@ -91,7 +91,18 @@ Add address book modal fields:
 - Description
 - Cancel and Save buttons
 
-The Edit modal has the same fields with the URI read-only. Delete asks for confirmation and removes the address book, its contacts and its shares. **Share** is the same modal as on a calendar. Address book shares are stored; clients do not see them until a later change.
+The Edit modal has the same fields with the URI read-only. Delete asks for confirmation and removes the address book, its contacts and its shares. **Share** and **Shared with** are the same as on a calendar. A shared address book is served to the sharee's clients, read-only or read and write by its access.
+
+#### Shared with this user
+Lists the calendars and address books that other users shared with this user. Table columns:
+- Type (Calendar or Address book)
+- Name (this user's own name for the copy)
+- Owner (name, username and email of the user who shared it)
+- Access (Read only or Read and write)
+- DAV path (example: `/dav/calendars/bob/default-ada/`)
+- **Remove** (with confirmation): removes only this share. The owner's items stay.
+
+The empty state says nothing is shared with this user. The table lists stored shares also when Sharing is off.
 
 #### App passwords
 Table columns:

@@ -13,6 +13,7 @@ The Settings page holds system-level controls for DAV services and related optio
 - CardDAV on or off (`NEXUSDAV_CARDDAV`, default on). The same for `/dav/addressbooks/`.
 - Tasks (VTODO) on or off (`NEXUSDAV_TASKS`, default on). When off, calendars stop listing `VTODO` as supported: no task can be created or changed, existing tasks stay readable and can be deleted. The Tasks checkbox in the calendar form is unavailable.
 - Notes (VJOURNAL) on or off (`NEXUSDAV_NOTES`, default on). The same for `VJOURNAL`.
+- Sharing on or off (`NEXUSDAV_SHARING`, default on). When off, calendars and address books shared with a user are not listed for them and their paths answer 404; the shares are kept and come back when sharing is turned on. The owner's own collections do not change. The field is locked when the variable is set.
 
 **Logging** section:
 - Log level (`LOG_LEVEL`, default `debug`): the least severe message written to the container log. It applies to every log channel except Slack. Use Info or higher in production.

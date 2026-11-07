@@ -5,10 +5,12 @@ namespace Tests\Feature;
 use App\Filament\Pages\Configuration;
 use App\Filament\Pages\Settings;
 use App\Filament\Widgets\Diagnostics\AppPasswordsTable;
+use App\Models\CalendarInstance;
 use App\Models\DiagnosticEvent;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\AppPasswordService;
+use App\Services\Dav\SharingService;
 use App\Services\DiagnosticEventWriter;
 use App\Services\SettingsService;
 use App\Services\UserService;
@@ -145,6 +147,61 @@ class SettingsTest extends TestCase
 
         $this->assertFalse(config('nexusdav.features.caldav'));
         $this->assertSame(0, Setting::query()->where('key', 'caldav')->count());
+    }
+
+    public function test_the_sharing_switch_is_set_from_the_panel_and_hides_shares(): void
+    {
+        $ada = $this->makeUser('ada');
+        $bob = $this->makeUser('bob');
+        $bobToken = $this->token($bob);
+        $calendar = CalendarInstance::query()->where('principaluri', 'principals/ada')->where('uri', 'default')->where('access', 1)->firstOrFail();
+        $share = app(SharingService::class)->share($calendar, $bob, SharingService::READ);
+        $url = '/dav/calendars/bob/'.$share->uri.'/';
+        $this->actingAs($this->makeUser('root', true));
+
+        $this->dav('PROPFIND', $url, 'bob', $bobToken, ['HTTP_DEPTH' => '0'])->assertStatus(207);
+
+        Livewire::test(Settings::class)
+            ->assertFormFieldExists('sharing')
+            ->assertFormFieldEnabled('sharing')
+            ->assertSee('shared with a user are not listed for them')
+            ->assertSee('The shares are kept')
+            ->fillForm(['sharing' => false])
+            ->call('save')
+            ->assertHasNoFormErrors()
+            ->assertNotified('Saved');
+
+        $this->assertFalse(app(SettingsService::class)->get('sharing'));
+        $this->assertSame('false', Setting::query()->where('key', 'sharing')->value('value'));
+        $this->dav('PROPFIND', $url, 'bob', $bobToken, ['HTTP_DEPTH' => '0'])->assertNotFound();
+        $this->assertSame(1, CalendarInstance::query()->where('principaluri', 'principals/bob')->where('access', '!=', 1)->count());
+
+        Livewire::test(Settings::class)
+            ->assertFormSet(['sharing' => false])
+            ->fillForm(['sharing' => true])
+            ->call('save');
+
+        $this->dav('PROPFIND', $url, 'bob', $bobToken, ['HTTP_DEPTH' => '0'])->assertStatus(207);
+        $this->assertNotNull($ada);
+    }
+
+    public function test_a_set_sharing_variable_locks_the_field_in_the_panel(): void
+    {
+        config([
+            'nexusdav.env_set' => ['NEXUSDAV_SHARING'],
+            'nexusdav.features.sharing' => false,
+        ]);
+        $this->actingAs($this->makeUser('root', true));
+
+        Livewire::test(Settings::class)
+            ->assertFormFieldDisabled('sharing')
+            ->assertSee('Set by NEXUSDAV_SHARING')
+            ->fillForm(['sharing' => true])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertFalse(app(SettingsService::class)->get('sharing'));
+        $this->assertSame(0, Setting::query()->where('key', 'sharing')->count());
     }
 
     public function test_a_value_that_is_not_valid_falls_back_to_the_default(): void

@@ -8,7 +8,7 @@ Few clients do. Apple Notes and Thunderbird do not use `VJOURNAL`, so notes stor
 
 **Version 1.** The admin panel can create a collection that accepts notes, and so can a CalDAV client for its own user. A capable CalDAV client can create, edit, and delete notes. Sync uses the collection sync token. The admin panel does not edit the note.
 
-**Version 1.x.** Sharing and WebDAV-Push follow the collection, as they do for [calendars](calendar.md). There is no separate note-sharing model.
+**Version 1.x.** Sharing and WebDAV-Push follow the collection, as they do for [calendars](calendar.md). There is no separate note-sharing model. Notes in a shared calendar are shared with it (released in 0.3.0).
 
 **Version 2.** Import and export of `.ics` files includes notes. The user portal can edit that person's own notes. This is the first NexusDAV screen that edits a note. The admin panel still does not.
 

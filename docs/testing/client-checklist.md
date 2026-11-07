@@ -2,7 +2,7 @@
 
 A hand test with real clients, run before a release on the devices in [Decision 15](../plans/implementation-plan-v1x.md#decisions): **DAVx5** with **jtx Board** on Android, and **Thunderbird** on Linux. Automated tests cover the protocol; this checklist covers what the clients actually do with it.
 
-Run every step for each client on both databases, record one result per cell in [Results](#results), and open a GitHub issue for each failure (see [When a step fails](#when-a-step-fails)). Later milestones add their own sections (Sharing, Files, WebDAV-Push). Before a release, run the sections the release touched; the results also go in the guide's [client compatibility](../guide.md#client-compatibility) table.
+Run every step for each client on both databases, record one result per cell in [Results](#results), and open a GitHub issue for each failure (see [When a step fails](#when-a-step-fails)). Later milestones add their own sections ([Sharing](#11-sharing) is in; Files and WebDAV-Push follow). Before a release, run the sections the release touched; the results also go in the guide's [client compatibility](../guide.md#client-compatibility) table.
 
 ## Setup
 
@@ -178,6 +178,46 @@ The sync history is kept for **Keep sync history for (days)** (default 90, at le
 
 **Pass:** the 403, then a full listing that matches the server, then a working incremental sync. For a real client: one full resync, and its events match the server (the deleted ones are gone).
 
+### 11. Sharing
+
+Run this step for the M3 release (and whenever sharing code changes), on both servers. It needs three users and, for each sharee, a device or client of its own:
+
+| User | Role | App passwords |
+|---|---|---|
+| `owner` | Shares its calendar and address book | One per client (DAVx5, Thunderbird) |
+| `rw` | Sharee with **Read and write** | One per client |
+| `ro` | Sharee with **Read only** | One per client |
+| `other` | Not a sharee, to check isolation | One |
+
+Give `owner` an event, a task and a note in its default calendar (note and task through DAVx5 with jtx Board), and two contacts in its default address book. Set up DAVx5 and Thunderbird for `owner`, `rw` and `ro` (Thunderbird: one profile, or three, as you prefer; DAVx5: one account per user on the phone, or one phone per user). Keep Diagnostics open.
+
+**Setup in the panel (do this once, and it is step 11a):** open `owner`, then **Calendars → Share**: choose `rw`, set **Read and write**, **Share**. Open **Share** again: choose `ro`, set **Read only**, **Share**. Do the same on **Address books**.
+
+| ID | Do | Pass |
+|---|---|---|
+| 11a | After the setup, open **Shared with** on the calendar and on the address book. Then try one **Share** with `rw` and `other` chosen together at **Read only** | The table lists `rw` (Read and write) and `ro` (Read only) with their emails; **Shared** shows 2. The two-user form adds both. Remove `other` again with **Remove** in the table |
+| 11b | In each client of `rw` and `ro`, sync (DAVx5: **Refresh list**; Thunderbird: re-add or sync) | The calendar "Calendar (Owner)" and the address book appear in each home, with the owner's event, task, note and contacts. `owner`'s other collections and account are not listed |
+| 11c | As `ro`, in the calendar: edit the event, add an event, add a task, edit the note | The client shows the calendar as read-only or refuses the save; after sync the owner's items are unchanged. Diagnostics shows 403 rows for the refused writes and no 5xx |
+| 11d | As `rw`, in the calendar: add an event, edit the task, add a note, delete the event | The change appears in `owner`'s clients and in `ro`'s clients after sync, as exactly that change |
+| 11e | As `owner`, edit the event and add a task | `rw` and `ro` see it after sync, and nothing else is re-sent |
+| 11f | As `rw`, rename the shared calendar and change its color on the device | The name stays on that device; `owner`'s calendar and `ro`'s copy keep their names, and `owner`'s clients show no sync of that change |
+| 11g | As `ro`, in the address book: add, edit and delete a contact | DAVx5 marks the address book read-only and refuses; Thunderbird refuses or shows an error. The owner's contacts are unchanged. Thunderbird may keep a stale Read-only flag from an earlier access level; note it if the flag and the server disagree |
+| 11h | As `rw`, in the address book: add a contact, edit one, delete one | `owner`'s Thunderbird and DAVx5 show the change after sync, and `ro` too. Then change a contact as `owner`: `rw` sees it |
+| 11i | In the panel, change `rw` to **Read only** in the **Shared with** table (in the row), then back to **Read and write** | After a sync, writes by `rw` are refused (403), then accepted again. Thunderbird keeps its own Read-only flag: untick it and restart (known; record it) |
+| 11j | In **Shared with**, select `rw` and `ro` and use **Set access**; then select one and use **Remove** | Both rows take the chosen level; after the remove the person is gone from the table and the Shared count drops |
+| 11k | In the panel, remove `ro`'s calendar share (single **Remove**, with the confirmation). Sync `ro`'s clients | The calendar leaves `ro`'s client (DAVx5: **Refresh list**; Thunderbird: delete the stale entry). The owner's calendar and events are intact; `ro`'s own calendar is intact |
+| 11l | On a user page, open **Shared with this user** for `rw` | The tab lists the calendar and the address book with the owner, the access and the DAV path. **Remove** removes that one share and nothing else |
+| 11m | As `rw`, in DAVx5 switch syncing off for the shared address book, and in Thunderbird remove the shared address book | Syncing stops on the device; `owner`'s address book is intact. The share is still listed in the panel (an admin removes it there) |
+| 11n | **Settings → Services → Sharing** off, **Save**. Sync `rw`'s clients. Check the **Dashboard** Services card. Then on again | Off: the shared collections leave `rw`'s clients after sync, and their paths answer 404; the Services card shows Sharing off; **Shared with** and **Shared with this user** still list the shares; `owner`'s collections are unchanged. On: they return. Set `NEXUSDAV_SHARING=false` in the environment: the field is locked with "Set by NEXUSDAV_SHARING" and the card shows the lock |
+| 11o | Isolation: with `rw`'s app password request `/dav/addressbooks/owner/`, `/dav/calendars/owner/` and `/dav/principals/owner/` (curl `PROPFIND`). With `other`'s app password request the share's path under `/dav/calendars/rw/` | 404 for all. `other` lists no shared collection |
+| 11p | Two devices, same item: edit the same contact (or event) on `owner`'s device and on `rw`'s device while both are offline, then sync them one after the other | One version wins; the other device gets the winner after its sync (a 412 may show on Diagnostics); nothing is lost silently, and no 500 |
+| 11q | Delete the shared calendar in the panel as `owner` (read the confirmation), then sync `rw` | The confirmation says its shares are removed. The calendar leaves `rw`'s client |
+| 11r | Delete the user `rw` in the panel (read the confirmation), after it received shares | The confirmation lists the shares `rw` received. The shares of `owner` to `rw` are gone from **Shared with** |
+| 11s | Switch the panel to Russian and open **Share**, **Shared with**, the **Set access** and **Remove** dialogs, **Shared with this user**, and **Settings** | The text is in Russian and nothing is cut off. The **Shared with** table scrolls inside its panel with many sharees |
+| 11t | **Diagnostics** after the whole run | No 5xx rows. 4xx rows are only discovery probes, the refused writes in 11c, 11g and 11i, the 412 in 11p, and the 404 in 11n and 11o |
+
+**Fail:** any 500; a write by `ro` that is saved; `rw`'s change missing for `owner`; a collection of `owner` other than the shared one visible to a sharee; a share still shown after it was removed and the client synced; the owner's data changed by a rename, a removal or leaving a share.
+
 ## When a step fails
 
 1. Note the step ID, the client and its version, the database, and what happened.
@@ -270,3 +310,40 @@ Run on the release candidate (the tag that will be released), with both servers 
 | 8 Many uploads at once | ➖ | ➖ | ➖ | ➖ | PostgreSQL: ✅ 5,000 × 201 · SQLite: ✅ 5,000 × 201 (16 parallel writers, no client needed, 4 November 2026) |
 | 9 Admin panel | ➖ | ➖ | ➖ | ➖ | PostgreSQL: ✅ · SQLite: ✅ |
 | 10 Offline longer than the history (optional) | ➖ | ➖ | ➖ | ➖ | PostgreSQL: ✅ · SQLite: ✅ by the fast check (5 November 2026): old token 403 `valid-sync-token`, full listing of the 4 existing events, new token works. No real client was offline long enough: an iPad offline for 24 h 4 min got no 403, because nothing had been trimmed yet (see the step text) |
+
+
+### Pass 3 (M3 release candidate, PR 27)
+
+| Run log | |
+|---|---|
+| Date | |
+| Build (Dashboard version) | |
+| Tester | |
+| PostgreSQL server | |
+| SQLite server | |
+| DAVx5 + jtx Board | |
+| Thunderbird | |
+| iPad (optional) | |
+
+| Step | DAVx5, PostgreSQL | DAVx5, SQLite | Thunderbird, PostgreSQL | Thunderbird, SQLite | Notes |
+|---|---|---|---|---|---|
+| 11a Panel: share, Shared with | ⬜ | ⬜ | ⬜ | ⬜ | |
+| 11b Shared collections appear | ⬜ | ⬜ | ⬜ | ⬜ | |
+| 11c Read-only calendar refuses writes | ⬜ | ⬜ | ⬜ | ⬜ | |
+| 11d Read-write calendar, sharee changes seen | ⬜ | ⬜ | ⬜ | ⬜ | |
+| 11e Owner changes seen by sharees | ⬜ | ⬜ | ⬜ | ⬜ | |
+| 11f Sharee's own name and color | ⬜ | ⬜ | ⬜ | ⬜ | |
+| 11g Read-only address book refuses writes | ⬜ | ⬜ | ⬜ | ⬜ | |
+| 11h Read-write address book both ways | ⬜ | ⬜ | ⬜ | ⬜ | |
+| 11i Access changed in the panel | ⬜ | ⬜ | ⬜ | ⬜ | |
+| 11j Bulk set access and remove | ➖ | ➖ | ➖ | ➖ | Panel only. PostgreSQL ⬜ · SQLite ⬜ |
+| 11k Share removed in the panel | ⬜ | ⬜ | ⬜ | ⬜ | |
+| 11l Shared with this user, remove | ➖ | ➖ | ➖ | ➖ | Panel only. PostgreSQL ⬜ · SQLite ⬜ |
+| 11m Leaving a share on the device | ⬜ | ⬜ | ⬜ | ⬜ | |
+| 11n Sharing off and on, the Services card, the lock | ⬜ | ⬜ | ⬜ | ⬜ | |
+| 11o Isolation | ➖ | ➖ | ➖ | ➖ | Curl. PostgreSQL ⬜ · SQLite ⬜ |
+| 11p Two devices, same shared item | ⬜ | ⬜ | ⬜ | ⬜ | |
+| 11q Delete the shared calendar | ⬜ | ⬜ | ⬜ | ⬜ | |
+| 11r Delete a user with received shares | ➖ | ➖ | ➖ | ➖ | Panel only. PostgreSQL ⬜ · SQLite ⬜ |
+| 11s Russian text | ➖ | ➖ | ➖ | ➖ | Panel only. PostgreSQL ⬜ · SQLite ⬜ |
+| 11t Diagnostics | ➖ | ➖ | ➖ | ➖ | PostgreSQL ⬜ · SQLite ⬜ |

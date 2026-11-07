@@ -97,6 +97,25 @@ class AdminPagesTest extends TestCase
             ->assertSee('Set by environment');
     }
 
+    public function test_the_services_card_shows_the_sharing_switch(): void
+    {
+        config(['nexusdav.env_set' => []]);
+        $this->actingAs($this->makeUser('root', true));
+
+        Livewire::test(ServicesWidget::class)
+            ->assertSee('Sharing')
+            ->assertDontSee('Set by environment');
+
+        app(SettingsService::class)->save(['sharing' => false]);
+        $this->assertFalse(app(SettingsService::class)->get('sharing'));
+
+        $off = Livewire::test(ServicesWidget::class);
+        $this->assertSame(1, substr_count(strip_tags($off->html()), 'Off'));
+
+        config(['nexusdav.env_set' => ['NEXUSDAV_SHARING']]);
+        Livewire::test(ServicesWidget::class)->assertSee('Set by environment');
+    }
+
     public function test_a_failing_database_check_shows_only_unavailable(): void
     {
         $this->actingAs($this->makeUser('root', true));

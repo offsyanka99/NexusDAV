@@ -12,7 +12,7 @@ Related documents:
 - [Implementation plan (v1.x)](plans/implementation-plan-v1x.md) — milestones and PRs for the Version 1.x features
 - [Plan for Version 2 and later](plans/version-2-and-later.md) — features for 2.0, 2.x and beyond
 
-Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `0.2.0` (first release `0.1.0`). "Version 1" and "Version 1.x" in these documents name the feature plan, not release numbers: releases stay 0.x until the plan is finished and 1.0.0 is tagged. 0.2.0 completes the first two milestones of the Version 1.x plan, the admin panel in English and Russian (M1) and reliable sync (M2). The server passes automated sync tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
+Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `0.2.0` (first release `0.1.0`). "Version 1" and "Version 1.x" in these documents name the feature plan, not release numbers: releases stay 0.x until the plan is finished and 1.0.0 is tagged. 0.3.0 completes the first three milestones of the Version 1.x plan: the admin panel in English and Russian (M1), reliable sync (M2) and sharing of calendars and address books (M3). The server passes automated sync tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
 
 NexusDAV is built for homelabs and small teams that want calendars, contacts, tasks, notes and files without running a full groupware suite.
 
@@ -170,7 +170,7 @@ These settings are changed on the **Settings** and **Configuration** pages. A ch
 | CardDAV on or off | Settings | `NEXUSDAV_CARDDAV` | on |
 | Tasks (VTODO) on or off | Settings | `NEXUSDAV_TASKS` | on |
 | Notes (VJOURNAL) on or off | Settings | `NEXUSDAV_NOTES` | on |
-| Sharing on or off (the Settings field arrives with a later change; the variable works now) | Settings | `NEXUSDAV_SHARING` | on |
+| Sharing on or off | Settings | `NEXUSDAV_SHARING` | on |
 | Log level | Settings | `LOG_LEVEL` | `debug` |
 | Keep sync history for (days) | Settings | `NEXUSDAV_SYNC_HISTORY_DAYS` | `90` |
 | Default panel language (`en` or `ru`) | Configuration | `NEXUSDAV_LOCALE` | `en` |
@@ -193,7 +193,7 @@ What the service switches do:
 
 - **CalDAV or CardDAV off:** paths under `/dav/calendars/` or `/dav/addressbooks/` answer 403 with "CalDAV is turned off on this server." (or CardDAV). Discovery no longer offers the home. Stored data is kept and comes back when the service is turned on.
 - **Tasks or Notes off:** calendars stop listing `VTODO` or `VJOURNAL` as supported, so no task or note can be created or changed. Existing ones stay readable and can be deleted.
-- **Sharing off:** a calendar shared with a user is no longer listed in that user's calendar home, and its path answers 404. The shares are kept and come back when sharing is turned on. The owner's calendar does not change.
+- **Sharing off:** a calendar or address book shared with a user is no longer listed in that user's home, and its path answers 404. The shares are kept and come back when sharing is turned on. The owner's calendar does not change.
 - **Shared address books and clients:** DAVx5 and Thunderbird cannot delete a shared address book. DAVx5 can only switch syncing off for it, and removing it in Thunderbird only removes it on the device. A sharee stops a share on the device, and an admin removes it in the panel. Thunderbird keeps its own Read-only flag for a book when the access changes: untick it in the address book's properties and restart. A sharee with read and write changes the owner's contacts for everyone.
 
 **Language.** The admin panel ships in English and Russian. Each admin chooses a language under **Language** in the user menu; the item shows the language in use, and "Server default (…)" when it is not the admin's own choice. **Server default** clears the choice and follows the Configuration setting. A language chosen in the user menu always wins over the Configuration setting, so changing the server default does not change an admin who chose their own (Configuration says so when you save). The login page always uses the server default. A value of `NEXUSDAV_LOCALE` that is not a shipped language falls back to English. Only the panel is translated: DAV responses, `/health`, the container log and the reasons stored for Diagnostics stay in English, so log searches keep working; the Diagnostics page shows those reasons in the admin's language. To add a language, see [CONTRIBUTING.md](../CONTRIBUTING.md#translations).
@@ -341,6 +341,30 @@ Use the same steps for every client; only the menu names differ.
 
 The steps for DAVx5 and Thunderbird were checked against the versions in [Client compatibility](#client-compatibility). The Apple steps are not verified yet.
 
+### Sharing
+
+An admin shares a calendar or an address book with other users in the panel. Clients cannot create or change shares.
+
+**How to share (admin panel):**
+
+1. Open **Users**, choose the owner, and open the **Calendars** or **Address books** tab.
+2. **Share** on a row: choose one or more users and one access level, **Read only** or **Read and write**, then **Share**. To give different users different levels, share once per level.
+3. **Shared with** on the same row opens a table of the people it is shared with. Change access in the row, remove a share, or select several rows and use **Set access** or **Remove**.
+4. The **Shared with this user** tab on a user's page lists what other users shared with them and removes it.
+5. **Settings → Services → Sharing** turns sharing on or off for the whole server. Off hides every share from the people it was shared with and keeps the shares; turning it on brings them back.
+
+**What a client shows.** The sharee's client finds the shared collection in its own calendar or address book home, usually named "<name> (<owner's name>)", and syncs it like any other. The owner's items stay in the owner's collection; the sharee never sees the owner's other collections or account.
+
+- **Read only:** the client shows the collection as read-only, and a write is refused with 403. The sharee can still rename their own copy.
+- **Read and write:** the sharee can add, change and delete items in the owner's collection. Those changes belong to the owner and to everyone the collection is shared with.
+- A shared calendar carries its events, tasks and notes. Tasks and notes follow the Tasks and Notes switches.
+- A sharee's own name, color and order for a shared collection stay on their side and do not change the owner's.
+- Removing a share in the panel, or switching sharing off, removes the collection from the sharee's client on its next sync (DAVx5: **Refresh list**; Thunderbird: remove the old entry yourself). The owner's data is never touched.
+- Clients leave a share by switching it off on the device. DAVx5 and Thunderbird do not send a `DELETE` for a shared address book.
+- Nothing is shared until an admin creates a share.
+
+Shares are stored as rows linked to the owner's collection (see [data model](data-model.md) and [sharing design](design/sharing.md)). Deleting a user or a collection deletes its shares, and the delete confirmation lists them.
+
 ### DAV endpoints
 
 Most clients need only the root URL; they discover the rest on their own. Use the other URLs only for clients without discovery. Paths follow the sabre/dav layout.
@@ -485,7 +509,7 @@ Export the settings before an upgrade and keep the file with your other backups.
 **Upgrade**
 
 1. Back up first.
-2. Read the release notes, then change the tag on the `image:` line in `compose.yaml` (for example from `0.1.7` to `0.2.0`). Keep an exact version rather than `latest`, so an upgrade happens only when you choose it.
+2. Read the release notes, then change the tag on the `image:` line in `compose.yaml` (for example from `0.2.0` to `0.3.0`). Keep an exact version rather than `latest`, so an upgrade happens only when you choose it.
 3. Run `docker compose pull` and `docker compose up -d`, with the same `-f` files as at install. Database migrations run automatically on start. With `compose.build.yaml`, update the checkout instead and run `up -d --build`.
 4. Upgrade one minor version at a time. There is no rollback other than restoring the backup.
 
@@ -561,7 +585,7 @@ Export calendars as `.ics` and contacts as `.vcf` from your current server (Radi
 
 ### Version 1.x
 
-- Basic Sharing and ACL: an admin shares a calendar or address book with another user, read-only or read-write
+- Basic Sharing and ACL: an admin shares a calendar or address book with another user, read-only or read-write. **Released in 0.3.0**
 - WebDAV-Push, with an on/off toggle in the admin panel settings and its subscriptions on the Diagnostics page
 - Multilingual admin panel (English and Russian, more as translation files). **Released in 0.1.2**
 - Files (WebDAV file storage)

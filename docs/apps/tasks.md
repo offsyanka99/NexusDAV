@@ -6,7 +6,7 @@ A task is a CalDAV `VTODO`. Tasks are not a separate server and not a separate p
 
 **Version 1.** The admin panel can create a collection that accepts tasks, and so can a CalDAV client for its own user. A capable CalDAV client can create, edit, complete, and delete tasks. Sync uses the collection sync token. The admin panel does not edit the task.
 
-**Version 1.x.** Sharing and WebDAV-Push follow the collection. A shared calendar shares the tasks stored in it. Push uses the same bitfire draft as calendars, and the admin panel is where the server-wide switch lives. See [Calendar](calendar.md).
+**Version 1.x.** Sharing and WebDAV-Push follow the collection. A shared calendar shares the tasks stored in it (released in 0.3.0), with the access of the share. Push uses the same bitfire draft as calendars, and the admin panel is where the server-wide switch lives. See [Calendar](calendar.md).
 
 **Version 2.** Import and export of `.ics` files includes tasks. The user portal can manage that person's own tasks. Search in this version covers events and contacts, not a separate task search.
 

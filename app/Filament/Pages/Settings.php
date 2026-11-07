@@ -37,7 +37,7 @@ class Settings extends SettingsPage
      */
     protected function settingKeys(): array
     {
-        return ['caldav', 'carddav', 'tasks', 'notes', 'log_level', 'sync_history_days'];
+        return ['caldav', 'carddav', 'tasks', 'notes', 'sharing', 'log_level', 'sync_history_days'];
     }
 
     public function form(Schema $schema): Schema
@@ -70,6 +70,12 @@ class Settings extends SettingsPage
                                 ->label(__('Notes (VJOURNAL)'))
                                 ->helperText(__('When off, calendars stop offering notes: no new note can be created or changed. Existing notes stay readable and can be deleted.')),
                             'notes',
+                        ),
+                        $this->lockable(
+                            Toggle::make('sharing')
+                                ->label(__('Sharing'))
+                                ->helperText(__("When off, calendars and address books shared with a user are not listed for them, and their paths answer 404. The shares are kept and come back when sharing is turned on. The owner's own calendars and address books do not change.")),
+                            'sharing',
                         ),
                     ]),
                 Section::make(__('Logging'))
