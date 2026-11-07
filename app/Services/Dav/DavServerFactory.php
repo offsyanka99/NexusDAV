@@ -5,7 +5,6 @@ namespace App\Services\Dav;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Sabre\CalDAV\Plugin as CalDavPlugin;
-use Sabre\CardDAV\Plugin as CardDavPlugin;
 use Sabre\DAV\Auth\Plugin as AuthPlugin;
 use Sabre\DAV\Exception as DavException;
 use Sabre\DAV\Exception\Forbidden;

@@ -77,6 +77,9 @@ class SharedAddressBooksTest extends TestCase
 
         $this->assertStringContainsString('FN:Zed Zebra', $this->body($this->dav('GET', $url.'zed.vcf', 'bob', $this->bobToken)->assertOk()));
 
+        $this->dav('HEAD', $url.'zed.vcf', 'bob', $this->bobToken)->assertOk();
+        $this->dav('HEAD', '/dav/addressbooks/ada/default/zed.vcf', 'ada', $this->adaToken)->assertOk();
+
         $list = $this->body($this->dav('PROPFIND', $url, 'bob', $this->bobToken, ['Depth' => '1'], $this->propfind('<d:getetag/>'))->assertStatus(207));
         $this->assertStringContainsString($url.'zed.vcf', $list);
 
