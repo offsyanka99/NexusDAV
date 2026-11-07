@@ -14,7 +14,7 @@ The work is split into five milestones and 31 PRs, listed in the order they are 
 
 Sources: [guide](../guide.md), [apps](../apps/README.md), the [admin panel](../apps/admin.md) description, the design notes for [Settings](../design/admin-settings.md), [Configuration](../design/admin-configuration.md) and the [Dashboard](../design/admin-dashboard.md), the pinned WebDAV-Push draft, and the current code.
 
-**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is in progress: PR 20 to PR 22 are done, PR 23 is merged with its client test open, and PR 24 (shared address books over DAV) is next. M4 and M5 are not started. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
+**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is in progress: PR 20 to PR 23 are done (PR 23 passed the client test), and PR 24 (shared address books over DAV) is next. M4 and M5 are not started. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
 
 Effort levels are the same as in Version 1:
 - **Low** — small, mostly boilerplate or config
@@ -44,7 +44,7 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 | 12 | PR 20 | M3 | Spike: address book sharing design | Medium | — |
 | 13 | PR 21 | M3 | Share storage and `SharingService` (done) | High | 20 |
 | 14 | PR 22 | M3 | Share management in the admin panel (done) | High | 11, 21 |
-| 15 | PR 23 | M3 | Shared calendars over DAV and the Sharing switch (merged; client test open) | High | 14, 21 |
+| 15 | PR 23 | M3 | Shared calendars over DAV and the Sharing switch (done) | High | 14, 21 |
 | 16 | PR 24 | M3 | Shared address books: reading and sync | High | 14, 21 |
 | 17 | PR 25 | M3 | Shared address books: writing and leaving a share | High | 16, 24 |
 | 18 | PR 26 | M3 | Received shares, the Sharing switch in the panel, and the Dashboard | Medium | 22, 23 |
@@ -435,7 +435,9 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 - The panel calls `share`, `changeAccess`, `unshare` and `sharees`. It does not write the share tables. Nothing here is served over DAV (PR 23 and PR 24).
 - Tests: `ShareAdminTest` (SQLite and PostgreSQL).
 
-### PR 23 — Shared calendars over DAV and the Sharing switch (Effort: High)
+### PR 23 — Shared calendars over DAV and the Sharing switch (Effort: High) — ✅ done
+
+**Client test (6 November 2026, pre-release `0.2.1-sharing.1`):** the maintainer shared calendars with three users at different access levels and checked calendars and notes in Thunderbird, on an iPad and in DAVx5 with jtx Board on a Pixel 7 Pro. Everything worked as specified, including read-only refusals and read-write saves into the owner's collection.
 
 - Shared calendars appear in the sharee's calendar home, with their tasks and notes, and in the home's sync token.
 - **Read-only:** writes are refused with 403 (`PUT`, `DELETE` of an item, `PROPPATCH` of the owner's properties, `MOVE` out). `current-user-privilege-set` shows read only, so DAVx5 and Thunderbird show the calendar as read-only.

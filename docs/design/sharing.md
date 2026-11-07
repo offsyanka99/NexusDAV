@@ -232,7 +232,7 @@ DAVx5 and Thunderbird on the same lab server (SQLite, over HTTPS), the sharee's 
 | Read-write share: deleting a contact | Pass: the sharee's `DELETE` (204) removes it from the owner's book too | n/a |
 | Leaving the share | **No Delete option for an address book**: DAVx5 can only switch syncing off for it | Removing a book only removes it on the device and sends nothing |
 | The sharee's own name for the copy | n/a: no rename in DAVx5 | A rename stays on the device and changes nothing on the server or in DAVx5 |
-| A shared calendar in DAVx5 with jtx Board and in Thunderbird | ⬜ (PR 23) | ⬜ (PR 23) |
+| A shared calendar (events, tasks and notes) at read-only and read-write access, with three users | Pass in DAVx5 with jtx Board (Pixel 7 Pro) | Pass; an iPad also passed |
 
 What this means for the design:
 
