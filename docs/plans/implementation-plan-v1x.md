@@ -14,7 +14,7 @@ The work is split into five milestones and 31 PRs, listed in the order they are 
 
 Sources: [guide](../guide.md), [apps](../apps/README.md), the [admin panel](../apps/admin.md) description, the design notes for [Settings](../design/admin-settings.md), [Configuration](../design/admin-configuration.md) and the [Dashboard](../design/admin-dashboard.md), the pinned WebDAV-Push draft, and the current code.
 
-**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is done and released as **0.3.0** (PR 20 to PR 27). The Sharing pass of the [client checklist](../testing/client-checklist.md#11-sharing) passed on 0.3.0+404d77b with DAVx5 + jtx Board, Thunderbird and an iPad on both databases (Pass 3 table; all of step 11 passed on both databases). M4 and M5 are not started. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
+**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is done and released as **0.3.0** (PR 20 to PR 27). The Sharing pass of the [client checklist](../testing/client-checklist.md#11-sharing) passed on 0.3.0+404d77b with DAVx5 + jtx Board, Thunderbird and an iPad on both databases (Pass 3 table; all of step 11 passed on both databases). M4 is in progress: PR 28 is implemented. M5 is not started. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
 
 Effort levels are the same as in Version 1:
 - **Low** — small, mostly boilerplate or config
@@ -49,7 +49,7 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 | 17 | PR 25 | M3 | Shared address books: writing and leaving a share (merged; client test open) | High | 16, 24 |
 | 18 | PR 26 | M3 | Received shares, the Sharing switch in the panel, and the Dashboard (done) | Medium | 22, 23 |
 | 19 | PR 27 | M3 | M3 release (client pass done; publish next) | Medium | 19, 21–26 |
-| 20 | PR 28 | M4 | File home: storage, isolation and basic methods | High | — |
+| 20 | PR 28 | M4 | File home: storage, isolation and basic methods (implemented) | High | — |
 | 21 | PR 29 | M4 | COPY, MOVE, locks and properties for files | High | 28 |
 | 22 | PR 30 | M4 | Upload size limit, streaming and a full disk | Medium | 28 |
 | 23 | PR 31 | M4 | Files in the admin panel | Medium | 28, 30 |
@@ -513,9 +513,10 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 
 **Done when:** an admin sees and removes the shares a user received, switches Sharing from the panel, and the Services card shows it.
 
-### PR 27 — M3 release (Effort: Medium) — done, 0.3.0
+### PR 27 — M3 release (Effort: Medium) — ✅ done, 0.3.0
 
-**Prepared:** the Sharing section (step 11) and a Pass 3 results table in the [client checklist](../testing/client-checklist.md#11-sharing); the guide's Sharing section and settings table, the apps pages, the Users, Settings and Dashboard design notes, `architecture.md` and `dav-endpoints.md`; version references moved to 0.3.0 (compose files, TrueNAS files, README, SECURITY.md, guide, Dashboard note); release notes for 0.3.0. **Client pass:** step 11 passed on 0.3.0+404d77b with DAVx5 + jtx Board, Thunderbird and an iPad, on PostgreSQL and SQLite (November 7, 2026). All of step 11 passed on both databases. **Published** as tag `v0.3.0`.
+**Prepared:** the Sharing section (step 11) and a Pass 3 results table in the [client checklist](../testing/client-checklist.md#11-sharing); the guide's Sharing section and settings table, the apps pages, the Users, Settings and Dashboard design notes, `architecture.md` and `dav-endpoints.md`; version references moved to 0.3.0 (compose files, TrueNAS files, README, SECURITY.md, guide, Dashboard note); release notes for 0.3.0. **Client pass:** step 11 passed on 0.3.0+404d77b with DAVx5 + jtx Board, Thunderbird and an iPad, on PostgreSQL and SQLite (November 7, 2026). All of step 11 passed on both databases. **Published** as tag `v0.3.0`. NexusDAV 0.3.0 is published at https://github.com/offsyanka99/NexusDAV/releases/tag/v0.3.0. The image build is ghcr.io/offsyanka99/nexusdav:0.3.0.
+The tag is on c1eee3b, the current main.
 
 - A Sharing section in the client checklist, run on DAVx5 (with jtx Board) and Thunderbird on both databases:
   - Read-only and read-write calendars, with tasks and notes
@@ -535,7 +536,25 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 
 **Goal:** each user has a private WebDAV file home at `/dav/files/<username>/`. Clients can upload, download, rename, move and delete files and folders there ([Files](../apps/files.md)).
 
-### PR 28 — File home: storage, isolation and basic methods (Effort: High)
+### PR 28 — File home: storage, isolation and basic methods (Effort: High) — implemented
+
+**Built:**
+- `FilesRoot` (`/dav/files/`, one home per principal through the owner-only principal backend, so another user's home answers 404), `FileHome`, `FileDirectory` and `FileResource` on sabre's `FSExt` classes, and `FileStorage` for the disk side. The owner gets `read` and `write`, like sabre's calendar home; the `ACL` method is refused.
+- Storage under `nexusdav.files.path`. The image sets `NEXUSDAV_FILES_PATH=/data/files`; outside the image it defaults to `storage/app/files`. It is not a panel setting. The home is created on first use with mode `0750` by the app user. The entrypoint changes the owner of `/data/files` (with `chown -R -h`) only when `PUID` or `PGID` changed, because a file tree can be large.
+- Paths: `.` and `..` (also `%2e%2e` and an encoded `/`) and a NUL byte are refused with 403. A path that resolves outside `/dav/` now answers 404 instead of sabre's 500, for every DAV path. Symbolic links, devices, sockets and pipes are never listed or opened, a write onto one is refused with 403, and a delete removes a link without following it. A home that is itself a link is not served (500, logged).
+- Names: no control characters, valid UTF-8, at most 255 bytes, stored in Unicode NFC. A name in NFD (macOS) opens the same file. A name on disk that is not NFC, or breaks the rules, is not listed.
+- Writes go to a temporary file in `/data/files/.uploads/` (same volume; a username cannot start with a dot) and are renamed into place, so a failed upload leaves nothing and an overwrite is never half written. Temporary files older than a day are removed by the next upload. A full disk is a 500 here; PR 30 makes it 507.
+- `GET` with ranges: `DavController` now stops a stream after `Content-Length` bytes, as sabre's own SAPI does, so a range answer no longer sends the rest of the file.
+- `PROPFIND` depth infinity is answered as depth 1 (sabre's setting stays off).
+- **Files switch:** `files` in `SettingsService::DEFINITIONS` (`NEXUSDAV_FILES`, default off, also when the config key is missing). Off: `/dav/files/` answers 403 "Files is turned off on this server." and the files are kept. The panel field is PR 31.
+- Deleting a user removes the locks and properties under `files/<username>` and, after the deletion commits, the file home (renamed out of the way first, so a user created again with the same name starts empty). A failure is logged and does not undo the deletion.
+- A write of a new name into another user's home answers the same as under a username that does not exist (404 or 409, by sabre's order of checks), so the answer does not tell who exists.
+- `COPY`, `MOVE`, `LOCK` and `PROPPATCH` already go through the same hardened nodes (name rules, no links, no move of a folder into itself). Their tests and the move of locks and properties are PR 29.
+- A folder reports the volume's used and free space (`quota-used-bytes`, `quota-available-bytes`, from sabre's `FSExt`), since 1.x has no user quotas; rclone `about` and GNOME Files show it.
+
+**Tests:** `FilesTest` (both databases): the switch and its default; the basic methods with ranges, `If-Match` and depth; uploads above 2 MB (sabre's body moves to a temporary file there); cross-user 404s and the root listing; path escapes with `%2e%2e`, encoded slashes and NUL; links planted on disk (to another home, outside the homes, dangling, inside a deleted folder, and as the home itself); name rules and NFC; a failed upload (a dropped stream, an unusable uploads directory) leaving nothing and keeping the old file; stale upload cleanup; user deletion with locks, properties and a user created again.
+
+**Checked by hand** on the built image (SQLite, plain HTTP, `PUID` 568): rclone 1.76 (mkdir, upload of a tree with a 5 MB file and Unicode names, `check`, an identical download, `cat`, `deletefile`, `purge`) and GNOME Files' gvfs through `gio` (mount with an app password, list, mkdir, upload, an identical download of 3 MB, remove a file and a folder). `/data/files` and the home were created `0750` by `nexusdav`. **Left:** the same with `davs://` behind the proxy, by the maintainer.
 
 - A `files` root in `DavServerFactory`, with one home per principal. Another user's home answers 404.
 - Storage at `/data/files/<username>/` (config `nexusdav.files.path`, not a panel setting; Decision 7), created on first use by the app user (`PUID` / `PGID`).

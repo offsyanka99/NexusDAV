@@ -42,6 +42,10 @@ final class DavServerFactory
             $nodes[] = new AddressBookRoot($principals, new AddressBookBackend($pdo), 'principals');
         }
 
+        if ($this->enabled('files')) {
+            $nodes[] = new FilesRoot($principals, app(FileStorage::class), 'principals');
+        }
+
         $server = new Server($nodes);
         $server->setBaseUri('/dav/');
 
@@ -144,6 +148,10 @@ final class DavServerFactory
         if ($root === 'addressbooks' && ! $this->enabled('carddav')) {
             throw new Forbidden('CardDAV is turned off on this server.');
         }
+
+        if ($root === 'files' && ! $this->enabled('files')) {
+            throw new Forbidden('Files is turned off on this server.');
+        }
     }
 
     private function requireReadIfPresent(Server $server, RequestInterface $request): void
@@ -176,6 +184,6 @@ final class DavServerFactory
 
     private function enabled(string $feature): bool
     {
-        return filter_var(config('nexusdav.features.'.$feature, true), FILTER_VALIDATE_BOOLEAN);
+        return filter_var(config('nexusdav.features.'.$feature, $feature !== 'files'), FILTER_VALIDATE_BOOLEAN);
     }
 }

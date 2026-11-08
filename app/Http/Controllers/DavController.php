@@ -38,6 +38,15 @@ class DavController extends Controller
         DiagnosticEventWriter $events,
         AuthThrottle $throttle,
     ): Response {
+        if ($this->outsideBase($request)) {
+            // sabre would throw a LogicException and answer 500. The path
+            // resolves to something outside /dav/, which is not served.
+            $this->recordError($events, $throttle, $request, 404, null);
+            $missing = $this->errorResponse(404, 'Not found.');
+
+            return response($missing->getBodyAsString(), 404, $missing->getHeaders());
+        }
+
         // Kept as a string so a write can be replayed. CalDAV and CardDAV
         // bodies are small.
         $body = $request->getContent();
@@ -126,6 +135,18 @@ class DavController extends Controller
         }
 
         return [$server, $failure];
+    }
+
+    /**
+     * The same test as sabre's Request::getPath(), on the path without its
+     * query: after dot segments are resolved, it must still be under /dav/.
+     */
+    private function outsideBase(Request $request): bool
+    {
+        $path = explode('?', $request->getRequestUri(), 2)[0];
+        $uri = Uri\normalize(str_replace('//', '/', $path));
+
+        return ! str_starts_with($uri, '/dav/') && $uri !== '/dav';
     }
 
     /**
@@ -232,9 +253,26 @@ class DavController extends Controller
         }
 
         if (is_resource($body)) {
-            return response()->stream(function () use ($body): void {
+            // A range answer leaves the stream at the range start and relies
+            // on the SAPI to stop after Content-Length bytes, as sabre's does.
+            $length = $sabre->getHeader('Content-Length');
+            $limit = is_string($length) && ctype_digit($length) ? (int) $length : null;
+
+            return response()->stream(function () use ($body, $limit): void {
                 try {
-                    fpassthru($body);
+                    if ($limit === null) {
+                        fpassthru($body);
+
+                        return;
+                    }
+
+                    $output = fopen('php://output', 'wb');
+
+                    try {
+                        stream_copy_to_stream($body, $output, $limit);
+                    } finally {
+                        fclose($output);
+                    }
                 } finally {
                     fclose($body);
                 }

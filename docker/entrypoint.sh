@@ -26,6 +26,12 @@ if [ -d /data/database ]; then
     chown -R nexusdav:nexusdav /data/database
 fi
 
+# The same for file homes, which can be large: only when the owner changed.
+# -h changes a symbolic link itself, never what it points to.
+if [ -d /data/files ] && [ "$(stat -c '%u:%g' /data/files)" != "$PUID:$PGID" ]; then
+    chown -R -h nexusdav:nexusdav /data/files
+fi
+
 if [ ! -s /data/app.key ]; then
     key=$(php -r 'echo "base64:".base64_encode(random_bytes(32));')
     (umask 077 && printf '%s' "$key" > /data/app.key)

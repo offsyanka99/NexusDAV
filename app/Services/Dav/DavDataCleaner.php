@@ -5,12 +5,15 @@ namespace App\Services\Dav;
 use App\Models\Principal;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * sabre rows point at a principal by URI, so the users foreign key cannot
  * reach them. Delete them with the user: their collections with every share
- * of them, and the shares they received. Home paths use the username, and
- * underscores in a username are escaped so a neighbour is not removed.
+ * of them, the shares they received, and their file home with its locks and
+ * properties. Home paths use the username, and underscores in a username are
+ * escaped so a neighbour is not removed.
  */
 final class DavDataCleaner
 {
@@ -60,9 +63,21 @@ final class DavDataCleaner
             DB::table('addressbooks')->whereIn('id', $addressBookIds)->delete();
         }
 
-        foreach (['principals/'.$user->username, 'calendars/'.$user->username, 'addressbooks/'.$user->username] as $path) {
+        foreach (['principals/'.$user->username, 'calendars/'.$user->username, 'addressbooks/'.$user->username, 'files/'.$user->username] as $path) {
             $this->deletePath($path);
         }
+
+        // The file home goes once the deletion is committed, so a rolled
+        // back deletion keeps the files. Files that are switched off are
+        // deleted too.
+        $username = (string) $user->username;
+        DB::afterCommit(static function () use ($username): void {
+            try {
+                app(FileStorage::class)->deleteHome($username);
+            } catch (Throwable $exception) {
+                Log::error('Could not delete the file home of a deleted user', ['username' => $username, 'exception' => $exception]);
+            }
+        });
     }
 
     /**

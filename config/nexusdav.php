@@ -71,7 +71,8 @@ return [
     | Read by DavServerFactory. CalDAV and CardDAV decide which roots and
     | plugins are loaded. Tasks (VTODO) and notes (VJOURNAL) decide which
     | calendar components a calendar may hold. Sharing decides whether a
-    | sharee's copy is listed. All are on by default.
+    | sharee's copy is listed. Files decides whether /dav/files/ is served.
+    | All are on by default except Files, which an admin switches on.
     |
     */
 
@@ -81,6 +82,21 @@ return [
         'tasks' => env('NEXUSDAV_TASKS', true),
         'notes' => env('NEXUSDAV_NOTES', true),
         'sharing' => env('NEXUSDAV_SHARING', true),
+        'files' => env('NEXUSDAV_FILES', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Files
+    |--------------------------------------------------------------------------
+    |
+    | Each user's file home is a directory under path, created on first use.
+    | The image sets /data/files on the data volume; it is not a panel setting.
+    |
+    */
+
+    'files' => [
+        'path' => env('NEXUSDAV_FILES_PATH', storage_path('app/files')),
     ],
 
     /*

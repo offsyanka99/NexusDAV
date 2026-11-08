@@ -40,7 +40,8 @@ EXPOSE 8080
 # Logs go to the container output so `docker compose logs` shows them.
 # Laravel's default channel writes storage/logs/laravel.log inside the container.
 ENV LOG_CHANNEL=stderr \
-    NEXUSDAV_VERSION=${NEXUSDAV_VERSION}
+    NEXUSDAV_VERSION=${NEXUSDAV_VERSION} \
+    NEXUSDAV_FILES_PATH=/data/files
 
 # The base image keeps Caddy's state in /data, which is our data volume and
 # not writable by nexusdav. Caddy serves plain HTTP here; keep its files in the home.
