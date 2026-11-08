@@ -12,7 +12,7 @@ Related documents:
 - [Implementation plan (v1.x)](plans/implementation-plan-v1x.md) — milestones and PRs for the Version 1.x features
 - [Plan for Version 2 and later](plans/version-2-and-later.md) — features for 2.0, 2.x and beyond
 
-Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `0.2.0` (first release `0.1.0`). "Version 1" and "Version 1.x" in these documents name the feature plan, not release numbers: releases stay 0.x until the plan is finished and 1.0.0 is tagged. 0.3.0 completes the first three milestones of the Version 1.x plan: the admin panel in English and Russian (M1), reliable sync (M2) and sharing of calendars and address books (M3). The server passes automated sync tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
+Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `0.3.0` (first release `0.1.0`). "Version 1" and "Version 1.x" in these documents name the feature plan, not release numbers: releases stay 0.x until the plan is finished and 1.0.0 is tagged. 0.3.0 completes the first three milestones of the Version 1.x plan: the admin panel in English and Russian (M1), reliable sync (M2) and sharing of calendars and address books (M3). The server passes automated sync tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
 
 NexusDAV is built for homelabs and small teams that want calendars, contacts, tasks, notes and files without running a full groupware suite.
 
@@ -30,7 +30,7 @@ Current limitations:
 
 ## Quick start
 
-1. Get the Compose files and create your environment file. The Compose files pull the published image, `ghcr.io/offsyanka99/nexusdav:0.2.0`:
+1. Get the Compose files and create your environment file. The Compose files pull the published image, `ghcr.io/offsyanka99/nexusdav:0.3.0`:
 
    ```bash
    git clone https://github.com/offsyanka99/NexusDAV.git
@@ -293,9 +293,9 @@ NexusDAV targets standards-compliant clients. The table shows the Version 1 targ
 
 | Client | CalDAV (events) | CardDAV (contacts) | Tasks (VTODO) | Notes (VJOURNAL) | Status |
 |---|---|---|---|---|---|
-| **DAVx5** (Android) | Yes | Yes | Yes, via **jtx Board** | Yes, via **jtx Board** | Primary target. Client checklist passed on 0.1.3 and 0.1.4 with DAVx⁵ 4.5.21 + jtx Board 2.17.00: calendar, contacts, tasks and notes. A first sync of 2,000 contacts takes about 10 minutes on the phone ([#1](https://github.com/offsyanka99/NexusDAV/issues/1)) |
-| **Thunderbird** | Yes | Yes | Yes | No (not supported by the client) | Target. Client checklist passed on 0.1.3 and 0.1.4 with 159.0: calendar, contacts and tasks |
-| **Apple Calendar / Contacts** (macOS, iOS) | Yes | Yes | Yes, in Reminders (not in Calendar) | No | Client checklist passed on 0.1.6 with an iPad (iOS 18.5, native apps): discovery, events, recurring events, tasks, contacts, offline edits, two devices editing one item, a calendar deleted and created again, and a large first sync (see Troubleshooting for what the iPad keeps after a calendar is re-created) |
+| **DAVx5** (Android) | Yes | Yes | Yes, via **jtx Board** | Yes, via **jtx Board** | Primary target. Client checklist passed on 0.1.3 and 0.1.4 with DAVx⁵ 4.5.21 + jtx Board 2.17.00: calendar, contacts, tasks and notes. Sharing passed on 0.3.0 (shared calendars, tasks, notes and address books). A first sync of 2,000 contacts takes about 10 minutes on the phone ([#1](https://github.com/offsyanka99/NexusDAV/issues/1)) |
+| **Thunderbird** | Yes | Yes | Yes | No (not supported by the client) | Target. Client checklist passed on 0.1.3 and 0.1.4 with 159.0: calendar, contacts and tasks. Sharing passed on 0.3.0 (shared calendars and address books, read-only and read-write) |
+| **Apple Calendar / Contacts** (macOS, iOS) | Yes | Yes | Yes, in Reminders (not in Calendar) | No | Client checklist passed on 0.1.6 with an iPad (iOS 18.5, native apps): discovery, events, recurring events, tasks, contacts, shared calendars and address books (0.3.0), offline edits, two devices editing one item, a calendar deleted and created again, and a large first sync (see Troubleshooting for what the iPad keeps after a calendar is re-created) |
 | **vdirsyncer** 0.21.0 | Yes | Yes | Synced as files | Synced as files | Tested for 0.1.1 (automated) |
 | **python caldav** 3.7.0 | Yes | — | Yes | Yes | Tested for 0.1.1 (automated) |
 | Other standards-compliant clients | Expected | Expected | Client-dependent | Client-dependent | Best effort |
@@ -509,7 +509,7 @@ Export the settings before an upgrade and keep the file with your other backups.
 **Upgrade**
 
 1. Back up first.
-2. Read the release notes, then change the tag on the `image:` line in `compose.yaml` (for example from `0.2.0` to `0.3.0`). Keep an exact version rather than `latest`, so an upgrade happens only when you choose it.
+2. Read the release notes, then change the tag on the `image:` line in `compose.yaml` (for example from `0.3.0` to `0.4.0`). Keep an exact version rather than `latest`, so an upgrade happens only when you choose it.
 3. Run `docker compose pull` and `docker compose up -d`, with the same `-f` files as at install. Database migrations run automatically on start. With `compose.build.yaml`, update the checkout instead and run `up -d --build`.
 4. Upgrade one minor version at a time. There is no rollback other than restoring the backup.
 

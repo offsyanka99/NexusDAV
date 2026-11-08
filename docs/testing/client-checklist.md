@@ -316,34 +316,34 @@ Run on the release candidate (the tag that will be released), with both servers 
 
 | Run log | |
 |---|---|
-| Date | |
-| Build (Dashboard version) | |
-| Tester | |
-| PostgreSQL server | |
-| SQLite server | |
-| DAVx5 + jtx Board | |
-| Thunderbird | |
-| iPad (optional) | |
+| Date | Nov 7 |
+| Build (Dashboard version) | 0.3.0+404d77b |
+| Tester | HummerSoft |
+| PostgreSQL server | ✅ |
+| SQLite server | ✅ |
+| DAVx5 + jtx Board | ✅ |
+| Thunderbird | ✅ |
+| iPad (optional) | ✅ |
 
 | Step | DAVx5, PostgreSQL | DAVx5, SQLite | Thunderbird, PostgreSQL | Thunderbird, SQLite | Notes |
 |---|---|---|---|---|---|
-| 11a Panel: share, Shared with | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 11b Shared collections appear | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 11c Read-only calendar refuses writes | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 11d Read-write calendar, sharee changes seen | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 11e Owner changes seen by sharees | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 11f Sharee's own name and color | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 11g Read-only address book refuses writes | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 11h Read-write address book both ways | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 11i Access changed in the panel | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 11j Bulk set access and remove | ➖ | ➖ | ➖ | ➖ | Panel only. PostgreSQL ⬜ · SQLite ⬜ |
-| 11k Share removed in the panel | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 11l Shared with this user, remove | ➖ | ➖ | ➖ | ➖ | Panel only. PostgreSQL ⬜ · SQLite ⬜ |
-| 11m Leaving a share on the device | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 11n Sharing off and on, the Services card, the lock | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 11o Isolation | ➖ | ➖ | ➖ | ➖ | Curl. PostgreSQL ⬜ · SQLite ⬜ |
-| 11p Two devices, same shared item | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 11q Delete the shared calendar | ⬜ | ⬜ | ⬜ | ⬜ | |
-| 11r Delete a user with received shares | ➖ | ➖ | ➖ | ➖ | Panel only. PostgreSQL ⬜ · SQLite ⬜ |
-| 11s Russian text | ➖ | ➖ | ➖ | ➖ | Panel only. PostgreSQL ⬜ · SQLite ⬜ |
-| 11t Diagnostics | ➖ | ➖ | ➖ | ➖ | PostgreSQL ⬜ · SQLite ⬜ |
+| 11a Panel: share, Shared with | ✅ | ✅ | ✅ | ✅ | DAVx5, iPad and Thunderbird |
+| 11b Shared collections appear | ✅ | ✅ | ✅ | ✅ | DAVx5, iPad and Thunderbird |
+| 11c Read-only calendar refuses writes | ✅ | ✅ | ✅ | ✅ | DAVx5, iPad and Thunderbird |
+| 11d Read-write calendar, sharee changes seen | ✅ | ✅ | ✅ | ✅ | DAVx5, iPad and Thunderbird |
+| 11e Owner changes seen by sharees | ✅ | ✅ | ✅ | ✅ | DAVx5, iPad and Thunderbird |
+| 11f Sharee's own name and color | ✅ | ✅ | ✅ | ✅ | DAVx5, iPad and Thunderbird |
+| 11g Read-only address book refuses writes | ✅ | ✅ | ✅ | ✅ | DAVx5, iPad and Thunderbird |
+| 11h Read-write address book both ways | ✅ | ✅ | ✅ | ✅ | DAVx5, iPad and Thunderbird |
+| 11i Access changed in the panel | ✅ | ✅ | ✅ | ✅ | DAVx5, iPad and Thunderbird |
+| 11j Bulk set access and remove | ➖ | ➖ | ➖ | ➖ | Panel only. PostgreSQL ✅ · SQLite ✅ |
+| 11k Share removed in the panel | ✅ | ✅ | ✅ | ✅ | DAVx5, iPad and Thunderbird |
+| 11l Shared with this user, remove | ➖ | ➖ | ➖ | ➖ | Panel only. PostgreSQL ✅ · SQLite ✅ |
+| 11m Leaving a share on the device | ✅ | ✅ | ✅ | ✅ | DAVx5, iPad and Thunderbird |
+| 11n Sharing off and on, the Services card, the lock | ✅ | ✅ | ✅ | ✅ | DAVx5, iPad and Thunderbird |
+| 11o Isolation | ➖ | ➖ | ➖ | ➖ | Curl. PostgreSQL ✅ · SQLite ✅ |
+| 11p Two devices, same shared item | ✅ | ✅ | ✅ | ✅ | DAVx5, iPad and Thunderbird |
+| 11q Delete the shared calendar | ✅ | ✅ | ✅ | ✅ | DAVx5, iPad and Thunderbird |
+| 11r Delete a user with received shares | ➖ | ➖ | ➖ | ➖ | Panel only. PostgreSQL ✅ · SQLite ✅ |
+| 11s Russian text | ➖ | ➖ | ➖ | ➖ | Panel only. PostgreSQL ✅ · SQLite ✅ |
+| 11t Diagnostics | ➖ | ➖ | ➖ | ➖ | PostgreSQL ✅ · SQLite ✅ |

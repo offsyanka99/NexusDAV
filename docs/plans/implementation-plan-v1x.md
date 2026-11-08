@@ -14,7 +14,7 @@ The work is split into five milestones and 31 PRs, listed in the order they are 
 
 Sources: [guide](../guide.md), [apps](../apps/README.md), the [admin panel](../apps/admin.md) description, the design notes for [Settings](../design/admin-settings.md), [Configuration](../design/admin-configuration.md) and the [Dashboard](../design/admin-dashboard.md), the pinned WebDAV-Push draft, and the current code.
 
-**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is built as **0.3.0** (PR 20 to PR 27): PR 20 to PR 23 are done (PR 23 passed the client test) and PR 24 to PR 27 are implemented. What is left before 0.3.0 is published is the Sharing pass of the [client checklist](../testing/client-checklist.md#11-sharing) on both databases, with the results in its Pass 3 table. M4 and M5 are not started. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
+**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is built as **0.3.0** (PR 20 to PR 27): PR 20 to PR 23 are done (PR 23 passed the client test) and PR 24 to PR 27 are implemented. The Sharing pass of the [client checklist](../testing/client-checklist.md#11-sharing) passed on 0.3.0+404d77b with DAVx5 + jtx Board, Thunderbird and an iPad on both databases (Pass 3 table; all of step 11 passed on both databases). What is left is to tag and publish 0.3.0. M4 and M5 are not started. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
 
 Effort levels are the same as in Version 1:
 - **Low** — small, mostly boilerplate or config
@@ -48,7 +48,7 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 | 16 | PR 24 | M3 | Shared address books: reading and sync (merged; client test open) | High | 14, 21 |
 | 17 | PR 25 | M3 | Shared address books: writing and leaving a share (merged; client test open) | High | 16, 24 |
 | 18 | PR 26 | M3 | Received shares, the Sharing switch in the panel, and the Dashboard (done) | Medium | 22, 23 |
-| 19 | PR 27 | M3 | M3 release (prepared; publish after the client pass) | Medium | 19, 21–26 |
+| 19 | PR 27 | M3 | M3 release (client pass done; publish next) | Medium | 19, 21–26 |
 | 20 | PR 28 | M4 | File home: storage, isolation and basic methods | High | — |
 | 21 | PR 29 | M4 | COPY, MOVE, locks and properties for files | High | 28 |
 | 22 | PR 30 | M4 | Upload size limit, streaming and a full disk | Medium | 28 |
@@ -513,9 +513,9 @@ Issue #3 again on 0.1.5, lab SQLite server: 5,000 event uploads, 8 at a time, al
 
 **Done when:** an admin sees and removes the shares a user received, switches Sharing from the panel, and the Services card shows it.
 
-### PR 27 — M3 release (Effort: Medium) — prepared
+### PR 27 — M3 release (Effort: Medium) — client pass done, publish next
 
-**Prepared:** the Sharing section (step 11) and a Pass 3 results table in the [client checklist](../testing/client-checklist.md#11-sharing); the guide's Sharing section and settings table, the apps pages, the Users, Settings and Dashboard design notes, `architecture.md` and `dav-endpoints.md`; version references moved to 0.3.0 (compose files, TrueNAS files, README, SECURITY.md, guide, Dashboard note); release notes for 0.3.0. **Left:** run step 11 on DAVx5 with jtx Board and Thunderbird on both databases, record Pass 3 (and the guide's client compatibility table), then tag `v0.3.0` after CI is green on the release commit and publish the release.
+**Prepared:** the Sharing section (step 11) and a Pass 3 results table in the [client checklist](../testing/client-checklist.md#11-sharing); the guide's Sharing section and settings table, the apps pages, the Users, Settings and Dashboard design notes, `architecture.md` and `dav-endpoints.md`; version references moved to 0.3.0 (compose files, TrueNAS files, README, SECURITY.md, guide, Dashboard note); release notes for 0.3.0. **Client pass:** step 11 passed on 0.3.0+404d77b with DAVx5 + jtx Board, Thunderbird and an iPad, on PostgreSQL and SQLite (November 7, 2026). All of step 11 passed on both databases. **Left:** tag `v0.3.0` after CI is green on the release commit and publish the release.
 
 - A Sharing section in the client checklist, run on DAVx5 (with jtx Board) and Thunderbird on both databases:
   - Read-only and read-write calendars, with tasks and notes
