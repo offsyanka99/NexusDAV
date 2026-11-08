@@ -46,6 +46,12 @@ docs/plans/*.md
 !docs/plans/implementation-plan-v1x.md
 !docs/plans/version-2-and-later.md
 
+# Hand-test scratch files (uploads, downloads). The checklists are linked
+# from the guide, README and CONTRIBUTING, so they stay tracked.
+/docs/testing/*
+!/docs/testing/client-checklist.md
+!/docs/testing/files-testing.md
+
 
 # VS Code Local History
 /.history

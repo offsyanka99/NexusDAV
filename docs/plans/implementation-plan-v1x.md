@@ -49,8 +49,8 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 | 17 | PR 25 | M3 | Shared address books: writing and leaving a share (merged; client test open) | High | 16, 24 |
 | 18 | PR 26 | M3 | Received shares, the Sharing switch in the panel, and the Dashboard (done) | Medium | 22, 23 |
 | 19 | PR 27 | M3 | M3 release (client pass done; publish next) | Medium | 19, 21–26 |
-| 20 | PR 28 | M4 | File home: storage, isolation and basic methods (implemented) | High | — |
-| 21 | PR 29 | M4 | COPY, MOVE, locks and properties for files (implemented) | High | 28 |
+| 20 | PR 28 | M4 | File home: storage, isolation and basic methods (done) | High | — |
+| 21 | PR 29 | M4 | COPY, MOVE, locks and properties for files (done) | High | 28 |
 | 22 | PR 30 | M4 | Upload size limit, streaming and a full disk | Medium | 28 |
 | 23 | PR 31 | M4 | Files in the admin panel | Medium | 28, 30 |
 | 24 | PR 32 | M4 | M4 release | Medium | 27, 28–31 |
@@ -572,7 +572,7 @@ Results are in the [Files testing](../testing/files-testing.md#results)
 
 **Done when:** with Files on, GNOME Files (`davs://`) and rclone can list, upload, download and delete files and create folders; the path-escape and cross-user tests pass; and Files off answers 403 with the data kept.
 
-### PR 29 — COPY, MOVE, locks and properties for files (Effort: High) — implemented
+### PR 29 — COPY, MOVE, locks and properties for files (Effort: High) — ✅ done
 
 **Built:**
 - `COPY` and `MOVE` of files and folder trees inside the home, with `Overwrite` and `Depth` (sabre's core handling through the PR 28 nodes, so the name rules, NFC and the refusal of links apply to the destination too). A rename is a `MOVE`. Copying or moving a folder into itself answers 409, onto itself 403. The home cannot be moved or copied.
