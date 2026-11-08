@@ -50,7 +50,7 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 | 18 | PR 26 | M3 | Received shares, the Sharing switch in the panel, and the Dashboard (done) | Medium | 22, 23 |
 | 19 | PR 27 | M3 | M3 release (client pass done; publish next) | Medium | 19, 21–26 |
 | 20 | PR 28 | M4 | File home: storage, isolation and basic methods (implemented) | High | — |
-| 21 | PR 29 | M4 | COPY, MOVE, locks and properties for files | High | 28 |
+| 21 | PR 29 | M4 | COPY, MOVE, locks and properties for files (implemented) | High | 28 |
 | 22 | PR 30 | M4 | Upload size limit, streaming and a full disk | Medium | 28 |
 | 23 | PR 31 | M4 | Files in the admin panel | Medium | 28, 30 |
 | 24 | PR 32 | M4 | M4 release | Medium | 27, 28–31 |
@@ -536,7 +536,7 @@ The tag is on c1eee3b, the current main.
 
 **Goal:** each user has a private WebDAV file home at `/dav/files/<username>/`. Clients can upload, download, rename, move and delete files and folders there ([Files](../apps/files.md)).
 
-### PR 28 — File home: storage, isolation and basic methods (Effort: High) — implemented
+### PR 28 — File home: storage, isolation and basic methods (Effort: High) — ✅ done
 
 **Built:**
 - `FilesRoot` (`/dav/files/`, one home per principal through the owner-only principal backend, so another user's home answers 404), `FileHome`, `FileDirectory` and `FileResource` on sabre's `FSExt` classes, and `FileStorage` for the disk side. The owner gets `read` and `write`, like sabre's calendar home; the `ACL` method is refused.
@@ -554,7 +554,7 @@ The tag is on c1eee3b, the current main.
 
 **Tests:** `FilesTest` (both databases): the switch and its default; the basic methods with ranges, `If-Match` and depth; uploads above 2 MB (sabre's body moves to a temporary file there); cross-user 404s and the root listing; path escapes with `%2e%2e`, encoded slashes and NUL; links planted on disk (to another home, outside the homes, dangling, inside a deleted folder, and as the home itself); name rules and NFC; a failed upload (a dropped stream, an unusable uploads directory) leaving nothing and keeping the old file; stale upload cleanup; user deletion with locks, properties and a user created again.
 
-**Checked by hand** on the built image (SQLite, plain HTTP, `PUID` 568): rclone 1.76 (mkdir, upload of a tree with a 5 MB file and Unicode names, `check`, an identical download, `cat`, `deletefile`, `purge`) and GNOME Files' gvfs through `gio` (mount with an app password, list, mkdir, upload, an identical download of 3 MB, remove a file and a folder). `/data/files` and the home were created `0750` by `nexusdav`. **Left:** the same with `davs://` behind the proxy, by the maintainer.
+**Checked by hand** on the built image (SQLite, plain HTTP, `PUID` 568): rclone 1.76 (mkdir, upload of a tree with a 5 MB file and Unicode names, `check`, an identical download, `cat`, `deletefile`, `purge`) and GNOME Files' gvfs through `gio` (mount with an app password, list, mkdir, upload, an identical download of 3 MB, remove a file and a folder). `/data/files` and the home were created `0750` by `nexusdav`. The maintainer's local run over HTTP passed F1 to F7 on November 8 ([Files testing](../testing/files-testing.md#results)). **Left:** the same with `davs://` behind the proxy, by the maintainer ([Files testing](../testing/files-testing.md), steps F1 to F7).
 
 - A `files` root in `DavServerFactory`, with one home per principal. Another user's home answers 404.
 - Storage at `/data/files/<username>/` (config `nexusdav.files.path`, not a panel setting; Decision 7), created on first use by the app user (`PUID` / `PGID`).
@@ -567,18 +567,32 @@ The tag is on c1eee3b, the current main.
 - **Files switch:** a `files` entry in `SettingsService::DEFINITIONS` (`NEXUSDAV_FILES`, default **off**; Decision 16). When off, `/dav/files/` answers 403 "Files is turned off on this server." and the files are kept.
 - Deleting a user deletes their file home, with its locks and properties.
 
-**Tests (both databases):** isolation; path-escape attempts, including a symlink planted on disk; name rules and NFC; a failed upload leaves no file; the switch; user deletion.
+**Tests (local database):** isolation; path-escape attempts, including a symlink planted on disk; name rules and NFC; a failed upload leaves no file; the switch; user deletion.
+Results are in the [Files testing](../testing/files-testing.md#results)
 
 **Done when:** with Files on, GNOME Files (`davs://`) and rclone can list, upload, download and delete files and create folders; the path-escape and cross-user tests pass; and Files off answers 403 with the data kept.
 
-### PR 29 — COPY, MOVE, locks and properties for files (Effort: High)
+### PR 29 — COPY, MOVE, locks and properties for files (Effort: High) — implemented
+
+**Built:**
+- `COPY` and `MOVE` of files and folder trees inside the home, with `Overwrite` and `Depth` (sabre's core handling through the PR 28 nodes, so the name rules, NFC and the refusal of links apply to the destination too). A rename is a `MOVE`. Copying or moving a folder into itself answers 409, onto itself 403. The home cannot be moved or copied.
+- **Another user's home, before locks:** right after authentication, a request into another user's home (`principals`, `calendars`, `addressbooks` or `files`) answers 404, and a `COPY` or `MOVE` whose destination is there answers 409, the same as for a username that does not exist. sabre checks lock tokens by path before it looks up the node, so a locked path in another home answered 423 and showed that it exists. This held for calendars and address books too.
+- **Files and calendars do not mix:** a `COPY` or `MOVE` between `/dav/files/` and the other roots answers 403 "Files can only be copied or moved inside the file home."
+- **Dead properties** move with `MOVE` and go with `DELETE` (sabre's plugin). `COPY` now copies them too (RFC 4918, 9.8.2; `PropertyStorageBackend::copy`, by depth), and replaces the destination's old ones, because sabre overwrites a destination on `COPY` without an unbind event. A move of properties runs in one transaction.
+- **Locks** (`LOCK`, `UNLOCK`, shared and exclusive, depth 0 and infinity) are sabre's lock plugin. Writes without the token answer 423. A `LOCK` on a new name creates an empty file. **Correction to the plan:** locks do not move with `MOVE`. RFC 4918, 9.9.4 says a successful `MOVE` must not move the write lock; sabre releases the source's locks on `MOVE` and removes locks with `DELETE`. A `COPY` is not locked.
+- **A busy database is not replayed for files:** `DavController` replays a write after a busy database only outside `/dav/files/`, because disk changes are not rolled back with the transaction (a replayed `MOVE` would find its source gone). Files writes answer 503 instead.
+- **`TemporaryFileFilterPlugin` is not loaded.** It keeps `._*`, `.DS_Store`, `desktop.ini`, `Thumbs.db`, vim swap and similar files in PHP's session directory, outside the data volume, with no cleanup. In a file home they are ordinary files; macOS and Windows are not tested by the project (Decision 15).
+
+**Tests:** `FilesCopyMoveLockTest` (both databases): rename, move and copy of files and trees, depth 0, NFC and name rules on the destination; `Overwrite` T, F and a folder over a file; refusals (into itself, another home or a missing user, `%2e%2e`, a link on disk, files and calendars); dead properties after `COPY` (with depth and overwrite), `MOVE` and `DELETE`; locks (exclusive, shared, depth infinity, with and without the token, `MOVE` and `DELETE`, `LOCK` on a new name) and the 404 for another user's locked file and calendar object; no replay of a file write on a busy database.
+
+**Checked by hand** on the local server (SQLite, HTTP, a temporary user): rclone 1.60 `moveto` (rename and move into a folder), `copyto` (server-side `COPY`, identical) and `move` of a folder; GNOME Files' gvfs through `gio`: rename, move, copy and a folder move. The maintainer's local run passed F8 to F12 ([Files testing](../testing/files-testing.md#results)). GNOME Files shows "Operation not supported" after a copy and paste although the copy is complete: its WebDAV backend cannot set the copy's modification time, and no request reaches the server. **Skip** keeps the copy. The guide's client compatibility notes say so (PR 32).
 
 - `COPY` and `MOVE` inside the home, for files and folders, with `Overwrite` and `Depth`. A rename is a `MOVE`. A `COPY` or `MOVE` into another user's home answers 404.
 - `LOCK` and `UNLOCK`, shared and exclusive, for office apps and Windows clients.
 - Locks and dead properties move with `MOVE` and go with `DELETE`. sabre's property storage plugin calls the backend's `move` and `delete`; locks get the same treatment.
 - macOS and Windows helper files (`._*`, `.DS_Store`, `desktop.ini`): the PR decides whether to load sabre's `TemporaryFileFilterPlugin`, which keeps them out of the user's home.
 
-**Tests (both databases):** copy and move of files and of folder trees; `Overwrite` true and false; locked resources refused to other lock tokens; properties and locks after `MOVE` and `DELETE`; cross-home refusals.
+**Tests (local database):** copy and move of files and of folder trees; `Overwrite` true and false; locked resources refused to other lock tokens; properties and locks after `MOVE` and `DELETE`; cross-home refusals.
 
 **Done when:** GNOME Files and rclone can rename, move and copy files and folders; locks and properties follow `MOVE` and go with `DELETE`; and a `COPY` or `MOVE` into another home is refused.
 
@@ -615,6 +629,7 @@ The tag is on c1eee3b, the current main.
 - Release notes: Files is off after the upgrade.
 
 **Done when:** the Files checklist passes with GNOME Files, rclone and DAVx5, the docs match, and the release is published.
+**Tests** (both databases): Regression testing on deployed builds
 
 ## M5 — WebDAV-Push and the worker (Effort: Extra High)
 

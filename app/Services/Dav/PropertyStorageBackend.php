@@ -2,9 +2,11 @@
 
 namespace App\Services\Dav;
 
+use Illuminate\Support\Facades\DB;
 use Sabre\DAV\PropertyStorage\Backend\PDO as SabrePropertyBackend;
 use Sabre\DAV\PropFind;
 use Sabre\DAV\PropPatch;
+use Sabre\DAV\Server;
 use Sabre\DAV\Xml\Property\Complex;
 use Sabre\Uri;
 
@@ -70,7 +72,49 @@ final class PropertyStorageBackend extends SabrePropertyBackend
     {
         $this->byParent = [];
 
-        parent::move($source, $destination);
+        // Row by row in sabre; one transaction, so a failure leaves the
+        // properties at the source rather than split between the two paths.
+        DB::transaction(fn () => parent::move($source, $destination));
+    }
+
+    /**
+     * Dead properties follow a COPY (RFC 4918, 9.8.2); sabre's property
+     * plugin has no copy hook. The destination's old properties go first,
+     * because sabre replaces an existing destination without an unbind
+     * event. Depth 0 copies the collection's own properties only.
+     */
+    public function copy(string $source, string $destination, int $depth): void
+    {
+        $this->byParent = [];
+
+        DB::transaction(function () use ($source, $destination, $depth): void {
+            parent::delete($destination);
+
+            $select = $this->pdo->prepare('SELECT id, path FROM '.$this->tableName." WHERE path = ? OR path LIKE ? ESCAPE '='");
+            $select->execute([$source, strtr($source, ['=' => '==', '%' => '=%', '_' => '=_']).'/%']);
+            $rows = $select->fetchAll(\PDO::FETCH_ASSOC);
+
+            $insert = $this->pdo->prepare(
+                'INSERT INTO '.$this->tableName.' (path, name, valuetype, value) SELECT ?, name, valuetype, value FROM '.$this->tableName.' WHERE id = ?',
+            );
+
+            foreach ($rows as $row) {
+                $path = (string) $row['path'];
+
+                // SQLite LIKE ignores case.
+                if ($path !== $source && ! str_starts_with($path, $source.'/')) {
+                    continue;
+                }
+
+                $relative = substr($path, strlen($source) + 1);
+
+                if ($relative !== '' && $depth !== Server::DEPTH_INFINITY && substr_count($relative, '/') + 1 > $depth) {
+                    continue;
+                }
+
+                $insert->execute([$relative === '' ? $destination : $destination.'/'.$relative, $row['id']]);
+            }
+        });
     }
 
     /**

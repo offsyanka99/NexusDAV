@@ -7,7 +7,9 @@ use Illuminate\Support\Facades\Log;
 use Sabre\CalDAV\Plugin as CalDavPlugin;
 use Sabre\DAV\Auth\Plugin as AuthPlugin;
 use Sabre\DAV\Exception as DavException;
+use Sabre\DAV\Exception\Conflict;
 use Sabre\DAV\Exception\Forbidden;
+use Sabre\DAV\Exception\NotFound;
 use Sabre\DAV\Locks\Backend\PDO as LockBackend;
 use Sabre\DAV\Locks\Plugin as LockPlugin;
 use Sabre\DAV\PropertyStorage\Plugin as PropertyPlugin;
@@ -81,7 +83,17 @@ final class DavServerFactory
         }
 
         $server->addPlugin(new LockPlugin(new LockBackend($pdo)));
-        $server->addPlugin(new PropertyPlugin(new PropertyStorageBackend($pdo)));
+        // Dead properties move with MOVE and go with DELETE in sabre's
+        // plugin; COPY is added here. Locks stay with their URL: a MOVE
+        // releases the source's locks (RFC 4918, 9.9.4). sabre's
+        // TemporaryFileFilterPlugin is not loaded: it would keep ._*,
+        // .DS_Store and editor swap files outside the data volume with no
+        // cleanup. In a file home they are ordinary files.
+        $properties = new PropertyStorageBackend($pdo);
+        $server->addPlugin(new PropertyPlugin($properties));
+        $server->on('afterCopy', function (string $source, string $destination, int $depth) use ($properties): void {
+            $properties->copy($source, $destination, $depth);
+        });
 
         // PROPFIND and REPORT are not privilege-checked by sabre's ACL plugin.
         // A calendar-query would otherwise return another user's events.
@@ -94,8 +106,10 @@ final class DavServerFactory
 
         // A switched-off service answers 403 with a reason, not 404. Its root
         // and plugin are not loaded, and the stored data is kept.
-        $server->on('beforeMethod:*', function (RequestInterface $request): void {
+        $server->on('beforeMethod:*', function (RequestInterface $request) use ($server): void {
             $this->refuseDisabledService($request);
+            $this->refuseOtherHomes($server, $request);
+            $this->refuseCopyAcrossFiles($server, $request);
         });
 
         // Shares are created in the admin panel. sabre's sharing plugins are
@@ -152,6 +166,80 @@ final class DavServerFactory
         if ($root === 'files' && ! $this->enabled('files')) {
             throw new Forbidden('Files is turned off on this server.');
         }
+    }
+
+    /**
+     * Another user's home answers 404 before sabre checks lock tokens: those
+     * are stored by path, so a locked path there would otherwise answer 423
+     * and show that it exists. A COPY or MOVE into another user's home fails
+     * like one under a username that does not exist.
+     */
+    private function refuseOtherHomes(Server $server, RequestInterface $request): void
+    {
+        $own = $this->auth->username();
+
+        if (! is_string($own) || $own === '') {
+            return;
+        }
+
+        if (self::otherHome($request->getPath(), $own)) {
+            throw new NotFound('Not found.');
+        }
+
+        $destination = $request->getHeader('Destination');
+
+        if (! in_array(strtoupper($request->getMethod()), ['COPY', 'MOVE'], true) || ! is_string($destination) || $destination === '') {
+            return;
+        }
+
+        try {
+            $target = $server->calculateUri($destination);
+        } catch (DavException) {
+            return;
+        }
+
+        if (self::otherHome($target, $own)) {
+            throw new Conflict('The destination node is not found');
+        }
+    }
+
+    private static function otherHome(string $path, string $own): bool
+    {
+        $segments = explode('/', trim($path, '/'), 3);
+
+        return in_array($segments[0], ['principals', 'calendars', 'addressbooks', 'files'], true)
+            && ($segments[1] ?? '') !== ''
+            && $segments[1] !== $own;
+    }
+
+    /**
+     * A file is not a calendar object or a card, and the other way round:
+     * COPY and MOVE stay on one side of /dav/files/.
+     */
+    private function refuseCopyAcrossFiles(Server $server, RequestInterface $request): void
+    {
+        $destination = $request->getHeader('Destination');
+
+        if (! in_array(strtoupper($request->getMethod()), ['COPY', 'MOVE'], true) || ! is_string($destination) || $destination === '') {
+            return;
+        }
+
+        try {
+            $target = $server->calculateUri($destination);
+        } catch (DavException) {
+            return; // sabre answers a Destination outside /dav/ itself.
+        }
+
+        if (self::underFiles($request->getPath()) !== self::underFiles($target)) {
+            throw new Forbidden('Files can only be copied or moved inside the file home.');
+        }
+    }
+
+    public static function underFiles(string $path): bool
+    {
+        $path = trim($path, '/');
+
+        return $path === 'files' || str_starts_with($path, 'files/');
     }
 
     private function requireReadIfPresent(Server $server, RequestInterface $request): void

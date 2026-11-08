@@ -48,9 +48,11 @@ class DavController extends Controller
         }
 
         // Kept as a string so a write can be replayed. CalDAV and CardDAV
-        // bodies are small.
+        // bodies are small. A write to a file home is not replayed: its disk
+        // changes are not rolled back with the transaction.
         $body = $request->getContent();
-        $replayable = in_array(strtoupper($request->getMethod()), DavWriteLock::METHODS, true);
+        $replayable = in_array(strtoupper($request->getMethod()), DavWriteLock::METHODS, true)
+            && ! DavServerFactory::underFiles(substr(rawurldecode('/'.$request->path()), strlen('/dav')));
 
         for ($attempt = 1; ; $attempt++) {
             [$server, $failure] = $this->attempt($factory, $request, $body);
