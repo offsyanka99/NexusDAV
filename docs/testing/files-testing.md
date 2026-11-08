@@ -1,6 +1,6 @@
 # Files testing (M4)
 
-Hand checks for Files, the WebDAV file storage at `/dav/files/<username>/` ([M4 in the plan](../plans/implementation-plan-v1x.md#m4--files-effort-high)). Each M4 PR adds its steps here: PR 28 (the file home and the basic methods), PR 29 (copy, move, locks), and PR 30 and PR 31 (the upload limit, large uploads, a full disk, and the panel). The release PR 32 runs all of them with GNOME Files, rclone and DAVx5, and the results go in the guide's [client compatibility](../guide.md#client-compatibility) table, as for the [client checklist](client-checklist.md).
+Hand checks for Files, the WebDAV file storage at `/dav/files/<username>/` ([M4 in the plan](../plans/implementation-plan-v1x.md#m4--files-effort-high)). Each M4 PR adds its steps here: PR 28 (the file home and the basic methods), PR 29 (copy, move, locks), and PR 30 and PR 31 (the upload limit, large uploads, a full disk, and the panel). The release PR 32 runs all of them with GNOME Files, rclone and DAVx5 (step F22) over HTTPS on both databases, plus two regression steps, and the results go in the guide's [client compatibility](../guide.md#client-compatibility) table, as for the [client checklist](client-checklist.md).
 
 ## Setup
 
@@ -270,6 +270,18 @@ rm /tmp/one-gig.bin
 
 Expected: `201`, `identical`, `201`, `204`, `204`. `php artisan serve` (PHP's built-in server) keeps a request body in its own memory, so the memory check belongs to the Docker image, where FrankenPHP streams it.
 
+## Steps (PR 32, the release pass)
+
+Run on the 0.4.0 release candidate over HTTPS behind the proxy, on **PostgreSQL and SQLite**, with the Files steps above (F1 to F21: GNOME Files with `davs://` for F2 and F9, rclone for the rest) and these:
+
+| ID | Do | Expected |
+|---|---|---|
+| F22 | **DAVx5 WebDAV mount (Android):** in DAVx5's main menu open **WebDAV mounts**, add a mount with `https://your.host/dav/files/checklist/`, the user `checklist` and its app password. In the Android file manager open the mount: list, create a folder, upload a photo, open it again, rename it, copy it into the folder, delete both, then upload a file of a few hundred MB | Every action works; a downloaded photo opens; the large file arrives complete; Diagnostics shows no 5xx |
+| R1 | **Regression, calendar and contacts:** the client checklist steps 1 (discovery), 2 (items) and 4 (offline edits) on DAVx5 and Thunderbird. PR 29 changed what another user's path answers before lock tokens are checked, and PR 30 changed how DAV bodies and responses are streamed | The same results as on 0.3.0 |
+| R2 | **Regression, sharing:** the client checklist step 11 (11a to 11i, 11m, 11o) on DAVx5 and Thunderbird | The same results as on 0.3.0, and 11o still 404 |
+
+The record of a pass is the table under [Results](#results-of-the-release-pass). If a step fails, open a GitHub issue as in the [client checklist](client-checklist.md#when-a-step-fails).
+
 ## Results
 
 The **Local** column is a run on a local checkout over plain HTTP. The pass over HTTPS behind the proxy goes in the **Proxy pass** run log at the M4 release.
@@ -307,3 +319,45 @@ The **Local** column is a run on a local checkout over plain HTTP. The pass over
 | F21 Diagnostics | ✅ | Local: no 5xx and no 4xx rows |
 
 Before the hand pass, PR 28 was also checked on the built image over plain HTTP on SQLite (November 8, 2026): rclone 1.76 and GNOME Files' gvfs through `gio` passed F1 to F3. PR 29 was checked on the local server with a temporary user: rclone 1.60 `moveto`, `copyto` and a folder `move`, and gvfs through `gio` (rename, move, copy, a folder move) passed the client part of F8 and F9.
+
+### Results of the release pass
+
+| Run log | |
+|---|---|
+| Date | |
+| Build (Dashboard version) | |
+| Tester | |
+| rclone version | |
+| GNOME Files (Nautilus) version | |
+| DAVx5 + Android version | |
+| Thunderbird version (R1, R2) | |
+| Proxy (Caddy, nginx or Traefik) and its body limit | |
+
+| Step | PostgreSQL | SQLite | Notes |
+|---|---|---|---|
+| F1 rclone | ⬜ | ⬜ | |
+| F2 GNOME Files | ⬜ | ⬜ | |
+| F3 Large and Unicode files | ⬜ | ⬜ | |
+| F4 Isolation | ⬜ | ⬜ | |
+| F5 Files off | ⬜ | ⬜ | |
+| F6 User deleted | ⬜ | ⬜ | |
+| F7 Diagnostics | ⬜ | ⬜ | |
+| F8 rclone rename, move, copy | ⬜ | ⬜ | |
+| F9 GNOME Files rename, move, copy | ⬜ | ⬜ | |
+| F10 Overwrite | ⬜ | ⬜ | |
+| F11 Refusals | ⬜ | ⬜ | |
+| F12 Locks | ⬜ | ⬜ | |
+| F13 Settings: Files switch and size | ⬜ | ⬜ | |
+| F14 Over the limit, Content-Length | ⬜ | ⬜ | |
+| F15 Over the limit, chunked | ⬜ | ⬜ | |
+| F16 A large upload | ⬜ | ⬜ | |
+| F17 User page: file home | ⬜ | ⬜ | |
+| F18 Delete a user with a file home | ⬜ | ⬜ | |
+| F19 Services card | ⬜ | ⬜ | |
+| F20 Russian text | ⬜ | ⬜ | |
+| F21 Diagnostics | ⬜ | ⬜ | |
+| F22 DAVx5 WebDAV mount | ⬜ | ⬜ | |
+| R1 Regression, calendar and contacts | ⬜ | ⬜ | |
+| R2 Regression, sharing | ⬜ | ⬜ | |
+
+Not tested by the project: Windows Explorer and the macOS Finder (Decision 15 of the plan). Reports are welcome.

@@ -14,7 +14,7 @@ The work is split into five milestones and 31 PRs, listed in the order they are 
 
 Sources: [guide](../guide.md), [apps](../apps/README.md), the [admin panel](../apps/admin.md) description, the design notes for [Settings](../design/admin-settings.md), [Configuration](../design/admin-configuration.md) and the [Dashboard](../design/admin-dashboard.md), the pinned WebDAV-Push draft, and the current code.
 
-**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is done and released as **0.3.0** (PR 20 to PR 27). The Sharing pass of the [client checklist](../testing/client-checklist.md#11-sharing) passed on 0.3.0+404d77b with DAVx5 + jtx Board, Thunderbird and an iPad on both databases (Pass 3 table; all of step 11 passed on both databases). M4 is in progress: PR 28 and PR 29 are done, PR 30 and PR 31 are implemented. M5 is not started. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
+**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is done and released as **0.3.0** (PR 20 to PR 27). The Sharing pass of the [client checklist](../testing/client-checklist.md#11-sharing) passed on 0.3.0+404d77b with DAVx5 + jtx Board, Thunderbird and an iPad on both databases (Pass 3 table; all of step 11 passed on both databases). M4 is built as **0.4.0** (PR 28 to PR 32): PR 28 to PR 31 are done and PR 32 is prepared. What is left is the release pass over HTTPS on both databases (Files testing), then the tag. M5 is not started. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
 
 Effort levels are the same as in Version 1:
 - **Low** — small, mostly boilerplate or config
@@ -51,9 +51,9 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 | 19 | PR 27 | M3 | M3 release (client pass done; publish next) | Medium | 19, 21–26 |
 | 20 | PR 28 | M4 | File home: storage, isolation and basic methods (done) | High | — |
 | 21 | PR 29 | M4 | COPY, MOVE, locks and properties for files (done) | High | 28 |
-| 22 | PR 30 | M4 | Upload size limit, streaming and a full disk (implemented) | Medium | 28 |
-| 23 | PR 31 | M4 | Files in the admin panel (implemented) | Medium | 28, 30 |
-| 24 | PR 32 | M4 | M4 release | Medium | 27, 28–31 |
+| 22 | PR 30 | M4 | Upload size limit, streaming and a full disk (done) | Medium | 28 |
+| 23 | PR 31 | M4 | Files in the admin panel (done) | Medium | 28, 30 |
+| 24 | PR 32 | M4 | M4 release (prepared; publish after the release pass) | Medium | 27, 28–31 |
 | 25 | PR 33 | M5 | Spike: Web Push library and DAVx5 push | Medium | — |
 | 26 | PR 34 | M5 | Worker service and heartbeat | Medium | — |
 | 27 | PR 35 | M5 | Push discovery and subscription registration | High | 23, 24, 28, 33 |
@@ -596,7 +596,7 @@ Results are in the [Files testing](../testing/files-testing.md#results)
 
 **Done when:** GNOME Files and rclone can rename, move and copy files and folders; locks and properties follow `MOVE` and go with `DELETE`; and a `COPY` or `MOVE` into another home is refused.
 
-### PR 30 — Upload size limit, streaming and a full disk (Effort: Medium) — implemented
+### PR 30 — Upload size limit, streaming and a full disk (Effort: Medium) — ✅ done
 
 **Found:**
 - PHP itself does not apply `post_max_size` to a `PUT`, but Laravel's `ValidatePostSize` middleware does, for every method: any body over 128 MB got Laravel's HTML 413. It is replaced by `App\Http\Middleware\ValidatePostSize`, which skips a `PUT` under `/dav/files/` only. Calendar and contact bodies, which are read into memory, keep the PHP limit. So the image's PHP limits do not need to follow Maximum upload size; `docker/uploads.ini` says so.
@@ -626,7 +626,7 @@ Results are in the [Files testing](../testing/files-testing.md#results)
 
 **Done when:** an upload over the limit gets 413 with and without `Content-Length` and leaves nothing behind, a 1 GB upload with the limit raised completes with flat memory use, and a full disk gives 507.
 
-### PR 31 — Files in the admin panel (Effort: Medium) — implemented
+### PR 31 — Files in the admin panel (Effort: Medium) — ✅ done
 
 **Built:**
 - **Settings page:** a Files section with the Files switch and Maximum upload size (MB), shown while Files is on. Each is locked by its variable. Switching Files off keeps the saved limit.
@@ -650,7 +650,17 @@ Results are in the [Files testing](../testing/files-testing.md#results)
 
 **Done when:** an admin can switch Files and set the limit in the panel, sees whether a user's file home exists, and the Services card shows Files.
 
-### PR 32 — M4 release (Effort: Medium)
+### PR 32 — M4 release (Effort: Medium) — prepared
+
+**Prepared:**
+- **Version:** 0.4.0 in `compose.yaml`, both TrueNAS files, the README, SECURITY.md, the guide and the Dashboard note.
+- **Guide:** a Files section (switching it on, where the files are, the URL and app passwords per Decision 14, clients, what works and what does not, isolation, backup of `/data/files`, the GNOME Files copy message); a Large file uploads section (Maximum upload size, nginx, Nginx Proxy Manager, Caddy, Traefik's read timeout, Cloudflare's 100 MB limit, free space and the TrueNAS dataset, time, clients); the settings table, the TrueNAS dataset size and a second volume for the files, the backup and upgrade notes, a Files table in the client compatibility section (GNOME Files, rclone, DAVx5 not tested yet, Windows and macOS not tested), troubleshooting rows, the features table and the roadmap.
+- **Other docs:** `apps/files.md`, `apps/admin.md` and `apps/README.md`, the Settings, Users and Dashboard design notes, `architecture.md` (a Files flow, the nodes and the middleware), `data-model.md` (no migration; locks and properties by path) and `dav-endpoints.md` (a Files section with every answer).
+- **Client checklist:** [Files testing](../testing/files-testing.md) has the release pass: F1 to F21 over HTTPS with GNOME Files and rclone on both databases, F22 for a DAVx5 WebDAV mount, and two regression steps (R1: discovery, items and offline edits; R2: sharing, step 11 of the client checklist) because PR 29 and PR 30 changed what every DAV path answers and how responses are streamed. A results table for the pass is at its end.
+- **Release notes** for 0.4.0: Files is off after the upgrade, the proxy needs the same size limit, and the lock fix for other users' paths.
+
+**Left:** the maintainer runs the release pass (F1 to F22, R1 and R2) on both databases over HTTPS, and records it in the table and in the guide's Files client table; then tag `v0.4.0` after CI is green on the release commit and publish the release.
+
 
 - A Files section in the client checklist, run with GNOME Files (`davs://`), rclone and DAVx5 WebDAV mounts on Android: upload, download, rename, move, copy and delete files and folders, a large upload, and an upload over the limit.
 - Docs:

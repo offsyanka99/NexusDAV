@@ -24,9 +24,10 @@ A **Save** button stores the values. A change applies from the next request.
 
 - Keep sync history for, in days (`NEXUSDAV_SYNC_HISTORY_DAYS`, default `90`). Change rows older than this are deleted on a later DAV write. A client whose token is older than the rows still kept is told to sync that collection from the start.
 - Enable or disable Sharing (default on; nothing is shared until an admin creates a share)
-- Enable or disable WebDAV (file storage), default off after an upgrade
+- Enable or disable Files (`NEXUSDAV_FILES`, default off after an upgrade). While Files is off, `/dav/files/` answers 403 and the files are kept. Built in 0.4.0, in its own **Files** section below Services.
   When enabled, the following field becomes available:
-  - Max file size upload (MB)
+  - Maximum upload size (`NEXUSDAV_FILES_MAX_UPLOAD_MB`, default 128, 1 to 102400 MB). It applies to uploads to `/dav/files/` only. A larger upload is refused with 413. Above 128 MB the reverse proxy's body limit has to be raised too (see the guide's [large file uploads](../guide.md#large-file-uploads-files)). The saved value is kept while Files is off.
+  Both fields are locked when their variable is set.
 - Enable or disable WebDAV-Push, default off after an upgrade
   When enabled, the following fields become available:
   - Include WebDAV-Push for file storage

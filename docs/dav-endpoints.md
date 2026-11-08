@@ -14,6 +14,7 @@ Most clients only need the root URL. They discover principals and collections th
 | Calendar collection | PROPFIND, REPORT, GET, PUT, DELETE | `/dav/calendars/<username>/<calendar-id>/` | Holds VEVENT, VTODO, VJOURNAL |
 | Address books home | PROPFIND, MKCOL | `/dav/addressbooks/<username>/` | Home collection for address books |
 | Address book | PROPFIND, REPORT, GET, PUT, DELETE | `/dav/addressbooks/<username>/<addressbook-id>/` | Holds VCARD |
+| Files home | PROPFIND, MKCOL, GET, HEAD, PUT, DELETE, COPY, MOVE, LOCK, UNLOCK, PROPPATCH | `/dav/files/<username>/` | Off until an admin switches Files on; see [Files](#files) below |
 
 ## Sync and discovery
 
@@ -49,7 +50,7 @@ Not in Version 1 (later):
 - WebDAV-Push
 - Scheduling (free/busy, invitations)
 - Managed attachments
-- Files (WebDAV file storage)
+- Files (WebDAV file storage; it arrived in Version 1.x, see [Files](#files) below)
 
 ## Notes
 
@@ -108,6 +109,30 @@ An admin shares an address book in the panel. The sharee's client finds it in th
 - `DELETE` of the shared address book by the sharee removes only their share. The owner's address book and contacts stay. DAVx5 and Thunderbird never send it (see the guide's clients section), so a client user stops a share on the device and an admin removes it in the panel.
 - Clients cannot share: a sharing `POST` is **403** (same as for calendars).
 - With **Sharing** off (`NEXUSDAV_SHARING=false`) shared address books are not listed and their paths answer 404; with **CardDAV** off the whole address book tree is refused. The shares are kept.
+
+## Files
+
+Ordinary WebDAV at `/dav/files/<username>/` (0.4.0). It is off until an admin switches it on in **Settings → Files**.
+
+| Request | Answer |
+|---|---|
+| Any request, Files off | **403** "Files is turned off on this server." The files are kept |
+| Any request into another user's home | **404**, as for a username that does not exist. A new name there fails like a name under a missing user (404 or 409). This is decided right after sign-in, before lock tokens are checked |
+| `GET`, `HEAD` | The file; `Range` is supported (206, or 416 when the range is past the end). `ETag` and `Last-Modified` come from the file |
+| `PUT` | 201 or 204; `If-Match` and `If-None-Match` are honoured (412). The body is written to a temporary file and renamed into place. **413** when it is over Maximum upload size (checked from `Content-Length`, and by a byte count for a chunked upload); **400** when it ends before its `Content-Length`; **507** when the disk or a quota is full. A failed upload leaves nothing and keeps the old file |
+| `MKCOL` | 201; 405 when the name exists; 409 when the parent is missing |
+| `PROPFIND` | Depth 0 and 1. Depth `infinity` is answered as depth 1. A folder reports `quota-used-bytes` and `quota-available-bytes` of the whole volume |
+| `COPY`, `MOVE` | Files and folder trees inside the home, with `Overwrite` (412 when it is `F` and the name exists) and `Depth`. A rename is a `MOVE`. A folder into itself is 409. Into another home is 409, into another root (`/dav/calendars/`, `/dav/addressbooks/`) is 403. A copy is not an upload and has no size limit. A move releases the source's locks and moves its properties |
+| `LOCK`, `UNLOCK` | Shared and exclusive, depth 0 and `infinity`. A write without the lock token is **423**; a `LOCK` of a new name creates an empty file |
+| `PROPPATCH` | Dead properties, kept in `propertystorage`; they follow a copy or a move and go with a delete |
+| `DELETE` | A file, or a folder with everything in it. A link on disk is removed, never followed. The home itself cannot be deleted (403) |
+| A path with `..` (also as `%2e%2e` or an encoded slash), or a NUL byte | **403**. A path that resolves outside `/dav/` is 404 |
+
+- A name has at most 255 bytes, valid UTF-8 and no control characters (**400** otherwise), and is stored in Unicode NFC. A name that is not NFC, or breaks these rules, is not listed when it was put on the disk by something else.
+- A symbolic link, a device, a socket or a pipe on the disk is never listed or opened, and a write onto one is refused (**403**).
+- The `ACL` method is refused, and there are no sync tokens and no `REPORT` on the file home.
+- A write to a file home is not run again after a busy database; it answers **503** with `Retry-After`.
+- Uploads in progress are in `/data/files/.uploads/`, outside every home. A leftover older than a day is removed by the next upload.
 
 ## Concurrent writes
 

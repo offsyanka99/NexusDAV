@@ -12,7 +12,7 @@ Related documents:
 - [Implementation plan (v1.x)](plans/implementation-plan-v1x.md) — milestones and PRs for the Version 1.x features
 - [Plan for Version 2 and later](plans/version-2-and-later.md) — features for 2.0, 2.x and beyond
 
-Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `0.3.0` (first release `0.1.0`). "Version 1" and "Version 1.x" in these documents name the feature plan, not release numbers: releases stay 0.x until the plan is finished and 1.0.0 is tagged. 0.3.0 completes the first three milestones of the Version 1.x plan: the admin panel in English and Russian (M1), reliable sync (M2) and sharing of calendars and address books (M3). The server passes automated sync tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
+Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `0.4.0` (first release `0.1.0`). "Version 1" and "Version 1.x" in these documents name the feature plan, not release numbers: releases stay 0.x until the plan is finished and 1.0.0 is tagged. 0.4.0 completes the first four milestones of the Version 1.x plan: the admin panel in English and Russian (M1), reliable sync (M2), sharing of calendars and address books (M3) and Files, WebDAV file storage (M4). The server passes automated sync tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
 
 NexusDAV is built for homelabs and small teams that want calendars, contacts, tasks, notes and files without running a full groupware suite.
 
@@ -30,7 +30,7 @@ Current limitations:
 
 ## Quick start
 
-1. Get the Compose files and create your environment file. The Compose files pull the published image, `ghcr.io/offsyanka99/nexusdav:0.3.0`:
+1. Get the Compose files and create your environment file. The Compose files pull the published image, `ghcr.io/offsyanka99/nexusdav:0.4.0`:
 
    ```bash
    git clone https://github.com/offsyanka99/NexusDAV.git
@@ -79,6 +79,8 @@ TrueNAS SCALE 24.10 (Electric Eel) and later run Apps on Docker, so a Docker Com
 5. Continue from step 4 of [Quick start](#quick-start).
 
 `PUID` and `PGID` default to `568`, the UID TrueNAS SCALE apps conventionally run as, so the dataset's ownership matches what the container expects. Each container is capped at 1 CPU. NexusDAV is limited to 768 MB, and PostgreSQL to 1 GB. Those are ceilings; raise them in the YAML if the app is stopped for running out of memory during a large sync. Put it behind an HTTPS reverse proxy before exposing it outside your network — Nginx Proxy Manager and Caddy are themselves TrueNAS SCALE apps, or use one of the files in [docs/proxy](proxy/). To upload large files to Files, the proxy and the dataset need the settings in [Large file uploads](#large-file-uploads-files).
+
+With Files on, every user's files are stored in `/data/files` on the same dataset as the database (SQLite) or the app data (PostgreSQL), so size that dataset for them, and set a quota on it if the pool is shared. To keep the files on another dataset, add a second volume in the YAML that mounts it at `/data/files`; the container takes ownership of it at start.
 
 ## Requirements
 
@@ -228,7 +230,7 @@ A web-based reset triggered by an environment variable is deliberately not used:
 ### Authentication
 
 - Main user passwords: **Argon2id**
-- **App passwords / personal access tokens** (for DAVx5, Thunderbird and other clients), available from Version 1. An app password is not limited to one service: it works for calendars and contacts, and from Version 1.x also for the user's files, so give each device its own and revoke it when the device is lost
+- **App passwords / personal access tokens** (for DAVx5, Thunderbird and other clients), available from Version 1. An app password is not limited to one service: it works for calendars and contacts, and also for the user's [files](#files) (from 0.4.0), so give each device its own and revoke it when the device is lost
 - **Rate limiting and brute-force protection** on the login form and the DAV endpoints, available from Version 1
 
 ### Database
@@ -318,6 +320,15 @@ NexusDAV targets standards-compliant clients. The table shows the Version 1 targ
 | **python caldav** 3.7.0 | Yes | — | Yes | Yes | Tested for 0.1.1 (automated) |
 | Other standards-compliant clients | Expected | Expected | Client-dependent | Client-dependent | Best effort |
 
+**Files (WebDAV file storage, 0.4.0).** The steps and their results are in [Files testing](testing/files-testing.md).
+
+| Client | Status |
+|---|---|
+| **GNOME Files** (gvfs, `dav://` and `davs://`) | A local run over HTTP on SQLite passed: list, create a folder, copy in and out, rename, move and delete. Copy and paste into another folder shows "Operation not supported" although the copy is complete; choose Skip. The pass over HTTPS behind the proxy is in the [results](testing/files-testing.md#results-of-the-release-pass) |
+| **rclone** 1.60 | A local run passed: mkdir, upload and download (identical), server-side rename, move and copy, folder move and delete. The HTTPS pass is in the results |
+| **DAVx5 WebDAV mounts** (Android) | Not tested yet |
+| Windows Explorer, macOS Finder | Not tested by the project; reports are welcome |
+
 **Recommended clients for testing**
 
 - **Android:** DAVx⁵ (Google Play) + jtx Board — events, contacts, tasks and notes
@@ -383,6 +394,33 @@ An admin shares a calendar or an address book with other users in the panel. Cli
 
 Shares are stored as rows linked to the owner's collection (see [data model](data-model.md) and [sharing design](design/sharing.md)). Deleting a user or a collection deletes its shares, and the delete confirmation lists them.
 
+### Files
+
+Files is each user's own WebDAV storage for documents and other files. It is not a shared drive and not CalDAV. It arrived in 0.4.0 and is **off until an admin switches it on**, also after an upgrade.
+
+**Switching it on.** **Settings → Files** in the admin panel, with no restart. Or set `NEXUSDAV_FILES=true`; the field is then locked. While Files is off, `/dav/files/` answers 403 "Files is turned off on this server." and the files stay on the data volume. **Maximum upload size** (128 MB by default) is shown when Files is on; see [Large file uploads](#large-file-uploads-files).
+
+**Where the files are.** In `/data/files/<username>/` on the data volume, created on the user's first request. The path is not a setting. A user's page in the panel shows whether their file home exists. Deleting the user deletes the home with every file in it, and the confirmation says so.
+
+**URL and sign-in.** `https://dav.example.com/dav/files/<username>/`. Sign in with the username and an **app password**; the admin panel password does not work for DAV. An app password is not limited to one service, so the one a phone uses for calendars and contacts also opens the user's files. Give each device its own.
+
+**Clients.** Files has no discovery, so a client needs the full URL.
+
+- **GNOME Files** and other gvfs file managers: `davs://<username>@dav.example.com/dav/files/<username>/` (`dav://` over plain HTTP).
+- **rclone:** `rclone config create nexusdav webdav url https://dav.example.com/dav/files/<username>/ vendor other user <username> pass '<app password>'`, then `rclone copy`, `rclone ls` and the rest. `rclone moveto` and `copyto` use `MOVE` and `COPY` on the server.
+- **DAVx5 on Android:** **WebDAV mounts** in its main menu, with the same URL (not tested yet).
+- Windows Explorer and the macOS Finder are not tested by the project. Windows' built-in WebDAV client has a file size limit of its own that is low by default.
+
+**What works.** Upload, download (also a part of a file), rename, move, copy and delete of files and of whole folders, `LOCK` and `UNLOCK` for office programs, and properties that follow a copy or a move. A name has up to 255 bytes and no control characters, and is stored in Unicode NFC, so macOS and Linux see the same file. The helper files of macOS and Windows (`._*`, `.DS_Store`, `desktop.ini`) are stored like any other file.
+
+**What it does not do.** Share a file or a folder with another user (sharing is for calendars and address books). Limit the space per user: quotas, a trash and storage statistics are Version 2.x, and a folder reports the free space of the whole volume. Offer sync tokens: a client lists a folder to see what changed. Edit files in the browser: the user portal of Version 2 will manage a person's own files.
+
+**Isolation.** A home is private. Another user's home answers 404, exactly like a username that does not exist, and a path with `..` is refused. A symbolic link put on the disk by an admin or another process is never listed, opened or followed.
+
+**Backup.** `/data/files` is part of the data volume, so back it up together with the database (see [Backup, restore and upgrade](#backup-restore-and-upgrade)). Files can be many times larger than the database. `/data/files/.uploads/` holds uploads in progress and needs no backup.
+
+**Known client behaviour.** GNOME Files shows "Operation not supported. Do you want to skip it?" after a copy and paste into another folder, although the copy is complete: it tries to set the copy's modification time, which its WebDAV support cannot do. Choose **Skip**. **Retry** makes a second copy.
+
 ### DAV endpoints
 
 Most clients need only the root URL; they discover the rest on their own. Use the other URLs only for clients without discovery. Paths follow the sabre/dav layout.
@@ -395,7 +433,7 @@ Most clients need only the root URL; they discover the rest on their own. Use th
 | Calendars | `/dav/calendars/<username>/<calendar-id>/` |
 | Address book home | `/dav/addressbooks/<username>/` |
 | Address books | `/dav/addressbooks/<username>/<addressbook-id>/` |
-| Files (WebDAV, Version 1.x) | `/dav/files/<username>/` |
+| Files (WebDAV, off until an admin switches it on) | `/dav/files/<username>/` |
 
 Creating a user creates the two homes and, inside them, a default calendar and a default address book (both named `default`). A client signed in with that user's app password discovers them from the root (`current-user-principal`, `calendar-home-set`, `addressbook-home-set`). Another user's homes are not returned. The admin panel can add, edit, and delete calendars and address books. Calendar and address book URLs use the collection identifier, not its display name.
 
@@ -416,7 +454,7 @@ The table shows the version in which each item arrives (see [Roadmap](#roadmap))
 | WebDAV-Push (bitfire draft, on/off in the admin panel; not a sabre/dav plugin) | Version 1.x |
 | CalDAV Scheduling, on-server invitations and free/busy | Version 2 |
 | Outbound email (external invitations, notices, reminders, reports) | Version 2.x |
-| Files (WebDAV file storage) | Version 1.x |
+| Files (WebDAV file storage, off until an admin switches it on) | Version 1.x (0.4.0) |
 | Managed Attachments | Version 2.x |
 
 Collection sync is enabled through configuration.
@@ -492,7 +530,7 @@ The database backup commands below were run against the image. The restore steps
 
 **What to back up**
 
-- The database and the data volume, taken at the same time (or with the application briefly stopped) so they stay consistent. The data volume holds `APP_KEY` (`/data/app.key`).
+- The database and the data volume, taken at the same time (or with the application briefly stopped) so they stay consistent. The data volume holds `APP_KEY` (`/data/app.key`) and, with Files on, every user's files in `/data/files`, which can be far larger than the database (see [Files](#files)).
 - `.env`. It holds `APP_URL`, the database password and the other boot settings. `APP_KEY` is not in it, so keep a separate copy of `/data/app.key`: without it, encrypted values cannot be read after a restore. Store that copy apart from the database backup.
 
 **Database backup**
@@ -527,9 +565,10 @@ Export the settings before an upgrade and keep the file with your other backups.
 **Upgrade**
 
 1. Back up first.
-2. Read the release notes, then change the tag on the `image:` line in `compose.yaml` (for example from `0.3.0` to `0.4.0`). Keep an exact version rather than `latest`, so an upgrade happens only when you choose it.
+2. Read the release notes, then change the tag on the `image:` line in `compose.yaml` (for example from `0.4.0` to `0.5.0`). Keep an exact version rather than `latest`, so an upgrade happens only when you choose it.
 3. Run `docker compose pull` and `docker compose up -d`, with the same `-f` files as at install. Database migrations run automatically on start. With `compose.build.yaml`, update the checkout instead and run `up -d --build`.
 4. Upgrade one minor version at a time. There is no rollback other than restoring the backup.
+5. **Files is off after an upgrade to 0.4.0** until an admin switches it on under **Settings → Files** (see [Files](#files)). The upgrade needs no migration and changes no setting.
 
 **PostgreSQL major version changes** (for example 17 → 18): the official Postgres images changed their data directory layout starting with 18 (a single volume mount, with data stored under a version-specific subdirectory). An existing 17 data volume cannot be reused as-is by an 18 image. `pg_dump` your database first, then either keep using the matching Postgres major version, or follow [upstream's upgrade guidance](https://github.com/docker-library/postgres/issues/37) (`pg_upgrade` or dump-and-restore into a fresh volume) before switching image tags.
 
@@ -570,6 +609,8 @@ Automatic backups are a long-term goal (see [Roadmap](#roadmap)).
 | Redirects or links use `http://` | `APP_URL` is not the public HTTPS address, or `X-Forwarded-Proto` is not forwarded. |
 | The admin panel signs you out right after you sign in | Secure session cookies are on and the panel was opened over plain HTTP. Open it over HTTPS, or set `SESSION_SECURE_COOKIE=false`. Secure cookies are on by default when `APP_URL` starts with `https://`. |
 | Large file upload fails | 413 from the app: the file is over Maximum upload size (Settings → Files). 413 from the proxy, a reset connection or a timeout: the proxy's body limit or timeouts are too low (nginx allows 1 MB by default; the files in [docs/proxy](proxy/) allow 128 MB). 507: the data volume is full. See [Large file uploads](#large-file-uploads-files). |
+| `/dav/files/` answers 403 "Files is turned off on this server." | Files is off. Switch it on under **Settings → Files**. |
+| GNOME Files shows "Operation not supported" after a copy and paste | The copy is complete. Choose **Skip**; Retry makes a second copy (see [Files](#files)). |
 | A DAV error is listed on Diagnostics and you need more detail | Search the log for its Request ID: `docker compose logs nexusdav \| grep <id>`. |
 | Tasks or notes are not visible | The client app does not display them (see [Client compatibility](#client-compatibility)). |
 | The first contact sync in DAVx5 takes many minutes | DAVx5 saves each contact into Android's contacts storage one at a time, about 0.5 s per contact on a Pixel 7 Pro: roughly 10 minutes for 2,000 contacts. The server's part is a few seconds. Later syncs fetch only changes and are quick. Calendars and other clients (Thunderbird, iPhone, iPad) are not affected ([#1](https://github.com/offsyanka99/NexusDAV/issues/1)). |
@@ -606,7 +647,7 @@ Export calendars as `.ics` and contacts as `.vcf` from your current server (Radi
 - Basic Sharing and ACL: an admin shares a calendar or address book with another user, read-only or read-write. **Released in 0.3.0**
 - WebDAV-Push, with an on/off toggle in the admin panel settings and its subscriptions on the Diagnostics page
 - Multilingual admin panel (English and Russian, more as translation files). **Released in 0.1.2**
-- Files (WebDAV file storage)
+- Files (WebDAV file storage). **Released in 0.4.0**
 - Improved sync reliability
 
 ### Version 2

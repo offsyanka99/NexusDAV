@@ -10,6 +10,7 @@ This document describes how the main components fit together for Version 1. It i
 | **Filament** | Admin UI (Dashboard, Users, Settings, Configuration, Diagnostics) |
 | **sabre/dav** | DAV protocol server (WebDAV, CalDAV, CardDAV) |
 | **sabre/dav PDO backend** | Storage for calendars, address books, objects and cards |
+| **File home** | Files under `/dav/files/<username>/`: sabre's `FSExt` nodes on the data volume (`/data/files`), through `FileStorage` |
 | **PostgreSQL / SQLite** | Database |
 
 ## High-level request flow
@@ -28,7 +29,8 @@ Client (DAVx5, Thunderbird, Apple)
         +-- DAV requests (/dav/*) --> Auth (app password) --> sabre/dav Server
                                               |
                                               v
-                                    PDO backend --> Database
+                                    PDO backend --> Database      (calendars, address books)
+                                    FileStorage --> /data/files   (Files)
 ```
 
 ### DAV authentication
@@ -66,6 +68,12 @@ app/
       AddressBookHome.php   # builds the shared node for a share and sabre's node for an owned book
       CardDavPlugin.php     # sabre's CardDAV plugin without the HEAD crash
       HomeNamespace.php     # one set of names per home across its two tables, and the lock writers take
+      FilesRoot.php         # /dav/files/: one FileHome per principal, only the signed-in user's
+      FileHome.php          # the top folder of a user's files, created on first use
+      FileDirectory.php     # a folder: name rules, no links, moves and renames inside the home
+      FileResource.php      # a file: uploads written to a temporary file, then renamed into place
+      FileStorage.php       # the disk: names in NFC, uploads and the upload limit, 507, deletes that never follow a link
+      UploadTooLarge.php    # 413
     UserService.php         # Create user + principal + default calendar and address book
     AuthThrottle.php        # IP plus username limit for admin login and DAV
     DiagnosticEventWriter.php  # stores rejected logins and DAV errors with their request ID; prunes expired rows on write
@@ -76,6 +84,7 @@ app/
     Middleware/
       RequestLog.php        # first global middleware: request ID, X-Request-Id, one log line per request
       TrustProxies.php      # trusted proxies from config at request time
+      ValidatePostSize.php  # Laravel's post_max_size check, except for an upload to /dav/files/
       SecurityHeaders.php   # admin panel headers
 routes/
   web.php                   # Admin welcome. /dav and /.well-known are registered in bootstrap/app.php, outside the web group
@@ -115,12 +124,22 @@ config/
 4. A sharee's write goes to the owner's collection, so the owner's sync token moves and every other sharee gets the change in their next `sync-collection`. `DavWriteLock` keys the write lock on the collection, so a write through the owner's path and one through a sharee's path wait for each other.
 5. A sync token is the owner's collection token, and a bare change number is refused on a share.
 
+### 5. Upload and manage files (Version 1.x)
+
+1. `DavServerFactory` loads `FilesRoot` only when Files is on. When it is off, a request under `/dav/files/` is refused with 403 before anything else, and the files stay on disk.
+2. After sign-in, a request into another user's home answers 404 before sabre checks lock tokens, which are stored by path, and a `COPY` or `MOVE` into one answers 409. The same check covers calendars and address books. A `COPY` or `MOVE` between `/dav/files/` and the other roots is refused with 403.
+3. For a `PUT` to a file home, the factory sets the limits (Maximum upload size from `Content-Length`, a byte count for a chunked upload) and `DavController` passes `php://input` to sabre as a stream, so a large file is never held in memory. A file write is not run again after a busy database, because disk changes are not rolled back with a transaction.
+4. `FileResource` writes the body to a temporary file in `/data/files/.uploads/` and renames it into place, so a failed upload leaves nothing and an overwritten file keeps its content. A full disk is a 507.
+5. A download is sent in 1 MB chunks, and a range answer stops after its `Content-Length`.
+6. Locks and dead properties are sabre's `locks` and `propertystorage` rows, keyed by the path `files/<username>/...`. A move moves the properties and releases the locks; deleting a file or a user removes both. Deleting a user also deletes the home, after the deletion commits.
+
 ## Integration points
 
 | Concern | Owner |
 |---------|-------|
 | User accounts, app passwords, principals | Laravel |
 | Calendar / address book objects | sabre/dav PDO backend |
+| Files | `FileStorage` and the `FSExt` nodes, on the data volume at `/data/files` (`NEXUSDAV_FILES_PATH`); only locks and properties are in the database |
 | Feature flags (enable/disable CalDAV, etc.) | `settings` table, applied to config at boot by `SettingsService`; the environment wins. `DavServerFactory` reads them |
 | Health check | `/health` and the Dashboard share `App\Support\DatabaseHealth` |
 | Logging | Laravel, to stderr (`LOG_CHANNEL=stderr` in the image). `RequestLog` writes one line per request (method, path, status, user, address, duration) and adds the request ID to every line through Laravel's `Context`. Rejected logins and DAV errors are also stored in `diagnostic_events` with that ID |
@@ -134,7 +153,7 @@ config/
 - WebDAV-Push
 - Scheduling
 - Email
-- Files (WebDAV file storage)
+- Files (WebDAV file storage; built in Version 1.x, off until an admin switches it on)
 - Managed attachments
 
 These will be added later without changing the core request flow above.

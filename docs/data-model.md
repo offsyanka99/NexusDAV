@@ -62,7 +62,7 @@ Values saved on the admin panel's Settings and Configuration pages. Boot setting
 | Column | Type | Notes |
 |--------|------|-------|
 | id | bigint | PK |
-| key | string(100) | unique, for example `caldav` or `session_lifetime` |
+| key | string(100) | unique, for example `caldav`, `files`, `files_max_upload_mb` or `session_lifetime` |
 | value | text | JSON |
 | created_at | timestamp | |
 | updated_at | timestamp | |
@@ -110,6 +110,8 @@ sabre's own `principals`, `groupmembers` and `users` tables are **not** created.
 | `addressbookchanges` | Sync-collection change log for an address book |
 | `propertystorage` | Dead WebDAV properties, keyed by `path` and `name` |
 | `locks` | WebDAV locks, keyed by `uri` |
+
+Files (0.4.0) use `propertystorage` and `locks` too, with the path `files/<username>/<path>`; deleting a user removes them. The file content is not in the database: it is on disk, at `/data/files/<username>/` (config `nexusdav.files.path`). Files needed no migration.
 
 Column types follow sabre's SQLite and PostgreSQL scripts for the installed 4.7.1 schema, with four deliberate differences:
 

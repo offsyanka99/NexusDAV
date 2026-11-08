@@ -21,10 +21,10 @@ The page uses the standard Filament panel layout (navigation, then page header, 
 | Dashboard                                                             |
 +-----------------------------------------------------------------------+
 | [ Server status ]                                                     |
-|  ● Application OK  ● Database OK (PostgreSQL)  NexusDAV 0.3.0+4f82db8  |
+|  ● Application OK  ● Database OK (PostgreSQL)  NexusDAV 0.4.0+4f82db8  |
 +-----------------------------------------------------------------------+
 | [ Services ]                                                          |
-|  CalDAV ● On   CardDAV ● On   Tasks ● On   Notes ○ Off   Sharing ● On  |
+|  CalDAV ● On  CardDAV ● On  Tasks ● On  Notes ○ Off  Sharing ● On  Files ○ Off |
 |                                              Manage in Settings →     |
 +-----------------------------------------------------------------------+
 | [ Users ]    [ Calendars ]   [ Address books ]   [ App passwords ]    |
@@ -63,14 +63,14 @@ Rules:
 
 ### 2. Services
 
-One card listing the five switches from the Settings page: **CalDAV**, **CardDAV**, **Tasks (VTODO)**, **Notes (VJOURNAL)** and **Sharing**.
+One card listing the six switches from the Settings page: **CalDAV**, **CardDAV**, **Tasks (VTODO)**, **Notes (VJOURNAL)**, **Sharing** and **Files** (off by default). The switches are laid out in two columns on a phone, three on a tablet and six on a wide screen.
 
 - `● On` (green) or `○ Off` (grey).
 - If the value is set by an environment variable, show a small lock icon with the tooltip "Set by environment".
 - The card ends with a link, **Manage in Settings →**.
 - The states come from the Settings page (PR 6), or from the environment when a variable is set.
 
-Later versions add WebDAV (files), WebDAV-Push, Sharing, Scheduling and Managed Attachments to this card, each only when the feature exists.
+Later versions add WebDAV-Push, Scheduling and Managed Attachments to this card, each only when the feature exists.
 
 ### 3. Counts
 

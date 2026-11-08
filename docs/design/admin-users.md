@@ -40,7 +40,7 @@ Creating a user also creates the principal, the calendar and address book homes,
 
 ### 3. Edit user page
 
-The same fields as the new user page. Username is read-only. The password fields can stay empty to keep the current password. The header has a Delete action.
+The same fields as the new user page. Username is read-only. The password fields can stay empty to keep the current password. The header has a Delete action. When the user has a file home, its confirmation adds that the home and every file in it will be deleted too.
 
 Above the fields, a **User** section shows:
 - Principal (example: `principals/test_user`)
@@ -48,6 +48,7 @@ Above the fields, a **User** section shows:
 - Events/Objects count (example: `2812`)
 - Address Books count (example: `1`)
 - Contacts count (example: `93`)
+- File home: **Exists** or **Not created yet** (Files, 0.4.0). There is no browsing and no size; storage statistics are Version 2.x
 
 Below the form are four tables.
 
