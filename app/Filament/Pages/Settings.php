@@ -8,6 +8,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 
@@ -37,7 +38,7 @@ class Settings extends SettingsPage
      */
     protected function settingKeys(): array
     {
-        return ['caldav', 'carddav', 'tasks', 'notes', 'sharing', 'log_level', 'sync_history_days'];
+        return ['caldav', 'carddav', 'tasks', 'notes', 'sharing', 'files', 'files_max_upload_mb', 'log_level', 'sync_history_days'];
     }
 
     public function form(Schema $schema): Schema
@@ -76,6 +77,24 @@ class Settings extends SettingsPage
                                 ->label(__('Sharing'))
                                 ->helperText(__("When off, calendars and address books shared with a user are not listed for them, and their paths answer 404. The shares are kept and come back when sharing is turned on. The owner's own calendars and address books do not change.")),
                             'sharing',
+                        ),
+                    ]),
+                Section::make(__('Files'))
+                    ->description(__("Each user's own WebDAV storage at /dav/files/<username>/. App passwords reach it too."))
+                    ->schema([
+                        $this->lockable(
+                            Toggle::make('files')
+                                ->label(__('Files'))
+                                ->live()
+                                ->helperText(__('When off, paths under /dav/files/ answer 403 and the files are kept on the data volume.')),
+                            'files',
+                        ),
+                        $this->lockable(
+                            $this->number('files_max_upload_mb', __('Maximum upload size'))
+                                ->suffix(__('MB'))
+                                ->visible(fn (Get $get): bool => (bool) $get('files'))
+                                ->helperText(__('A larger upload is refused with 413 and leaves nothing behind. Above 128 MB, raise the request body limit of the reverse proxy too.')),
+                            'files_max_upload_mb',
                         ),
                     ]),
                 Section::make(__('Logging'))

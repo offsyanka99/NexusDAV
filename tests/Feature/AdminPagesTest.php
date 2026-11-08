@@ -101,6 +101,7 @@ class AdminPagesTest extends TestCase
     {
         config(['nexusdav.env_set' => []]);
         $this->actingAs($this->makeUser('root', true));
+        app(SettingsService::class)->save(['files' => true]);
 
         Livewire::test(ServicesWidget::class)
             ->assertSee('Sharing')

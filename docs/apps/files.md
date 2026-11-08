@@ -23,7 +23,7 @@ There is no Files feature in Version 1. Calendars, contacts, tasks, and notes do
 | See that a user's file home exists | No | Version 1.x | Version 2, their own home only |
 | Set a storage quota | No | Version 2.x | No |
 
-Large uploads depend on the reverse proxy allowing a large request body. See [Troubleshooting](../guide.md#troubleshooting).
+One upload can be as large as **Maximum upload size** on the Settings page: 128 MB by default, up to 102400 MB (100 GB). Uploads are streamed to disk, so a large file does not need memory. The reverse proxy must allow the same size and long enough timeouts, Cloudflare passes at most 100 MB on its Free and Pro plans, and the data volume needs free space for the whole file. See [Large file uploads](../guide.md#large-file-uploads-files).
 
 ## Not in the plan yet
 

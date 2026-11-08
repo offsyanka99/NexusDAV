@@ -78,7 +78,7 @@ TrueNAS SCALE 24.10 (Electric Eel) and later run Apps on Docker, so a Docker Com
 4. **Apps > Discover Apps**, then **Custom App** (top right) **> Install via YAML**. Paste the edited file and install.
 5. Continue from step 4 of [Quick start](#quick-start).
 
-`PUID` and `PGID` default to `568`, the UID TrueNAS SCALE apps conventionally run as, so the dataset's ownership matches what the container expects. Each container is capped at 1 CPU. NexusDAV is limited to 768 MB, and PostgreSQL to 1 GB. Those are ceilings; raise them in the YAML if the app is stopped for running out of memory during a large sync. Put it behind an HTTPS reverse proxy before exposing it outside your network — Nginx Proxy Manager and Caddy are themselves TrueNAS SCALE apps, or use one of the files in [docs/proxy](proxy/).
+`PUID` and `PGID` default to `568`, the UID TrueNAS SCALE apps conventionally run as, so the dataset's ownership matches what the container expects. Each container is capped at 1 CPU. NexusDAV is limited to 768 MB, and PostgreSQL to 1 GB. Those are ceilings; raise them in the YAML if the app is stopped for running out of memory during a large sync. Put it behind an HTTPS reverse proxy before exposing it outside your network — Nginx Proxy Manager and Caddy are themselves TrueNAS SCALE apps, or use one of the files in [docs/proxy](proxy/). To upload large files to Files, the proxy and the dataset need the settings in [Large file uploads](#large-file-uploads-files).
 
 ## Requirements
 
@@ -171,6 +171,8 @@ These settings are changed on the **Settings** and **Configuration** pages. A ch
 | Tasks (VTODO) on or off | Settings | `NEXUSDAV_TASKS` | on |
 | Notes (VJOURNAL) on or off | Settings | `NEXUSDAV_NOTES` | on |
 | Sharing on or off | Settings | `NEXUSDAV_SHARING` | on |
+| Files on or off | Settings | `NEXUSDAV_FILES` | off |
+| Maximum upload size for Files (MB, 1 to 102400) | Settings | `NEXUSDAV_FILES_MAX_UPLOAD_MB` | `128` |
 | Log level | Settings | `LOG_LEVEL` | `debug` |
 | Keep sync history for (days) | Settings | `NEXUSDAV_SYNC_HISTORY_DAYS` | `90` |
 | Default panel language (`en` or `ru`) | Configuration | `NEXUSDAV_LOCALE` | `en` |
@@ -257,7 +259,7 @@ Replies to emailed invitations are not read or processed. People who have an acc
 In production NexusDAV is expected to run behind a reverse proxy (Caddy, nginx, Traefik) that terminates HTTPS. Two things matter:
 
 1. **Service discovery.** The application serves `/.well-known/caldav` and `/.well-known/carddav` and redirects them to `/dav/`. Clients such as Apple Calendar / Contacts, Thunderbird and DAVx5 can then use the domain (or the root URL) instead of a full collection path. The proxy must forward those two paths to the app. Some proxies swallow unknown paths and never do. For those, configure the fallback redirects below in the proxy itself.
-2. **A DAV-aware proxy.** The proxy must pass through all HTTP methods used by DAV (`PROPFIND`, `PROPPATCH`, `REPORT`, `MKCOL`, `MKCALENDAR`, `COPY`, `MOVE`, `LOCK`, `UNLOCK`) and the `Authorization` header, forward the `Host` and `X-Forwarded-Proto` headers, and allow request bodies up to 128 MB, the app's own limit (vCards with photos, events with attachments). `APP_URL` must match the public HTTPS address. A proxy in the same Docker network or LAN is trusted by default; otherwise set `TRUSTED_PROXIES` (see [Environment variables](#environment-variables)).
+2. **A DAV-aware proxy.** The proxy must pass through all HTTP methods used by DAV (`PROPFIND`, `PROPPATCH`, `REPORT`, `MKCOL`, `MKCALENDAR`, `COPY`, `MOVE`, `LOCK`, `UNLOCK`) and the `Authorization` header, forward the `Host` and `X-Forwarded-Proto` headers, and allow request bodies up to 128 MB (vCards with photos, events with attachments), or up to Maximum upload size for Files (see [Large file uploads](#large-file-uploads-files)). `APP_URL` must match the public HTTPS address. A proxy in the same Docker network or LAN is trusted by default; otherwise set `TRUSTED_PROXIES` (see [Environment variables](#environment-variables)).
 
 The DAV root is `/dav/`. It is fixed once chosen, because clients store full URLs.
 
@@ -284,6 +286,22 @@ redir /.well-known/carddav https://{host}/dav/ 301
 ```
 
 Every answer from the app carries an `X-Request-Id` header. A proxy can add it to its own access log (the nginx file shows how), so a proxy line can be matched with the app's log line.
+
+### Large file uploads (Files)
+
+An upload to Files is streamed to disk, so its size is limited by **Maximum upload size**, not by memory. The setting goes up to 102400 MB (100 GB); it is 128 MB by default. Uploads up to 1 GB have been tested; try one file of the size you need before relying on it. Everything between the client and the app must allow the same size:
+
+1. **Maximum upload size** on **Settings → Files** (or `NEXUSDAV_FILES_MAX_UPLOAD_MB`): at least the largest file, for example `51200` for 50 GB. A larger upload gets 413 and leaves nothing behind.
+2. **The reverse proxy.** It is the usual reason a large upload fails.
+   - **nginx and Nginx Proxy Manager:** `client_max_body_size 0;` (no limit) or a size above the largest file, and `proxy_request_buffering off;`, or nginx first writes the whole upload to its own disk. Raise `proxy_read_timeout` and `proxy_send_timeout` for slow links. In Nginx Proxy Manager, put these lines in the host's **Advanced** tab.
+   - **Caddy:** `max_size` in the `request_body` block at least the largest file.
+   - **Traefik v3:** no body limit, but the entrypoint's `respondingTimeouts.readTimeout` is 60 seconds by default and cuts a long upload off. Raise it, or set it to `0`, in Traefik's static configuration (for example `--entryPoints.websecure.transport.respondingTimeouts.readTimeout=0`).
+   - **Cloudflare** (proxy or tunnel): a request body is limited to 100 MB on the Free and Pro plans, so larger files cannot pass through it. Reach the server another way for those, for example over a VPN.
+3. **Free space on the data volume.** An upload is written to `/data/files/.uploads/` and renamed into place on the same volume, so it needs room for the whole file. Replacing a file needs room for the old and the new copy until the upload finishes. A full disk answers 507 and leaves nothing behind. On TrueNAS, check the dataset's quota as well as the pool.
+4. **Time.** 50 GB take about 7 minutes at 1 Gbit/s and more than an hour at 100 Mbit/s. The app does not stop a long upload or copy; the proxy's timeouts and the client's own limits can.
+5. **The client.** rclone and curl send a file as one `PUT` and work with any size the server allows. Other clients may have limits or timeouts of their own.
+
+Calendars and contacts are not affected: their bodies are read into memory and stay limited to 128 MB (PHP's `post_max_size`).
 
 ## Client setup and compatibility
 
@@ -551,7 +569,7 @@ Automatic backups are a long-term goal (see [Roadmap](#roadmap)).
 | Some operations fail (creating calendars, editing events) | The proxy blocks DAV methods such as `PROPFIND`, `REPORT`, `MKCALENDAR`. |
 | Redirects or links use `http://` | `APP_URL` is not the public HTTPS address, or `X-Forwarded-Proto` is not forwarded. |
 | The admin panel signs you out right after you sign in | Secure session cookies are on and the panel was opened over plain HTTP. Open it over HTTPS, or set `SESSION_SECURE_COOKIE=false`. Secure cookies are on by default when `APP_URL` starts with `https://`. |
-| Large file upload fails | The proxy request-body limit is too low. nginx allows 1 MB by default; the files in [docs/proxy](proxy/) allow 128 MB, the app's limit. |
+| Large file upload fails | 413 from the app: the file is over Maximum upload size (Settings → Files). 413 from the proxy, a reset connection or a timeout: the proxy's body limit or timeouts are too low (nginx allows 1 MB by default; the files in [docs/proxy](proxy/) allow 128 MB). 507: the data volume is full. See [Large file uploads](#large-file-uploads-files). |
 | A DAV error is listed on Diagnostics and you need more detail | Search the log for its Request ID: `docker compose logs nexusdav \| grep <id>`. |
 | Tasks or notes are not visible | The client app does not display them (see [Client compatibility](#client-compatibility)). |
 | The first contact sync in DAVx5 takes many minutes | DAVx5 saves each contact into Android's contacts storage one at a time, about 0.5 s per contact on a Pixel 7 Pro: roughly 10 minutes for 2,000 contacts. The server's part is a few seconds. Later syncs fetch only changes and are quick. Calendars and other clients (Thunderbird, iPhone, iPad) are not affected ([#1](https://github.com/offsyanka99/NexusDAV/issues/1)). |

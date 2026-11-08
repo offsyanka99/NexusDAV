@@ -44,8 +44,10 @@ final class DavServerFactory
             $nodes[] = new AddressBookRoot($principals, new AddressBookBackend($pdo), 'principals');
         }
 
+        $files = app(FileStorage::class);
+
         if ($this->enabled('files')) {
-            $nodes[] = new FilesRoot($principals, app(FileStorage::class), 'principals');
+            $nodes[] = new FilesRoot($principals, $files, 'principals');
         }
 
         $server = new Server($nodes);
@@ -106,10 +108,11 @@ final class DavServerFactory
 
         // A switched-off service answers 403 with a reason, not 404. Its root
         // and plugin are not loaded, and the stored data is kept.
-        $server->on('beforeMethod:*', function (RequestInterface $request) use ($server): void {
+        $server->on('beforeMethod:*', function (RequestInterface $request) use ($server, $files): void {
             $this->refuseDisabledService($request);
             $this->refuseOtherHomes($server, $request);
             $this->refuseCopyAcrossFiles($server, $request);
+            $this->limitUpload($files, $request);
         });
 
         // Shares are created in the admin panel. sabre's sharing plugins are
@@ -210,6 +213,31 @@ final class DavServerFactory
         return in_array($segments[0], ['principals', 'calendars', 'addressbooks', 'files'], true)
             && ($segments[1] ?? '') !== ''
             && $segments[1] !== $own;
+    }
+
+    /**
+     * Maximum upload size for a PUT to a file home: 413 at once when
+     * Content-Length is over it, and a byte count while the body streams for
+     * an upload without it. The announced length is checked too, so an
+     * upload cut short leaves nothing. COPY is not an upload and has neither.
+     */
+    private function limitUpload(FileStorage $files, RequestInterface $request): void
+    {
+        $files->expectUpload(null, null);
+
+        if (strtoupper($request->getMethod()) !== 'PUT' || ! self::underFiles($request->getPath())) {
+            return;
+        }
+
+        $limit = max(1, (int) config('nexusdav.files.max_upload_mb', 128)) * 1048576;
+        $header = $request->getHeader('Content-Length');
+        $length = is_string($header) && ctype_digit($header) ? (int) $header : null;
+
+        if ($length !== null && $length > $limit) {
+            throw UploadTooLarge::forLimit($limit);
+        }
+
+        $files->expectUpload($limit, $length);
     }
 
     /**

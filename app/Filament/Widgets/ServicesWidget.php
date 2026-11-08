@@ -25,7 +25,7 @@ class ServicesWidget extends SchemaWidget
     protected function section(Section $section): Section
     {
         return $section
-            ->columns(5)
+            ->columns(['default' => 2, 'md' => 3, 'xl' => 6])
             ->footer([
                 Action::make('manageSettings')
                     ->label(__('Manage in Settings'))
@@ -47,6 +47,7 @@ class ServicesWidget extends SchemaWidget
             'tasks' => __('Tasks'),
             'notes' => __('Notes'),
             'sharing' => __('Sharing'),
+            'files' => __('Files'),
         ] as $key => $label) {
             $on = (bool) $settings->get($key);
             $entry = TextEntry::make($key)

@@ -276,5 +276,15 @@
     "The address book, its contacts, and its shares will be deleted.": "The address book, its contacts, and its shares will be deleted.",
     "The calendar and its events, tasks, notes, and shares will be deleted.": "The calendar and its events, tasks, notes, and shares will be deleted.",
     "The user, their principal, calendars, events, address books, contacts, and app passwords will be deleted. Shares they own: :owned. Shares they received: :received.": "The user, their principal, calendars, events, address books, contacts, and app passwords will be deleted. Shares they own: :owned. Shares they received: :received.",
-    "This share will be removed. The owner's items stay.": "This share will be removed. The owner's items stay."
+    "This share will be removed. The owner's items stay.": "This share will be removed. The owner's items stay.",
+    "Files": "Files",
+    "Each user's own WebDAV storage at /dav/files/<username>/. App passwords reach it too.": "Each user's own WebDAV storage at /dav/files/<username>/. App passwords reach it too.",
+    "When off, paths under /dav/files/ answer 403 and the files are kept on the data volume.": "When off, paths under /dav/files/ answer 403 and the files are kept on the data volume.",
+    "Maximum upload size": "Maximum upload size",
+    "MB": "MB",
+    "A larger upload is refused with 413 and leaves nothing behind. Above 128 MB, raise the request body limit of the reverse proxy too.": "A larger upload is refused with 413 and leaves nothing behind. Above 128 MB, raise the request body limit of the reverse proxy too.",
+    "File home": "File home",
+    "Exists": "Exists",
+    "Not created yet": "Not created yet",
+    "Their file home and every file in it will be deleted too.": "Their file home and every file in it will be deleted too."
 }

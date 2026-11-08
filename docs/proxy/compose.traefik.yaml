@@ -6,7 +6,11 @@
 #   docker compose -f compose.yaml -f compose.postgres.yaml -f compose.traefik.yaml up -d
 #
 # Traefik passes every DAV method, the Host and Authorization headers and the
-# X-Forwarded-* headers, and sets no request body limit by default.
+# X-Forwarded-* headers, and sets no request body limit by default, so the
+# app's own limits apply (Maximum upload size for Files). Its entrypoints stop
+# reading a request after 60 seconds by default, which cuts off a large upload:
+# for big files, raise respondingTimeouts.readTimeout in Traefik's static
+# configuration, e.g. --entryPoints.websecure.transport.respondingTimeouts.readTimeout=0
 
 services:
   nexusdav:

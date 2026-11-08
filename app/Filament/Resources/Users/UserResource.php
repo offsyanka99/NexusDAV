@@ -12,6 +12,7 @@ use App\Filament\Resources\Users\RelationManagers\CalendarsRelationManager;
 use App\Filament\Resources\Users\RelationManagers\ReceivedSharesRelationManager;
 use App\Models\Principal;
 use App\Models\User;
+use App\Services\Dav\FileStorage;
 use App\Services\UserService;
 use App\Support\PanelErrorTranslator;
 use BackedEnum;
@@ -125,6 +126,13 @@ class UserResource extends Resource
                                     ->whereIn('addressbookid', $record->addressBooks()->select('addressbooks.id'))
                                     ->count();
                             }),
+                        TextEntry::make('file_home')
+                            ->label(__('File home'))
+                            ->inlineLabel()
+                            ->saved(false)
+                            ->state(fn (?User $record): string => $record instanceof User && app(FileStorage::class)->homeExists((string) $record->username)
+                                ? __('Exists')
+                                : __('Not created yet')),
                     ]),
                 Group::make()
                     ->columns(self::fieldColumns(...))

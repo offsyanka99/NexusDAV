@@ -7,6 +7,7 @@ use Normalizer;
 use RuntimeException;
 use Sabre\DAV\Exception\BadRequest;
 use Sabre\DAV\Exception\Forbidden;
+use Sabre\DAV\Exception\InsufficientStorage;
 
 /**
  * The disk side of Files (PR 28 of the Version 1.x plan): one directory per
@@ -17,8 +18,12 @@ use Sabre\DAV\Exception\Forbidden;
  * Uploads are written into UPLOADS, a directory beside the homes on the same
  * volume, and renamed into place. A username starts with a letter or digit,
  * so it can never be that name.
+ *
+ * A PUT sets the upload limit and the announced length (expectUpload()); a
+ * COPY or a LOCK that writes through the same nodes has neither. A full disk
+ * answers 507.
  */
-final class FileStorage
+class FileStorage
 {
     public const UPLOADS = '.uploads';
 
@@ -31,6 +36,29 @@ final class FileStorage
      * Uploads left behind by a killed process are removed after this long.
      */
     private const STALE_UPLOAD_SECONDS = 86400;
+
+    private const CHUNK = 1048576;
+
+    private ?int $uploadLimit = null;
+
+    private ?int $expectedLength = null;
+
+    private ?string $lastError = null;
+
+    /**
+     * Limits for the next write: the most bytes it may have, and the length
+     * the client announced in Content-Length. Null for no check.
+     */
+    public function expectUpload(?int $limitBytes, ?int $length): void
+    {
+        $this->uploadLimit = $limitBytes;
+        $this->expectedLength = $length;
+    }
+
+    public function uploadLimit(): ?int
+    {
+        return $this->uploadLimit;
+    }
 
     public function root(): string
     {
@@ -172,10 +200,19 @@ final class FileStorage
         $directory = $this->uploadsDirectory();
         $this->removeStaleUploads($directory);
 
-        $temporary = @tempnam($directory, 'upload-');
+        $temporary = $this->quietly(fn () => tempnam($directory, 'upload-'));
 
         if (! is_string($temporary)) {
-            throw new RuntimeException('Could not create a temporary file for an upload.');
+            throw $this->writeFailure('Could not create a temporary file for an upload.');
+        }
+
+        // tempnam() falls back to the system temp directory when it cannot
+        // write here (a full disk); that is outside the data volume.
+        if (dirname($temporary) !== (realpath($directory) ?: $directory)) {
+            $failure = $this->writeFailure('Could not create a temporary file for an upload.');
+            @unlink($temporary);
+
+            throw $failure;
         }
 
         try {
@@ -204,8 +241,8 @@ final class FileStorage
             return;
         }
 
-        if (! @mkdir($path, 0750, $parents) && ! (is_dir($path) && ! is_link($path))) {
-            throw new RuntimeException('Could not create a directory for Files.');
+        if (! $this->quietly(fn () => mkdir($path, 0750, $parents)) && ! (is_dir($path) && ! is_link($path))) {
+            throw $this->writeFailure('Could not create a directory for Files.');
         }
 
         clearstatcache(true, $path);
@@ -247,31 +284,57 @@ final class FileStorage
     }
 
     /**
+     * The file an upload is written to. Tests replace it to simulate a full
+     * disk.
+     *
+     * @return resource|false
+     */
+    protected function openTemporary(string $path)
+    {
+        return @fopen($path, 'wb');
+    }
+
+    /**
      * @param  resource|string|null  $data
      */
     private function fill(string $path, mixed $data): void
     {
-        $out = @fopen($path, 'wb');
+        $out = $this->openTemporary($path);
 
         if ($out === false) {
             throw new RuntimeException('Could not open a temporary file for an upload.');
         }
 
+        $done = false;
+
         try {
+            $written = 0;
+
             if (is_resource($data)) {
-                $this->copyStream($data, $out);
+                $written = $this->copyStream($data, $out);
             } elseif (is_string($data)) {
+                $this->checkLimit(strlen($data));
                 $this->writeString($out, $data);
+                $written = strlen($data);
             } elseif ($data !== null) {
                 throw new RuntimeException('Unsupported upload body.');
             }
 
-            if (! @fflush($out)) {
-                throw new RuntimeException('Could not write an upload.');
+            if (! $this->quietly(fn () => fflush($out))) {
+                throw $this->writeFailure('Could not write an upload.');
             }
+
+            if ($this->expectedLength !== null && $written !== $this->expectedLength) {
+                throw new BadRequest('The upload ended after '.$written.' of '.$this->expectedLength.' bytes.');
+            }
+
+            $done = true;
         } finally {
-            if (! @fclose($out)) {
-                throw new RuntimeException('Could not write an upload.');
+            $closed = $this->quietly(fn () => fclose($out));
+
+            // A write error already on its way is the one to report.
+            if (! $closed && $done) {
+                throw $this->writeFailure('Could not write an upload.');
             }
         }
     }
@@ -279,21 +342,35 @@ final class FileStorage
     /**
      * Read by read, not stream_copy_to_stream(): that maps a file-backed
      * stream (sabre's php://temp above 2 MB) without setting its end flag,
-     * so a short copy could not be told from a whole one.
+     * so a short copy could not be told from a whole one. Counting as it
+     * reads stops an upload without Content-Length at the limit.
      *
      * @param  resource  $data
      * @param  resource  $out
      */
-    private function copyStream($data, $out): void
+    private function copyStream($data, $out): int
     {
+        $written = 0;
+
         while (! feof($data)) {
-            $chunk = @fread($data, 1048576);
+            $chunk = @fread($data, self::CHUNK);
 
             if ($chunk === false || ($chunk === '' && ! feof($data))) {
                 throw new RuntimeException('Could not read an upload.');
             }
 
+            $written += strlen($chunk);
+            $this->checkLimit($written);
             $this->writeString($out, $chunk);
+        }
+
+        return $written;
+    }
+
+    private function checkLimit(int $bytes): void
+    {
+        if ($this->uploadLimit !== null && $bytes > $this->uploadLimit) {
+            throw UploadTooLarge::forLimit($this->uploadLimit);
         }
     }
 
@@ -305,12 +382,53 @@ final class FileStorage
         $length = strlen($data);
 
         for ($written = 0; $written < $length; $written += $count) {
-            $count = @fwrite($out, substr($data, $written));
+            $count = $this->quietly(fn () => fwrite($out, substr($data, $written)));
 
             if ($count === false || $count === 0) {
-                throw new RuntimeException('Could not write an upload.');
+                throw $this->writeFailure('Could not write an upload.');
             }
         }
+    }
+
+    /**
+     * Runs a filesystem call and keeps its warning. Laravel's error handler
+     * takes warnings before error_get_last() sees them, and the warning is
+     * what tells a full disk from another failure.
+     *
+     * @template T
+     *
+     * @param  callable(): T  $operation
+     * @return T
+     */
+    private function quietly(callable $operation): mixed
+    {
+        $this->lastError = null;
+        set_error_handler(function (int $level, string $message): bool {
+            $this->lastError = $message;
+
+            return true;
+        });
+
+        try {
+            return $operation();
+        } finally {
+            restore_error_handler();
+        }
+    }
+
+    /**
+     * 507 when the disk or a quota is full (ENOSPC, EDQUOT), otherwise a
+     * server error that is logged.
+     */
+    private function writeFailure(string $message): \Throwable
+    {
+        $error = (string) $this->lastError;
+
+        if (preg_match('/errno=(28|122)\b|No space left on device|Disk quota exceeded/i', $error) === 1) {
+            return new InsufficientStorage('There is not enough free space on the server.');
+        }
+
+        return new RuntimeException($message.($error === '' ? '' : ' '.$error));
     }
 
     private function uploadsDirectory(): string

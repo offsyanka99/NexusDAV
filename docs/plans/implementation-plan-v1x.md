@@ -14,7 +14,7 @@ The work is split into five milestones and 31 PRs, listed in the order they are 
 
 Sources: [guide](../guide.md), [apps](../apps/README.md), the [admin panel](../apps/admin.md) description, the design notes for [Settings](../design/admin-settings.md), [Configuration](../design/admin-configuration.md) and the [Dashboard](../design/admin-dashboard.md), the pinned WebDAV-Push draft, and the current code.
 
-**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is done and released as **0.3.0** (PR 20 to PR 27). The Sharing pass of the [client checklist](../testing/client-checklist.md#11-sharing) passed on 0.3.0+404d77b with DAVx5 + jtx Board, Thunderbird and an iPad on both databases (Pass 3 table; all of step 11 passed on both databases). M4 is in progress: PR 28 is implemented. M5 is not started. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
+**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is done and released as **0.3.0** (PR 20 to PR 27). The Sharing pass of the [client checklist](../testing/client-checklist.md#11-sharing) passed on 0.3.0+404d77b with DAVx5 + jtx Board, Thunderbird and an iPad on both databases (Pass 3 table; all of step 11 passed on both databases). M4 is in progress: PR 28 and PR 29 are done, PR 30 and PR 31 are implemented. M5 is not started. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
 
 Effort levels are the same as in Version 1:
 - **Low** — small, mostly boilerplate or config
@@ -51,8 +51,8 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 | 19 | PR 27 | M3 | M3 release (client pass done; publish next) | Medium | 19, 21–26 |
 | 20 | PR 28 | M4 | File home: storage, isolation and basic methods (done) | High | — |
 | 21 | PR 29 | M4 | COPY, MOVE, locks and properties for files (done) | High | 28 |
-| 22 | PR 30 | M4 | Upload size limit, streaming and a full disk | Medium | 28 |
-| 23 | PR 31 | M4 | Files in the admin panel | Medium | 28, 30 |
+| 22 | PR 30 | M4 | Upload size limit, streaming and a full disk (implemented) | Medium | 28 |
+| 23 | PR 31 | M4 | Files in the admin panel (implemented) | Medium | 28, 30 |
 | 24 | PR 32 | M4 | M4 release | Medium | 27, 28–31 |
 | 25 | PR 33 | M5 | Spike: Web Push library and DAVx5 push | Medium | — |
 | 26 | PR 34 | M5 | Worker service and heartbeat | Medium | — |
@@ -596,7 +596,25 @@ Results are in the [Files testing](../testing/files-testing.md#results)
 
 **Done when:** GNOME Files and rclone can rename, move and copy files and folders; locks and properties follow `MOVE` and go with `DELETE`; and a `COPY` or `MOVE` into another home is refused.
 
-### PR 30 — Upload size limit, streaming and a full disk (Effort: Medium)
+### PR 30 — Upload size limit, streaming and a full disk (Effort: Medium) — implemented
+
+**Found:**
+- PHP itself does not apply `post_max_size` to a `PUT`, but Laravel's `ValidatePostSize` middleware does, for every method: any body over 128 MB got Laravel's HTML 413. It is replaced by `App\Http\Middleware\ValidatePostSize`, which skips a `PUT` under `/dav/files/` only. Calendar and contact bodies, which are read into memory, keep the PHP limit. So the image's PHP limits do not need to follow Maximum upload size; `docker/uploads.ini` says so.
+- `DavController` read every body into a string, so a 1 GB upload would end at PHP's 128 MB `memory_limit`. A `PUT` to a file home now passes `php://input` to sabre as a stream.
+- **Downloads took the server down.** `fpassthru()` and `stream_copy_to_stream()` map a file into memory and hand it to the output layer whole; a 1 GB `GET` asked for 512 MB, hit PHP's hard memory limit, and stopped FrankenPHP with every request in it (exit 137). Responses are now sent in 1 MB chunks. This affected any large download, also before Files.
+
+**Built:**
+- **Maximum upload size (MB):** `files_max_upload_mb` in `SettingsService::DEFINITIONS` (`NEXUSDAV_FILES_MAX_UPLOAD_MB`, default `128`, 1 to 102400). It applies to a `PUT` under `/dav/files/` only; a `COPY` is not an upload.
+- **413:** at once when `Content-Length` is over the limit (before the body is read), and from a byte count while the body streams for an upload without it (chunked). The message names the limit. The temporary file goes, and an overwritten file keeps its old content.
+- An upload that ends before its `Content-Length` answers 400 and leaves nothing.
+- **507** "There is not enough free space on the server." when a write fails with ENOSPC or EDQUOT (the warning is read with a short-lived error handler, because Laravel's handler takes it before `error_get_last()`), also for `mkdir` and the temporary file. Nothing is left. `tempnam()` falling back to the system temp directory is refused, so an upload never lands outside the data volume.
+- `max_execution_time` is lifted for writes under `/dav/files/` (`PUT`, `COPY`, `MOVE`, `DELETE`), so a long upload or a large copy is not cut off.
+- Proxy files: the Caddyfile and `nginx.conf` say to raise the body limit with Maximum upload size; Traefik sets none. `.env.example` has the variable.
+
+**Tests:** `FilesUploadLimitTest` (both databases): the setting and its range; 413 from `Content-Length`, from the byte count, and over an existing file; a short upload; the limit only for files (a `COPY` of a larger file, a calendar body, `post_max_size` still for calendars); 507 on a simulated full disk (`/dev/full`); a 24 MB upload without the body in memory.
+
+**Checked on the built image:** a 1 GB upload with the limit at 2048 MB (201 in 3 s), a full 1 GB download, a range in the middle and a 1 GB `COPY`, all identical, with the container at 128 MiB against 76 MiB idle and no restart. With 64 MB: 413 from `Content-Length`. With 10 MB: a chunked 20 MB upload got 413 (also over an existing file), 9 MB passed. On a 30 MB tmpfs: 507 for new files and over an existing one, which kept its content; `.uploads/` empty. The entrypoint took ownership of the tmpfs `/data/files`.
+
 
 - **Maximum upload size (MB)** on the Settings page: `NEXUSDAV_FILES_MAX_UPLOAD_MB`, default `128`. It applies to `/dav/files/` only.
 - First check today's behaviour: PHP's `post_max_size` is meant for `POST`, so check whether the 128 MB limit applies to `PUT` at all. Either way, the app enforces the limit: an early 413 from `Content-Length`, and a byte count while streaming for uploads without it. The partial file is removed.
@@ -608,7 +626,19 @@ Results are in the [Files testing](../testing/files-testing.md#results)
 
 **Done when:** an upload over the limit gets 413 with and without `Content-Length` and leaves nothing behind, a 1 GB upload with the limit raised completes with flat memory use, and a full disk gives 507.
 
-### PR 31 — Files in the admin panel (Effort: Medium)
+### PR 31 — Files in the admin panel (Effort: Medium) — implemented
+
+**Built:**
+- **Settings page:** a Files section with the Files switch and Maximum upload size (MB), shown while Files is on. Each is locked by its variable. Switching Files off keeps the saved limit.
+- **User page:** "File home: Exists" or "Not created yet" in User Information.
+- **Delete confirmation:** "Their file home and every file in it will be deleted too." when the home exists.
+- **Dashboard:** Files in the Services card, with the lock when `NEXUSDAV_FILES` is set. The card is three columns by two on wide screens.
+- English and Russian text.
+
+**Tests:** `FilesAdminTest`: the fields, hidden and shown, saved, the range error, and their locked states; the file home indicator; the confirmation text on the user page and in the list, and the home deleted with the user; the Services card. `AdminPagesTest` switches Files on where it counts the "Off" badges of Sharing.
+
+**Checked in a browser** on the local server: the Settings section (Files locked by the local `.env`), the Services card, the user page and the delete confirmation (cancelled). The maintainer's local run passed F13 to F21 of [Files testing](../testing/files-testing.md#results), covering PR 30 and PR 31 together.
+
 
 - The Settings page: Files on or off, and Maximum upload size (shown when Files is on), each locked by its variable.
 - The user page: "File home: exists" or "not created yet". No browsing and no sizes; storage statistics are Version 2.x.

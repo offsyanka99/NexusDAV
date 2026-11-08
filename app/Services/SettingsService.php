@@ -33,6 +33,7 @@ final class SettingsService
         'notes' => ['config' => 'nexusdav.features.notes', 'env' => 'NEXUSDAV_NOTES', 'type' => 'bool', 'default' => true],
         'sharing' => ['config' => 'nexusdav.features.sharing', 'env' => 'NEXUSDAV_SHARING', 'type' => 'bool', 'default' => true],
         'files' => ['config' => 'nexusdav.features.files', 'env' => 'NEXUSDAV_FILES', 'type' => 'bool', 'default' => false],
+        'files_max_upload_mb' => ['config' => 'nexusdav.files.max_upload_mb', 'env' => 'NEXUSDAV_FILES_MAX_UPLOAD_MB', 'type' => 'int', 'min' => 1, 'max' => 102400, 'default' => 128],
         'default_locale' => ['config' => 'nexusdav.default_locale', 'env' => 'NEXUSDAV_LOCALE', 'type' => 'locale', 'default' => 'en'],
         'log_level' => ['config' => 'logging.channels.stderr.level', 'env' => 'LOG_LEVEL', 'type' => 'choice', 'options' => self::LOG_LEVELS, 'default' => 'debug'],
         'timezone' => ['config' => 'nexusdav.default_timezone', 'env' => 'NEXUSDAV_TIMEZONE', 'type' => 'timezone', 'default' => 'UTC'],

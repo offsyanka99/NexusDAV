@@ -6,6 +6,7 @@ use App\Livewire\CollectionSharesTable;
 use App\Models\AddressBook;
 use App\Models\CalendarInstance;
 use App\Models\User;
+use App\Services\Dav\FileStorage;
 use App\Services\Dav\SharingService;
 use App\Support\PanelErrorTranslator;
 use Closure;
@@ -83,10 +84,16 @@ final class CollectionShareAction
 
     public static function deletionNote(User $user): string
     {
-        return __('The user, their principal, calendars, events, address books, contacts, and app passwords will be deleted. Shares they own: :owned. Shares they received: :received.', [
+        $note = __('The user, their principal, calendars, events, address books, contacts, and app passwords will be deleted. Shares they own: :owned. Shares they received: :received.', [
             'owned' => self::joinLabels(self::ownedLabels($user)),
             'received' => self::joinLabels(self::receivedLabels($user)),
         ]);
+
+        if (app(FileStorage::class)->homeExists((string) $user->username)) {
+            $note .= ' '.__('Their file home and every file in it will be deleted too.');
+        }
+
+        return $note;
     }
 
     private static function userSelect(): Select

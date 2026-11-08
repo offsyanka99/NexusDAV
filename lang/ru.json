@@ -276,5 +276,15 @@
     "The address book, its contacts, and its shares will be deleted.": "Адресная книга, её контакты и общий доступ к ней будут удалены.",
     "The calendar and its events, tasks, notes, and shares will be deleted.": "Календарь, его события, задачи, заметки и общий доступ к нему будут удалены.",
     "The user, their principal, calendars, events, address books, contacts, and app passwords will be deleted. Shares they own: :owned. Shares they received: :received.": "Пользователь, его principal, календари, события, адресные книги, контакты и пароли приложений будут удалены. Общий доступ, который он выдал: :owned. Общий доступ, который он получил: :received.",
-    "This share will be removed. The owner's items stay.": "Этот общий доступ будет убран. Элементы владельца останутся."
+    "This share will be removed. The owner's items stay.": "Этот общий доступ будет убран. Элементы владельца останутся.",
+    "Files": "Файлы",
+    "Each user's own WebDAV storage at /dav/files/<username>/. App passwords reach it too.": "Личное хранилище WebDAV каждого пользователя по адресу /dav/files/<username>/. Пароли приложений дают доступ и к нему.",
+    "When off, paths under /dav/files/ answer 403 and the files are kept on the data volume.": "Когда выключено, пути в /dav/files/ отвечают 403, а файлы остаются на томе данных.",
+    "Maximum upload size": "Максимальный размер загрузки",
+    "MB": "МБ",
+    "A larger upload is refused with 413 and leaves nothing behind. Above 128 MB, raise the request body limit of the reverse proxy too.": "Загрузка большего размера отклоняется с кодом 413 и ничего не оставляет. Выше 128 МБ увеличьте и лимит размера запроса в обратном прокси.",
+    "File home": "Хранилище файлов",
+    "Exists": "Создано",
+    "Not created yet": "Ещё не создано",
+    "Their file home and every file in it will be deleted too.": "Хранилище файлов пользователя и все файлы в нём тоже будут удалены."
 }

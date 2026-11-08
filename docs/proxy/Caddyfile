@@ -10,7 +10,9 @@ dav.example.com {
 	redir /.well-known/carddav https://{host}/dav/ 301
 
 	# The app accepts request bodies up to 128 MB (vCards with photos,
-	# events with attachments).
+	# events with attachments). Uploads to Files have their own limit,
+	# Maximum upload size on the Settings page (128 MB by default). If you
+	# raise it, raise max_size to the same value.
 	request_body {
 		max_size 128MB
 	}

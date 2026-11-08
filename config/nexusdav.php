@@ -92,11 +92,13 @@ return [
     |
     | Each user's file home is a directory under path, created on first use.
     | The image sets /data/files on the data volume; it is not a panel setting.
+    | max_upload_mb limits one upload to /dav/files/ (Settings page).
     |
     */
 
     'files' => [
         'path' => env('NEXUSDAV_FILES_PATH', storage_path('app/files')),
+        'max_upload_mb' => env('NEXUSDAV_FILES_MAX_UPLOAD_MB', 128),
     ],
 
     /*

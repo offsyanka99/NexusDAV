@@ -1,6 +1,6 @@
 # Files testing (M4)
 
-Hand checks for Files, the WebDAV file storage at `/dav/files/<username>/` ([M4 in the plan](../plans/implementation-plan-v1x.md#m4--files-effort-high)). Each M4 PR adds its steps here: PR 28 (the file home and the basic methods) is below; PR 29 (copy, move, locks), PR 30 (upload limit, large uploads, a full disk) and PR 31 (the panel) follow. The release PR 32 runs all of them with GNOME Files, rclone and DAVx5, and the results go in the guide's [client compatibility](../guide.md#client-compatibility) table, as for the [client checklist](client-checklist.md).
+Hand checks for Files, the WebDAV file storage at `/dav/files/<username>/` ([M4 in the plan](../plans/implementation-plan-v1x.md#m4--files-effort-high)). Each M4 PR adds its steps here: PR 28 (the file home and the basic methods), PR 29 (copy, move, locks), and PR 30 and PR 31 (the upload limit, large uploads, a full disk, and the panel). The release PR 32 runs all of them with GNOME Files, rclone and DAVx5, and the results go in the guide's [client compatibility](../guide.md#client-compatibility) table, as for the [client checklist](client-checklist.md).
 
 ## Setup
 
@@ -15,7 +15,7 @@ A user's home is created on the first request to it. Uploads in progress are kep
 
 ### Switching Files on
 
-Files is **off** until it is switched on. The panel field comes in PR 31; until then:
+Files is **off** until it is switched on. Switch it on in the panel under **Settings → Files** (PR 31), with no restart. Or set the variable, which then wins and locks the panel field:
 
 - **Local checkout** (`php artisan serve`): set `NEXUSDAV_FILES=true` in `.env`. `artisan serve` restarts itself when `.env` changes, so the next request uses it. Do not start it with `--no-reload`: it then keeps the `.env` values it started with until you restart it. A cached config also hides the change (`php artisan config:clear`).
 - **Docker:** a variable in `.env` does not reach the container by itself. Add it to the `environment:` list of the `nexusdav` service in `compose.yaml` and run `docker compose up -d`:
@@ -25,11 +25,7 @@ Files is **off** until it is switched on. The panel field comes in PR 31; until 
         - NEXUSDAV_FILES=true
   ```
 
-  While the variable is set, the PR 31 panel field is locked. To switch Files without locking it, save the setting instead (no restart):
-
-  ```bash
-  docker exec -u nexusdav nexusdav php artisan tinker --execute='app(App\Services\SettingsService::class)->save(["files" => true]);'
-  ```
+  Remove the line again to manage Files in the panel.
 
 ### Accounts and URLs
 
@@ -215,6 +211,65 @@ curl -s -o /dev/null -w "%{http_code}\n" $A -X PUT --data 'after the move' $BASE
 
 Expected: a `Lock-Token` line with `opaquelocktoken:`, then `423`, `204`, `404`, `201`, `204`.
 
+## Automated tests (PR 30 and PR 31) — ✅ done
+
+`FilesUploadLimitTest` covers Maximum upload size (its range, 413 from `Content-Length` and from the byte count, an existing file kept), an upload shorter than its `Content-Length`, the limit for files only (a `COPY`, a calendar body), 507 on a simulated full disk, and a 24 MB upload without the body in memory. `FilesAdminTest` covers the Settings fields and their locks, the file home on the user page, the delete confirmation and the Services card.
+
+```bash
+php artisan test --filter='FilesTest|FilesCopyMoveLockTest|FilesUploadLimitTest|FilesAdminTest'
+```
+
+## Steps (PR 30 and PR 31)
+
+Your local `.env` sets `NEXUSDAV_FILES=true`, which locks the Files switch. For F13, comment that line out (`php artisan serve` reloads by itself). Files is then off until you switch it on in the panel. A set variable always wins over the panel, also in Docker.
+
+| ID | Do | Expected |
+|---|---|---|
+| F13 | **Settings → Files:** switch Files on and off, save each time; set Maximum upload size to `1` and save | The size field is shown only while Files is on. Off: `/dav/files/` answers 403; on: it works again. The saved size stays when Files is switched off. With a variable set, its field is read-only with "Set by NEXUSDAV_…" |
+| F14 | **Over the limit, with `Content-Length`** (curl, below) | `413` with "The file is larger than the upload limit of 1 MB."; no file in the home and nothing in `.uploads/` |
+| F15 | **Over the limit, without `Content-Length`** (chunked, below), also over an existing file | `413`; nothing new in the home; the existing file keeps its content |
+| F16 | **A large upload:** set the size to `2048`, upload a 1 GB file with rclone or curl, download it and compare; copy it on the server | `201`, identical after download, the `COPY` is `201`. In Docker, `docker stats nexusdav` stays near its idle memory |
+| F17 | **The user page:** open a user who has used Files, then one who has not | User Information shows "File home: Exists" and "File home: Not created yet" |
+| F18 | **Delete a user** who has a file home (create a throwaway user, upload one file as that user, then delete the user) | The confirmation ends with "Their file home and every file in it will be deleted too." After deleting, the home is gone from `storage/app/files/` (`/data/files/` in Docker) |
+| F19 | **Dashboard → Services** | Files is listed with On or Off; with `NEXUSDAV_FILES` set it has the lock icon |
+| F20 | Switch the panel to **Russian** and open Settings, a user page, the delete dialog and the Dashboard | The new text is in Russian and nothing is cut off |
+| F21 | **Diagnostics** after the run | No 5xx rows. 4xx rows only from F13 (403), F14 and F15 (413) |
+
+Optional, Docker only: a **full disk** answers 507 and leaves nothing. Start a second container with a small `/data/files`, for example `docker run --rm -d --name nexusdav-full -p 127.0.0.1:18092:8080 --tmpfs /data/files:size=30m -e APP_URL=http://127.0.0.1:18092 -e ADMIN_EMAIL=admin@example.com -e ADMIN_PASSWORD=a-long-test-password -e DB_CONNECTION=sqlite -e DB_DATABASE=/data/database/nexusdav.sqlite -e NEXUSDAV_FILES=true ghcr.io/offsyanka99/nexusdav:<build>`, create a user and an app password in its panel, and upload a 50 MB file: `507` with "There is not enough free space on the server.", and `/data/files/.uploads/` empty.
+
+### F14 and F15 — curl
+
+Set the variables as in F10 (`BASE`, and `A` from `read -rs`), and Maximum upload size to `1` in Settings.
+
+```bash
+head -c 2097152 /dev/urandom > /tmp/two-mb.bin
+echo small > /tmp/small.txt
+curl -s -w "\n%{http_code}\n" $A -T /tmp/two-mb.bin $BASE/yurik/too-big.bin
+curl -s -o /dev/null -w "%{http_code}\n" $A -T /tmp/small.txt $BASE/yurik/kept.txt
+curl -s -o /dev/null -w "%{http_code}\n" $A -H "Transfer-Encoding: chunked" -T - $BASE/yurik/too-big.bin < /tmp/two-mb.bin
+curl -s -o /dev/null -w "%{http_code}\n" $A -H "Transfer-Encoding: chunked" -T - $BASE/yurik/kept.txt < /tmp/two-mb.bin
+curl -s $A $BASE/yurik/kept.txt
+ls storage/app/files/yurik/ storage/app/files/.uploads/
+```
+
+Expected: the 413 message and `413`; `201`; `413`; `413`; `small`; no `too-big.bin`, and `.uploads/` empty.
+
+### F16 — a large upload
+
+Set Maximum upload size to `2048` first. Over HTTPS, the proxy must allow the body too (`client_max_body_size` in nginx, `max_size` in Caddy).
+
+```bash
+head -c 1073741824 /dev/urandom > /tmp/one-gig.bin
+curl -s -o /dev/null -w "%{http_code} %{time_total}s\n" $A -T /tmp/one-gig.bin $BASE/yurik/one-gig.bin
+curl -s $A $BASE/yurik/one-gig.bin | cmp - /tmp/one-gig.bin && echo identical
+curl -s -o /dev/null -w "%{http_code}\n" $A -X COPY -H "Destination: $BASE/yurik/one-gig-copy.bin" $BASE/yurik/one-gig.bin
+curl -s -o /dev/null -w "%{http_code}\n" $A -X DELETE $BASE/yurik/one-gig.bin
+curl -s -o /dev/null -w "%{http_code}\n" $A -X DELETE $BASE/yurik/one-gig-copy.bin
+rm /tmp/one-gig.bin
+```
+
+Expected: `201`, `identical`, `201`, `204`, `204`. `php artisan serve` (PHP's built-in server) keeps a request body in its own memory, so the memory check belongs to the Docker image, where FrankenPHP streams it.
+
 ## Results
 
 The **Local** column is a run on a local checkout over plain HTTP. The pass over HTTPS behind the proxy goes in the **Proxy pass** run log at the M4 release.
@@ -222,7 +277,7 @@ The **Local** column is a run on a local checkout over plain HTTP. The pass over
 | Run log | Local | Proxy pass |
 |---|---|---|
 | Date | November 8, 2026 | |
-| Build (Dashboard version) | Local checkout at `7b7414d` (`php artisan serve`, SQLite) | |
+| Build (Dashboard version) | Local checkout (`php artisan serve`, SQLite): `7b7414d` for F1 to F7, `892d4ab` for F8 to F12, PR 30 and PR 31 before their commit for F13 to F21 | |
 | Tester | HummerSoft | |
 | rclone version | v1.60.1-DEV (Ubuntu package) | |
 | GNOME Files (Nautilus) version | gvfs 1.60.0 through `gio` (Nautilus 50.2.2 installed) | |
@@ -241,5 +296,14 @@ The **Local** column is a run on a local checkout over plain HTTP. The pass over
 | F10 Overwrite | ✅ | Local: 201, 201, 412, `second`, 204, `first` |
 | F11 Refusals | ✅ | Local: 409 into `olga`'s home, 409 into `nobody`, 409 into itself, 403 with the message into a calendar; `olga`'s home empty |
 | F12 Locks | ✅ | Local: 423 without the token, 204 with it, 404 for `olga`, 201 for the rename, 204 after it. No 5xx during the PR 29 run |
+| F13 Settings: Files switch and size | ✅ | Local: The size field is shown only while Files is on. The saved size stays when Files is switched off. |
+| F14 Over the limit, Content-Length | ✅ | Local, limit 1 MB: a 2 MB upload got 413; no `too-big.bin`, `.uploads/` empty |
+| F15 Over the limit, chunked | ✅ | Local: 413 for a new name and over `kept.txt`, which kept `small` |
+| F16 A large upload | ✅ | Local, limit 2048 MB: a 1 GB upload 201 in 3.7 s, the download identical, `COPY` 201, both deleted (204). Memory checked on the Docker image instead (see the plan, PR 30) |
+| F17 User page: file home | ✅ | Local: `yurik` "Exists", `truenas` "Not created yet" |
+| F18 Delete a user with a file home | ✅ | Local: `filesdel` uploaded a file (201), its page showed "Exists", and deleting it removed its home; `olga`, `yurik` and `.uploads` stayed. The confirmation sentence was checked in a browser for `yurik` (cancelled) |
+| F19 Services card | ✅ | Local |
+| F20 Russian text | ✅ | Local: Settings, a user page, the delete dialog and the Dashboard |
+| F21 Diagnostics | ✅ | Local: no 5xx and no 4xx rows |
 
 Before the hand pass, PR 28 was also checked on the built image over plain HTTP on SQLite (November 8, 2026): rclone 1.76 and GNOME Files' gvfs through `gio` passed F1 to F3. PR 29 was checked on the local server with a temporary user: rclone 1.60 `moveto`, `copyto` and a folder `move`, and gvfs through `gio` (rename, move, copy, a folder move) passed the client part of F8 and F9.

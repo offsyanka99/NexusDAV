@@ -5,10 +5,12 @@ use App\Http\Controllers\HealthController;
 use App\Http\Middleware\RequestLog;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\TrustProxies;
+use App\Http\Middleware\ValidatePostSize;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\TrustProxies as BaseTrustProxies;
+use Illuminate\Http\Middleware\ValidatePostSize as BaseValidatePostSize;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -60,6 +62,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prepend(RequestLog::class);
         // The proxy list comes from config('nexusdav.trusted_proxies') at request time.
         $middleware->replace(BaseTrustProxies::class, TrustProxies::class);
+        // An upload to a file home has its own limit instead of post_max_size.
+        $middleware->replace(BaseValidatePostSize::class, ValidatePostSize::class);
         $middleware->trustProxies(
             headers: Request::HEADER_X_FORWARDED_FOR
                 | Request::HEADER_X_FORWARDED_HOST

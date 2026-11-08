@@ -49,10 +49,18 @@ class DavController extends Controller
 
         // Kept as a string so a write can be replayed. CalDAV and CardDAV
         // bodies are small. A write to a file home is not replayed: its disk
-        // changes are not rolled back with the transaction.
-        $body = $request->getContent();
-        $replayable = in_array(strtoupper($request->getMethod()), DavWriteLock::METHODS, true)
-            && ! DavServerFactory::underFiles(substr(rawurldecode('/'.$request->path()), strlen('/dav')));
+        // changes are not rolled back with the transaction. Its upload is
+        // streamed from the request, so a large file never sits in memory,
+        // and a long upload or copy is not cut off by max_execution_time.
+        $files = DavServerFactory::underFiles(substr(rawurldecode('/'.$request->path()), strlen('/dav')));
+        $write = in_array(strtoupper($request->getMethod()), DavWriteLock::METHODS, true);
+        $replayable = $write && ! $files;
+
+        if ($files && $write) {
+            @set_time_limit(0);
+        }
+
+        $body = $files && strtoupper($request->getMethod()) === 'PUT' ? $request->getContent(true) : $request->getContent();
 
         for ($attempt = 1; ; $attempt++) {
             [$server, $failure] = $this->attempt($factory, $request, $body);
@@ -95,9 +103,10 @@ class DavController extends Controller
      * One run of sabre with its own write transaction. Returns the server and
      * the exception sabre answered, if any.
      *
+     * @param  string|resource  $body
      * @return array{0: Server, 1: Throwable|null}
      */
-    private function attempt(DavServerFactory $factory, Request $request, string $body): array
+    private function attempt(DavServerFactory $factory, Request $request, mixed $body): array
     {
         $server = $factory->make();
         $writeLock = new DavWriteLock;
@@ -187,7 +196,10 @@ class DavController extends Controller
         }
     }
 
-    private function sabreRequest(Request $request, string $body): SabreRequest
+    /**
+     * @param  string|resource  $body
+     */
+    private function sabreRequest(Request $request, mixed $body): SabreRequest
     {
         $sabre = new SabreRequest(
             $request->getMethod(),
@@ -262,19 +274,7 @@ class DavController extends Controller
 
             return response()->stream(function () use ($body, $limit): void {
                 try {
-                    if ($limit === null) {
-                        fpassthru($body);
-
-                        return;
-                    }
-
-                    $output = fopen('php://output', 'wb');
-
-                    try {
-                        stream_copy_to_stream($body, $output, $limit);
-                    } finally {
-                        fclose($output);
-                    }
+                    $this->sendStream($body, $limit);
                 } finally {
                     fclose($body);
                 }
@@ -288,6 +288,30 @@ class DavController extends Controller
         }
 
         return $this->blankResponse($status, $headers);
+    }
+
+    /**
+     * One chunk at a time. fpassthru() and stream_copy_to_stream() map a
+     * file into memory and hand it to the output layer whole, which for a
+     * large file ends PHP at its memory limit and stops FrankenPHP with it.
+     *
+     * @param  resource  $body
+     */
+    private function sendStream($body, ?int $limit): void
+    {
+        $left = $limit ?? PHP_INT_MAX;
+
+        while ($left > 0 && ! feof($body)) {
+            $chunk = fread($body, (int) min(1048576, $left));
+
+            if ($chunk === false || $chunk === '') {
+                break;
+            }
+
+            echo $chunk;
+            $left -= strlen($chunk);
+            flush();
+        }
     }
 
     /**
