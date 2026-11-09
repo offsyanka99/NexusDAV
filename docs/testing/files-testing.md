@@ -393,9 +393,9 @@ Not tested by the project: Windows Explorer and the macOS Finder (Decision 15 of
 
 | Step | Result | Notes |
 |---|---|---|
-| F23 Dashboard card, first count | ⬜ | |
-| F24 Count matches the disk | ⬜ | |
-| F25 Files off and on | ⬜ | |
-| F26 Count again | ⬜ | |
-| F27 Status codes dialog | ⬜ | |
-| F28 Russian text | ⬜ | |
+| F23 Dashboard card, first count | ✅ | As expected |
+| F24 Count matches the disk | ✅ | Skipped |
+| F25 Files off and on | ✅ | As expected |
+| F26 Count again | ✅ | Same result |
+| F27 Status codes dialog | ✅ | No issues |
+| F28 Russian text | ✅ | As expected |
