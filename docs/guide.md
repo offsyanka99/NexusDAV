@@ -414,7 +414,7 @@ Files is each user's own WebDAV storage for documents and other files. It is not
 
 **What works.** Upload, download (also a part of a file), rename, move, copy and delete of files and of whole folders, `LOCK` and `UNLOCK` for office programs, and properties that follow a copy or a move. A name has up to 255 bytes and no control characters, and is stored in Unicode NFC, so macOS and Linux see the same file. The helper files of macOS and Windows (`._*`, `.DS_Store`, `desktop.ini`) are stored like any other file.
 
-**What it does not do.** Share a file or a folder with another user (sharing is for calendars and address books). Limit the space per user: quotas, a trash and storage statistics are Version 2.x, and a folder reports the free space of the whole volume. Offer sync tokens: a client lists a folder to see what changed. Edit files in the browser: the user portal of Version 2 will manage a person's own files.
+**What it does not do.** Share a file or a folder with another user (sharing is for calendars and address books). Limit the space per user: quotas, a trash and per-user storage statistics are Version 2.x, and a folder reports the free space of the whole volume. The admin panel shows one server-wide figure: a **Files storage** card on the Dashboard with the total size, the number of files, the users who have files and the free space of the volume. The total is counted when an admin clicks **Refresh** on the card (it walks every file and stops after 30 seconds on a very large library, then reads "At least"), never when the Dashboard opens, so it can be older than the files. Offer sync tokens: a client lists a folder to see what changed. Edit files in the browser: the user portal of Version 2 will manage a person's own files.
 
 **Isolation.** A home is private. Another user's home answers 404, exactly like a username that does not exist, and a path with `..` is refused. A symbolic link put on the disk by an admin or another process is never listed, opened or followed.
 
@@ -622,6 +622,7 @@ Automatic backups are a long-term goal (see [Roadmap](#roadmap)).
 | DAVx5 does not use sync tokens for a calendar | **Time range (past days)** is set, even to `0`: DAVx5 then lists the whole calendar on every sync instead. That is correct, only slower for big calendars. Leave the field empty to use sync tokens. |
 | A calendar created from an iPad or iPhone has no tasks or notes on the server | The client chooses what a new calendar holds when it creates it, and Apple Calendar asks for events only. Open the calendar under **Edit** on the user's Calendars tab and turn on Tasks and Notes. |
 | A calendar or address book deleted and created again with the same name still shows its old name in the client | Clients keep the name they first saw. Refresh the collection list (DAVx5: **Refresh list**) or add the calendar again in Thunderbird. The contents are already the new ones. |
+| You want to know what a status code on Diagnostics means | The (i) button on **Latest DAV errors** lists the codes the server returns, what each means here and what to check. |
 
 ### Migrating from another server
 

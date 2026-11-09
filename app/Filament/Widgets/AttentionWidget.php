@@ -15,7 +15,7 @@ use Illuminate\Support\Number;
  */
 class AttentionWidget extends SchemaWidget
 {
-    protected static ?int $sort = 4;
+    protected static ?int $sort = 5;
 
     protected function heading(): string
     {

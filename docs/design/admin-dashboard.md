@@ -33,6 +33,11 @@ The page uses the standard Filament panel layout (navigation, then page header, 
 | [ Events and tasks ]   [ Notes ]            [ Contacts ]              |
 |        4 213              58                    1 904                 |
 +-----------------------------------------------------------------------+
+| [ Files storage ]  (only while Files is on)                           |
+|  Total size 128.4 GB   Files 52 310   Users with files 9   Free space |
+|  412.7 GB of 912.8 GB   Counted 2 hours ago, in 4.1 seconds.          |
+|  ⟳ Refresh                                                            |
++-----------------------------------------------------------------------+
 | [ Needs attention ]                                                   |
 |  ⚠ 3 failed logins in the last 24 hours  (links to Diagnostics)      |
 |  ⚠ 2 DAV errors in the last 24 hours     (links to Diagnostics)      |
@@ -95,7 +100,21 @@ Rules:
 - Format large numbers with thousands separators.
 - Do not show per-user or per-collection numbers here. Those live on the Users page.
 
-### 4. Needs attention
+### 4. Files storage
+
+One card, shown only while Files is on (like the cards of other services that are off). It is the one place on the Dashboard that is not a cheap query: the total size means walking every user's files, which is slow on a large library, so **a page load never does it**.
+
+- **Total size**, **Files** (the number of files) and **Users with files** come from the last count. Until one has run they show `Not counted yet` and `—`.
+- **Free space** is read from the volume on every load (`free of total`, one system call). It includes whatever else is on that volume, such as the database.
+- A line under the numbers says when the count ran and how long it took, or tells the admin to click **Refresh**.
+- **Refresh** asks for confirmation ("this walks every user's files and reads the disk, up to 30 seconds"), then counts. It shows a notification with the result and the card shows the new numbers.
+- A count has a time budget of 30 seconds, so a very large library cannot hold a worker. When it runs out, the total reads `At least X`, the line says it stopped early (in warning colour) and a notification says so. Count again when the server is quiet.
+- Two counts do not run at once: a second **Refresh** while one runs says so and changes nothing.
+- The result is kept in the cache until the next count, so it survives a reload but not a new container. It is not updated by uploads and deletes: it can be older than the files.
+- The walk skips symbolic links, the uploads in progress (`/data/files/.uploads/`) and anything that is not a user's folder, and counts a hard-linked file once per link.
+- Per-user sizes and quotas are not here (Version 2.x).
+
+### 5. Needs attention
 
 One card that stays quiet when everything is fine.
 
@@ -109,7 +128,7 @@ One card that stays quiet when everything is fine.
 
 ## What is not on the Dashboard in Version 1
 
-- Storage size, disk space and per-user usage. These come with quotas and storage statistics in Version 2.x.
+- Per-user storage usage, quotas and storage statistics. These come in Version 2.x. The server-wide total of the Files storage card is the only size shown.
 - Extended health checks (queue, SMTP, mail). Version 2.x. A WebDAV-Push worker warning arrives with WebDAV-Push in Version 1.x.
 - Charts or activity graphs. Version 1 shows numbers only.
 - Quick-action buttons. The navigation already reaches every page.
@@ -127,13 +146,15 @@ One card that stays quiet when everything is fine.
 
 ## Implementation notes
 
-- The page is the stock `Filament\Pages\Dashboard` with four widgets in `app/Filament/Widgets`, in this order:
+- The page is the stock `Filament\Pages\Dashboard` with five widgets in `app/Filament/Widgets`, in this order:
   - `ServerStatusWidget` (server status);
   - `ServicesWidget` (services, with the **Manage in Settings** link);
   - `CountsWidget`, a `StatsOverviewWidget` with four columns (counts);
+  - `FilesStorageWidget` (Files storage, only while Files is on; its values are read when the card renders, so the card shows a count made by its own Refresh action);
   - `AttentionWidget` (needs attention).
 - `ServerStatusWidget`, `ServicesWidget` and `AttentionWidget` extend `SchemaWidget`, which builds the card from schema components and shows "Unavailable" when the card fails to load. `CountsWidget` does the same with a single "Counts — Unavailable" stat. The failure is written to the log.
 - Filament's default `AccountWidget` and `FilamentInfoWidget` are removed with `->widgets([])` in `AdminPanelProvider`; the account stays in the user menu.
+- `App\Services\FileUsage` does the walk (`scan()`, with a time budget and a cache lock), returns the last result (`last()`) and the volume's free space (`volume()`). Only `scan()` touches the file tree, and only the Refresh action calls it.
 - Shared services: `App\Support\DatabaseHealth` (the same check as `GET /health`), `App\Services\ServerCounts` (the counts, cached for 60 seconds) and `App\Services\DiagnosticsSummary` (the 24-hour numbers, also used by the Diagnostics page heading). Service states come from `SettingsService`.
 - Polling is off and the widgets are not lazy-loaded.
 - Tests in `tests/Feature/AdminPagesTest.php` cover access, counts, a disabled service, the database check failing without internal detail, and agreement with the Diagnostics numbers.

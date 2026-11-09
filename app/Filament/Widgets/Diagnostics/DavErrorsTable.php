@@ -4,8 +4,14 @@ namespace App\Filament\Widgets\Diagnostics;
 
 use App\Models\DiagnosticEvent;
 use App\Services\DiagnosticsSummary;
+use App\Support\DavStatusCodes;
 use App\Support\DiagnosticReason;
+use Filament\Actions\Action;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Section;
 use Filament\Support\Enums\FontFamily;
+use Filament\Support\Enums\Width;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
@@ -27,6 +33,7 @@ class DavErrorsTable extends TableWidget
         return $table
             ->heading(__('Latest DAV errors'))
             ->description(__('Answers with status 400 or higher on /dav. A request without credentials is not an error and is not listed.'))
+            ->headerActions([$this->statusCodesAction()])
             ->query(DiagnosticsSummary::davErrorsQuery())
             ->defaultSort('occurred_at', 'desc')
             ->columns([
@@ -56,5 +63,36 @@ class DavErrorsTable extends TableWidget
                     ->toggleable(isToggledHiddenByDefault: false),
             ])
             ->emptyStateHeading(__('No DAV errors'));
+    }
+
+    /**
+     * The "i" button: what each status code means here and what to look at.
+     */
+    private function statusCodesAction(): Action
+    {
+        return Action::make('statusCodes')
+            ->label(__('Status codes'))
+            ->tooltip(__('What the status codes mean'))
+            ->icon(Heroicon::OutlinedInformationCircle)
+            ->iconButton()
+            ->color('gray')
+            ->modalHeading(__('Status codes'))
+            ->modalDescription(__('What each status code means on this server, and what to check. A code that is not listed is shown under its standard name in the Reason column.'))
+            ->modalWidth(Width::ThreeExtraLarge)
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel(__('Close'))
+            ->schema(array_map(
+                fn (array $code): Section => Section::make($code['code'].' — '.$code['name'])
+                    ->description($code['meaning'])
+                    ->collapsible()
+                    ->collapsed()
+                    ->compact()
+                    ->schema([
+                        TextEntry::make('check_'.$code['code'])
+                            ->label(__('What to check'))
+                            ->state($code['check']),
+                    ]),
+                DavStatusCodes::all(),
+            ));
     }
 }

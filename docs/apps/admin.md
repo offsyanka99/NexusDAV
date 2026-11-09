@@ -27,6 +27,7 @@ The Settings page holds system-level controls for services and related options. 
 - Enable or disable Files (Settings, `NEXUSDAV_FILES`; released in 0.4.0) and WebDAV-Push, and configure their options. Both are off after an upgrade until an admin turns them on.
 - Logging for WebDAV-Push.
 - Enable or disable Sharing (Settings, `NEXUSDAV_SHARING`; released in 0.3.0).
+- See how much space the files take: a Files storage card on the Dashboard with the total size, the number of files, the users who have files and the free space of the volume. The total is counted when an admin clicks Refresh, because walking every file is slow on a large library; opening the Dashboard never does it.
 - Maximum upload size for Files (Settings, `NEXUSDAV_FILES_MAX_UPLOAD_MB`, 128 MB by default; released in 0.4.0). Per-user disk space limits (quotas) are Version 2.x.
 - Session and portal-related settings appear once the user portal exists (Version 2).
 
@@ -73,7 +74,7 @@ The Diagnostics page shows operational status and recent problems. Its heading g
 
 **Version 1**
 - Recent failed login attempts to the admin panel and the DAV endpoint (time, IP, user, reason). Passwords and app password secrets are never stored or shown
-- Latest DAV errors (4xx/5xx responses on `/dav/*`, with method, path, status, user and, for rejected logins, the reason such as revoked app password or main password used). A request without credentials is not an error and is not listed
+- Latest DAV errors (4xx/5xx responses on `/dav/*`, with method, path, status, user and, for rejected logins, the reason such as revoked app password or main password used). An (i) button in the table header opens a list of the status codes the server returns, with what each means here and what to check (in English and Russian). A request without credentials is not an error and is not listed
 - A Request ID on each row (shown for DAV errors, optional for failed logins). Searching the container log for it shows that request's log lines, including any error detail
 - App passwords across all users (user, device, created, last used, revoked or expired; can be revoked)
 - Reasons are stored in English, so log searches work in any language. Since 0.1.2 the page shows them in the admin's language

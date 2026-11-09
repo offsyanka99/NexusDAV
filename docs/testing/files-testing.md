@@ -283,6 +283,32 @@ Run on the 0.4.0 release candidate over HTTPS behind the proxy, on **PostgreSQL 
 
 The record of a pass is the table under [Results](#results-of-the-release-pass). If a step fails, open a GitHub issue as in the [client checklist](client-checklist.md#when-a-step-fails).
 
+## Steps (after 0.4.0: the storage card and the status codes)
+
+Two panel additions made after the release: the **Files storage** card on the Dashboard and the **(i) status codes** dialog on Diagnostics. Use any server with Files on, and some files in it.
+
+| ID | Do | Expected |
+|---|---|---|
+| F23 | **Dashboard → Files storage.** Open the Dashboard on a server where nobody has counted yet, then click **Refresh**, read the confirmation and click **Count now** | Before the count: **Total size** `Not counted yet`, **Files** and **Users with files** `—`, **Free space** `<free> of <total>` and the line "The files are counted when you click Refresh…". The Dashboard opens as fast as before. After: a notification "Counted … in N files." and the numbers on the card, with "Counted … ago, in … seconds." |
+| F24 | **Check the count** against the disk (command below), and the free space against `df` | The size and the number of files are the same; `df` shows about the same free and total space (the card reads the volume that holds `/data/files`) |
+| F25 | **Files off and on:** switch Files off under **Settings → Files** and open the Dashboard, then switch it on again | Off: there is no Files storage card. On: the card is back with the last count |
+| F26 | **Count again** after you add a file and delete another (a different size) | The total and the number of files change only after Refresh, not by themselves |
+| F27 | **Diagnostics → Latest DAV errors:** click the (i) button in the table header | A dialog "Status codes" lists 400, 401, 403, 404, 405, 409, 412, 413, 415, 416, 423, 500, 503 and 507, each with its meaning under the title; expanding one shows **What to check**. **Close** closes it |
+| F28 | **Russian:** switch the panel to Russian and open the card, the Refresh dialog, and the (i) dialog | All the new text is in Russian and nothing is cut off |
+
+Optional, on a large library only: the count has a time budget of 30 seconds. On a library that takes longer, the total reads **At least X**, the line under it is in warning colour, and the notification says the count stopped. Count again when the server is quiet.
+
+### F24 — count the files by hand
+
+On the server (a shell on the host, with your container's name):
+
+```bash
+docker exec nexusdav sh -c "find /data/files -path /data/files/.uploads -prune -o -type f -printf '%s\n' | awk '{s += \$1} END {print s, NR}'"
+docker exec nexusdav df -B1 /data/files
+```
+
+The first line prints the total bytes and the number of files; the card shows the same, in GB or MB, with the same number of files. On a local checkout, run the same `find` on `storage/app/files`.
+
 ## Results
 
 The **Local** column is a run on a local checkout over plain HTTP. The pass over HTTPS behind the proxy goes in the **Proxy pass** run log at the M4 release.
@@ -362,3 +388,14 @@ Before the hand pass, PR 28 was also checked on the built image over plain HTTP 
 | R2 Regression, sharing | ✅ | ✅ | Done |
 
 Not tested by the project: Windows Explorer and the macOS Finder (Decision 15 of the plan). Reports are welcome.
+
+### Results of the storage card and status codes
+
+| Step | Result | Notes |
+|---|---|---|
+| F23 Dashboard card, first count | ⬜ | |
+| F24 Count matches the disk | ⬜ | |
+| F25 Files off and on | ⬜ | |
+| F26 Count again | ⬜ | |
+| F27 Status codes dialog | ⬜ | |
+| F28 Russian text | ⬜ | |

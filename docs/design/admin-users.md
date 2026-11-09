@@ -48,7 +48,7 @@ Above the fields, a **User** section shows:
 - Events/Objects count (example: `2812`)
 - Address Books count (example: `1`)
 - Contacts count (example: `93`)
-- File home: **Exists** or **Not created yet** (Files, 0.4.0). There is no browsing and no size; storage statistics are Version 2.x
+- File home: **Exists** or **Not created yet** (Files, 0.4.0). There is no browsing and no size per user; per-user storage statistics are Version 2.x. The server-wide total is on the Dashboard
 
 Below the form are four tables.
 
