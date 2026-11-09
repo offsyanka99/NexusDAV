@@ -55,4 +55,4 @@ docs/plans/*.md
 
 
 # VS Code Local History
-/.history
+.history/

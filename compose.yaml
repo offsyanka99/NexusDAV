@@ -25,6 +25,7 @@ services:
       - PGID=${PGID:-568}
       # Empty when unset, so the entrypoint can drop it and keep the config default.
       - LOG_LEVEL=${LOG_LEVEL-}
+      - NEXUSDAV_FILES=true
     restart: unless-stopped
     logging: &nexusdav-logging
       driver: json-file
