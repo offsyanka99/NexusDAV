@@ -51,7 +51,7 @@ jobs:
       # The Dockerfile fails the build when PHP is older than 8.4.27, so a
       # stale base image stops the release on every platform.
       - name: Build for the smoke test
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           pull: true
@@ -84,7 +84,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           pull: true
