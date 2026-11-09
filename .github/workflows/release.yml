@@ -46,7 +46,7 @@ jobs:
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # The Dockerfile fails the build when PHP is older than 8.4.27, so a
       # stale base image stops the release on every platform.
