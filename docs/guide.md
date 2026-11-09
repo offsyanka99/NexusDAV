@@ -324,9 +324,9 @@ NexusDAV targets standards-compliant clients. The table shows the Version 1 targ
 
 | Client | Status |
 |---|---|
-| **GNOME Files** (gvfs, `dav://` and `davs://`) | A local run over HTTP on SQLite passed: list, create a folder, copy in and out, rename, move and delete. Copy and paste into another folder shows "Operation not supported" although the copy is complete; choose Skip. The pass over HTTPS behind the proxy is in the [results](testing/files-testing.md#results-of-the-release-pass) |
-| **rclone** 1.60 | A local run passed: mkdir, upload and download (identical), server-side rename, move and copy, folder move and delete. The HTTPS pass is in the results |
-| **DAVx5 WebDAV mounts** (Android) | Not tested yet |
+| **GNOME Files** (gvfs, `dav://` and `davs://`) | Passed on 0.4.0 over HTTPS behind Caddy, on PostgreSQL and SQLite, with Nautilus 50.2.2 and gvfs: list, create a folder, copy in and out, rename, move and delete. Copy and paste into another folder shows "Operation not supported" although the copy is complete; choose Skip ([results](testing/files-testing.md#results-of-the-release-pass)) |
+| **rclone** 1.60.1 | Passed on 0.4.0 over HTTPS behind Caddy, on PostgreSQL and SQLite: mkdir, upload and download (identical), server-side rename, move and copy, folder move and delete |
+| **DAVx5 WebDAV mounts** (Android) | 4.5.21 on Android 17, 0.4.0, both databases: connects, lists and downloads. DAVx5's mount offers few functions, so it is a way to read files, not to manage them |
 | Windows Explorer, macOS Finder | Not tested by the project; reports are welcome |
 
 **Recommended clients for testing**
@@ -342,6 +342,7 @@ NexusDAV targets standards-compliant clients. The table shows the Version 1 targ
 - **Thunderbird 159.0** (Snap package on Ubuntu): the same steps except notes and creating a calendar, which Thunderbird does not do.
 - **iPad, native Contacts:** a first sync of 2,000 contacts (74 s) on 0.1.4.
 - **iPad (iOS 18.5):** the checklist steps 1 to 7 on 0.1.6; notes were tested on the Android phone only.
+- **Files and a regression pass on 0.4.0** (`0.4.0+5aea720`, PostgreSQL and SQLite behind Caddy over HTTPS, November 8 and 9, 2026): GNOME Files, rclone and a DAVx5 WebDAV mount against the Files steps, and discovery, items and offline edits (DAVx5, Thunderbird) and sharing again; every step passed ([results](testing/files-testing.md#results-of-the-release-pass)).
 
 0.1.2 and 0.1.3 changed only the admin panel (languages) and a test tool. On 0.1.3 everything passed except a calendar deleted and created again with the same name while a client was offline: the client kept the old events. 0.1.4 fixes that in the server's sync tokens (see [DAV endpoints](dav-endpoints.md#sync-tokens)), and both clients passed that step on 0.1.4. 0.1.5 adds sync history retention, safe concurrent writes and readable log levels; 0.1.6 retries a write when the database is busy and answers 503 instead of 500 when it stays busy. 0.1.7 adds a setting that closes admin panel messages by themselves, shows the commit next to the version on the Dashboard, and keeps the Edit and Delete buttons in view for long calendar and address book names. 0.2.0 closes admin panel messages by themselves after the configured time, returns an idle admin to the sign-in page when the session lifetime has passed, and shows which language the panel is in and why. The client checklist passed on 0.1.6 with DAVx5, Thunderbird and an iPad, on both databases (later changes are in the admin panel only), and the optional step 10 (offline longer than the sync history) passed as a server-side check on 5 November ([results](testing/client-checklist.md#pass-2-m2-release-candidate-pr-19)).
 
@@ -408,7 +409,7 @@ Files is each user's own WebDAV storage for documents and other files. It is not
 
 - **GNOME Files** and other gvfs file managers: `davs://<username>@dav.example.com/dav/files/<username>/` (`dav://` over plain HTTP).
 - **rclone:** `rclone config create nexusdav webdav url https://dav.example.com/dav/files/<username>/ vendor other user <username> pass '<app password>'`, then `rclone copy`, `rclone ls` and the rest. `rclone moveto` and `copyto` use `MOVE` and `COPY` on the server.
-- **DAVx5 on Android:** **WebDAV mounts** in its main menu, with the same URL (not tested yet).
+- **DAVx5 on Android:** **WebDAV mounts** in its main menu, with the same URL. A mount connects, lists and downloads; DAVx5 itself offers few functions there, so use rclone or a file manager that speaks WebDAV for more.
 - Windows Explorer and the macOS Finder are not tested by the project. Windows' built-in WebDAV client has a file size limit of its own that is low by default.
 
 **What works.** Upload, download (also a part of a file), rename, move, copy and delete of files and of whole folders, `LOCK` and `UNLOCK` for office programs, and properties that follow a copy or a move. A name has up to 255 bytes and no control characters, and is stored in Unicode NFC, so macOS and Linux see the same file. The helper files of macOS and Windows (`._*`, `.DS_Store`, `desktop.ini`) are stored like any other file.

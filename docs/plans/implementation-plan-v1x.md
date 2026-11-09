@@ -14,7 +14,7 @@ The work is split into five milestones and 31 PRs, listed in the order they are 
 
 Sources: [guide](../guide.md), [apps](../apps/README.md), the [admin panel](../apps/admin.md) description, the design notes for [Settings](../design/admin-settings.md), [Configuration](../design/admin-configuration.md) and the [Dashboard](../design/admin-dashboard.md), the pinned WebDAV-Push draft, and the current code.
 
-**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is done and released as **0.3.0** (PR 20 to PR 27). The Sharing pass of the [client checklist](../testing/client-checklist.md#11-sharing) passed on 0.3.0+404d77b with DAVx5 + jtx Board, Thunderbird and an iPad on both databases (Pass 3 table; all of step 11 passed on both databases). M4 is built as **0.4.0** (PR 28 to PR 32): PR 28 to PR 31 are done and PR 32 is prepared. What is left is the release pass over HTTPS on both databases (Files testing), then the tag. M5 is not started. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
+**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is done and released as **0.3.0** (PR 20 to PR 27). The Sharing pass of the [client checklist](../testing/client-checklist.md#11-sharing) passed on 0.3.0+404d77b with DAVx5 + jtx Board, Thunderbird and an iPad on both databases (Pass 3 table; all of step 11 passed on both databases). M4 is done and released as **0.4.0** (PR 28 to PR 32; the release pass over HTTPS passed on both databases, see [Files testing](../testing/files-testing.md#results-of-the-release-pass)). M5 is not started. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
 
 Effort levels are the same as in Version 1:
 - **Low** — small, mostly boilerplate or config
@@ -53,7 +53,7 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 | 21 | PR 29 | M4 | COPY, MOVE, locks and properties for files (done) | High | 28 |
 | 22 | PR 30 | M4 | Upload size limit, streaming and a full disk (done) | Medium | 28 |
 | 23 | PR 31 | M4 | Files in the admin panel (done) | Medium | 28, 30 |
-| 24 | PR 32 | M4 | M4 release (prepared; publish after the release pass) | Medium | 27, 28–31 |
+| 24 | PR 32 | M4 | M4 release (done, 0.4.0) | Medium | 27, 28–31 |
 | 25 | PR 33 | M5 | Spike: Web Push library and DAVx5 push | Medium | — |
 | 26 | PR 34 | M5 | Worker service and heartbeat | Medium | — |
 | 27 | PR 35 | M5 | Push discovery and subscription registration | High | 23, 24, 28, 33 |
@@ -650,7 +650,7 @@ Results are in the [Files testing](../testing/files-testing.md#results)
 
 **Done when:** an admin can switch Files and set the limit in the panel, sees whether a user's file home exists, and the Services card shows Files.
 
-### PR 32 — M4 release (Effort: Medium) — prepared
+### PR 32 — M4 release (Effort: Medium) — ✅ done, 0.4.0
 
 **Prepared:**
 - **Version:** 0.4.0 in `compose.yaml`, both TrueNAS files, the README, SECURITY.md, the guide and the Dashboard note.
@@ -659,7 +659,7 @@ Results are in the [Files testing](../testing/files-testing.md#results)
 - **Client checklist:** [Files testing](../testing/files-testing.md) has the release pass: F1 to F21 over HTTPS with GNOME Files and rclone on both databases, F22 for a DAVx5 WebDAV mount, and two regression steps (R1: discovery, items and offline edits; R2: sharing, step 11 of the client checklist) because PR 29 and PR 30 changed what every DAV path answers and how responses are streamed. A results table for the pass is at its end.
 - **Release notes** for 0.4.0: Files is off after the upgrade, the proxy needs the same size limit, and the lock fix for other users' paths.
 
-**Left:** the maintainer runs the release pass (F1 to F22, R1 and R2) on both databases over HTTPS, and records it in the table and in the guide's Files client table; then tag `v0.4.0` after CI is green on the release commit and publish the release.
+**Release pass:** passed on `0.4.0+5aea720` over HTTPS behind Caddy on PostgreSQL and SQLite (November 8 and 9, 2026): F1 to F21 with GNOME Files and rclone, F22 with DAVx5 4.5.21 on Android 17 (a mount connects, lists and downloads; DAVx5 offers few functions there), and the regression steps R1 and R2 with DAVx5 and Thunderbird ([results](../testing/files-testing.md#results-of-the-release-pass)). The results are in the guide's Files client table. **Published** as tag `v0.4.0`; the image build is `ghcr.io/offsyanka99/nexusdav:0.4.0` (also `0.4` and `latest`, amd64 and arm64). The tag is on 5aea720.
 
 
 - A Files section in the client checklist, run with GNOME Files (`davs://`), rclone and DAVx5 WebDAV mounts on Android: upload, download, rename, move, copy and delete files and folders, a large upload, and an upload over the limit.

@@ -85,8 +85,8 @@ Result on SQLite:
 
 ```bash
 rclone config create nexusdav webdav \
-  url https://your.host/dav/files/checklist/ \
-  vendor other user checklist pass 'APP_PASSWORD'
+  url https://your.host/dav/files/<username>/ \
+  vendor other user <username> pass 'APP_PASSWORD'
 
 echo "hello from rclone" > hello.txt
 rclone mkdir nexusdav:docs
@@ -105,9 +105,9 @@ rclone rmdir nexusdav:docs
 The same check without the Files window:
 
 ```bash
-gio mount davs://checklist@your.host/dav/files/checklist/
-gio list davs://checklist@your.host/dav/files/checklist/
-gio mount -u davs://checklist@your.host/dav/files/checklist/
+gio mount davs://<username>@your.host/dav/files/<username>/
+gio list davs://<username>@your.host/dav/files/<username>/
+gio mount -u davs://<username>@your.host/dav/files/<username>/
 ```
 
 `gio mount` asks for the user and the app password. In the VS Code terminal (snap) `gio` fails with "volume doesn't implement mount"; run it from a normal terminal, or as `env -u GIO_MODULE_DIR gio …`.
@@ -116,16 +116,17 @@ gio mount -u davs://checklist@your.host/dav/files/checklist/
 
 ```bash
 BASE=https://your.host/dav/files
-curl -s -o /dev/null -w "%{http_code}\n" -X PROPFIND -H "Depth: 0" -u checklist2:APP_PASSWORD_2 $BASE/checklist/
-curl -s -o /dev/null -w "%{http_code}\n" -u checklist2:APP_PASSWORD_2 $BASE/checklist/docs/hello.txt
-curl -s -o /dev/null -w "%{http_code}\n" --path-as-is -u checklist2:APP_PASSWORD_2 $BASE/checklist2/%2e%2e/checklist/
-curl -s -X PROPFIND -H "Depth: 1" -u checklist2:APP_PASSWORD_2 $BASE/ | grep -o '/dav/files/[^/<]*/' | sort -u
+curl -s -o /dev/null -w "%{http_code}\n" -X PROPFIND -H "Depth: 0" -u <username2>:APP_PASSWORD_2 $BASE/<username2>/
+curl -s -o /dev/null -w "%{http_code}\n" -u <username2>:APP_PASSWORD_2 $BASE/<username>/docs/hello.txt
+curl -s -o /dev/null -w "%{http_code}\n" --path-as-is -u <username2>:APP_PASSWORD_2 $BASE/<username2>/%2e%2e/<username>/
+curl -s -X PROPFIND -H "Depth: 1" -u <username2>:APP_PASSWORD_2 $BASE/ | grep -o '/dav/files/[^/<]*/' | sort -u
 ```
 
-Expected: `404`, `404`, `403`, and only `/dav/files/checklist2/` from the listing. Upload `docs/hello.txt` as `checklist` first, so the second request asks for a file that exists.
+Expected: `404`, `404`, `403`, and only `/dav/files/<username2>/` from the listing. Upload `docs/hello.txt` as `<username>` first, so the second request asks for a file that exists.
 
 ### F5 — Files off
 
+Settings → Files, turn the switch off, then Save.
 ```bash
 curl -s -X PROPFIND -H "Depth: 0" -u checklist:APP_PASSWORD https://your.host/dav/files/checklist/
 ```
@@ -324,40 +325,40 @@ Before the hand pass, PR 28 was also checked on the built image over plain HTTP 
 
 | Run log | |
 |---|---|
-| Date | |
-| Build (Dashboard version) | |
-| Tester | |
-| rclone version | |
-| GNOME Files (Nautilus) version | |
-| DAVx5 + Android version | |
-| Thunderbird version (R1, R2) | |
-| Proxy (Caddy, nginx or Traefik) and its body limit | |
+| Date | November 8-9 |
+| Build (Dashboard version) | 0.4.0+5aea720 |
+| Tester | HummerSoft |
+| rclone version | v1.60.1-DEV |
+| GNOME Files (Nautilus) version | 50.2.2 |
+| DAVx5 + Android version | 4.5.21 + Android 17 |
+| Thunderbird version (R1, R2) | 159.0 Ubuntu |
+| Proxy (Caddy, nginx or Traefik) and its body limit | Caddy |
 
 | Step | PostgreSQL | SQLite | Notes |
 |---|---|---|---|
-| F1 rclone | ⬜ | ⬜ | |
-| F2 GNOME Files | ⬜ | ⬜ | |
-| F3 Large and Unicode files | ⬜ | ⬜ | |
-| F4 Isolation | ⬜ | ⬜ | |
-| F5 Files off | ⬜ | ⬜ | |
-| F6 User deleted | ⬜ | ⬜ | |
-| F7 Diagnostics | ⬜ | ⬜ | |
-| F8 rclone rename, move, copy | ⬜ | ⬜ | |
-| F9 GNOME Files rename, move, copy | ⬜ | ⬜ | |
-| F10 Overwrite | ⬜ | ⬜ | |
-| F11 Refusals | ⬜ | ⬜ | |
-| F12 Locks | ⬜ | ⬜ | |
-| F13 Settings: Files switch and size | ⬜ | ⬜ | |
-| F14 Over the limit, Content-Length | ⬜ | ⬜ | |
-| F15 Over the limit, chunked | ⬜ | ⬜ | |
-| F16 A large upload | ⬜ | ⬜ | |
-| F17 User page: file home | ⬜ | ⬜ | |
-| F18 Delete a user with a file home | ⬜ | ⬜ | |
-| F19 Services card | ⬜ | ⬜ | |
-| F20 Russian text | ⬜ | ⬜ | |
-| F21 Diagnostics | ⬜ | ⬜ | |
-| F22 DAVx5 WebDAV mount | ⬜ | ⬜ | |
-| R1 Regression, calendar and contacts | ⬜ | ⬜ | |
-| R2 Regression, sharing | ⬜ | ⬜ | |
+| F1 rclone | ✅ | ✅ | The download was identical |
+| F2 GNOME Files | ✅ | ✅ | Through gio (mount, mkdir, copy in and out, identical, remove, unmount) |
+| F3 Large and Unicode files | ✅ | ✅ | A 5 MB file and a 2.2 MB `Café ünï 文件.txt`, both identical; the name is stored in NFC |
+| F4 Isolation | ✅ | ✅ | PostgreSQL and SQLite (`nexusdav.vovchenko.org`, HTTPS and `dav.vovchenko.org`, HTTPS): `username2` against `username1`'s home and `big.bin` 404, an upload into it 404, the `%2e%2e` path 403 (the proxy passes it through), `username2`'s listing shows only his home |
+| F5 Files off | ✅ | ✅ | 403 with the message, the files kept |
+| F6 User deleted | ✅ | ✅ | `testuser` home removed; the other homes untouched; .uploads/ empty |
+| F7 Diagnostics | ✅ | ✅ | |
+| F8 rclone rename, move, copy | ✅ | ✅ | moveto, copyto and cat, a folder move; the log shows MOVE and COPY with 201. rclone moved the files one by one and left the empty docs/inner/ |
+| F9 GNOME Files rename, move, copy | ✅ | ✅ | As expected |
+| F10 Overwrite | ✅ | ✅ | 201, 201, 412, `second`, 204, `first` |
+| F11 Refusals | ✅ | ✅ | 409 into `username2`'s home, 409 into `nobody`, 409 into itself, 403 with the message into a calendar; `username2`'s home empty |
+| F12 Locks | ✅ | ✅ | Get 423, 204, 404, 201, 204 |
+| F13 Settings: Files switch and size | ✅ | ✅ | As expected |
+| F14 Over the limit, Content-Length | ✅ | ✅ | Get `The file is larger than the upload limit of 1 MB.` and `413`; `201`; `413`; `413`; `small`; no `too-big.bin`, and `.uploads/` empty. |
+| F15 Over the limit, chunked | ✅ | ✅ | 413 for a new name and over kept.txt, which kept small |
+| F16 A large upload | ✅ | ✅ | Limit 2048 MB: a 1 GB upload 201 in 10.25 s, the download identical, `COPY` 201, both deleted (204) |
+| F17 User page: file home | ✅ | ✅ | `username1` "Exists", `username2` "Not created yet" |
+| F18 Delete a user with a file home | ✅ | ✅ | `testuser` uploaded a file (201), its page showed "Exists", and deleting it removed its home; `username2`, `username1` and `.uploads` stayed. |
+| F19 Services card | ✅ | ✅ | Files is listed with On or Off |
+| F20 Russian text | ✅ | ✅ | As expected |
+| F21 Diagnostics | ✅ | ✅ | As expected |
+| F22 DAVx5 WebDAV mount | ✅ | ✅ | Connected and able to view and download. DavX5 functionality is very limited. |
+| R1 Regression, calendar and contacts | ✅ | ✅ | Done |
+| R2 Regression, sharing | ✅ | ✅ | Done |
 
 Not tested by the project: Windows Explorer and the macOS Finder (Decision 15 of the plan). Reports are welcome.
