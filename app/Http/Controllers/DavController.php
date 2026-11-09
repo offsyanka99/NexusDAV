@@ -9,6 +9,7 @@ use App\Services\Dav\BusyDatabase;
 use App\Services\Dav\DavServerFactory;
 use App\Services\Dav\DavWriteLock;
 use App\Services\DiagnosticEventWriter;
+use App\Services\Push\PushChanges;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Sabre\DAV\Auth\Plugin as AuthPlugin;
@@ -130,6 +131,7 @@ class DavController extends Controller
             // sabre answers every exception itself; this covers one that
             // escaped it, so the transaction never outlives the request.
             $writeLock->abort();
+            app(PushChanges::class)->reset();
 
             throw $exception;
         }
@@ -143,6 +145,9 @@ class DavController extends Controller
 
             // The answer sabre built was never committed.
             $failure = $exception;
+        } finally {
+            // Push-Dont-Notify belongs to this request only.
+            app(PushChanges::class)->reset();
         }
 
         return [$server, $failure];

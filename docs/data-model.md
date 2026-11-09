@@ -105,6 +105,46 @@ One row per queue worker container (optional, see the guide's [Queue worker](gui
 
 The queue itself is Laravel's `jobs` and `failed_jobs` tables, which exist since Version 1.
 
+### push_subscriptions
+
+One row per WebDAV-Push registration: a push resource on one DAV path ([WebDAV-Push design](design/webdav-push.md)). Registering the same push resource on the same path again updates the row.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | bigint | PK |
+| registration | string(32) | unique, the id in the registration URL `/dav/push/<id>` |
+| user_id | bigint | FK `users.id`, cascade on delete |
+| app_password_id | bigint | nullable, FK `app_passwords.id`, cascade on delete |
+| scope | char(64) | unique, SHA-256 of the path and the push resource |
+| path | text | the DAV path registered on, for example `calendars/bob/team-ada` |
+| topic | string(32) | indexed, the collection's topic; a shared collection has one topic |
+| push_resource | text | the push service URL. Only its host is logged |
+| public_key, auth_secret | text | the client's p256dh key and auth secret, encrypted with `APP_KEY` |
+| content_update_depth, property_update_depth | string(8) | nullable: `0`, `1` or `infinity`; null when that trigger was not granted |
+| properties | text | nullable, JSON list of the properties a property update asked for |
+| expires_at | timestamp | indexed, the granted expiry (at most 7 days) |
+| removed_at | timestamp | nullable: the collection was deleted; the row gets that last message, then goes |
+| last_success_at, last_failure_at, last_failure | timestamp, timestamp, string(255) | delivery results (PR 37) |
+| created_at, updated_at | timestamp | |
+
+Revoking or deleting the app password, disabling or deleting the user, and removing the share the path came through delete the rows. Expired rows, and retired rows older than an hour, are pruned when push messages are sent and when the user registers.
+
+### push_outbox
+
+The push merge window: at most one row per topic, written when a change commits and taken about five seconds later by the queued `SendPushMessages` job. Changes in between update the row.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | bigint | PK |
+| topic | string(32) | unique |
+| source | string(64) | nullable, `calendar:<id>` or `addressbook:<id>`: the sync token in the message is read from it |
+| content_depth | tinyint | nullable: the smallest content depth the changes need (0 the collection itself, 1 a member, 2 deeper); null for none |
+| property_update | boolean | a property of the collection changed |
+| skip | text | JSON list of the registrations every change in the window asked not to notify (`Push-Dont-Notify`) |
+| created_at, updated_at | timestamp | |
+
+The VAPID key pair and the push topic key are rows `push.vapid` and `push.topic_key` of `settings`, encrypted with `APP_KEY`.
+
 ## sabre/dav storage tables
 
 Laravel migrations create these tables. sabre/dav 4.7.1 only ships SQL examples and creates nothing itself. The standard PDO backends read and write them through Laravel's PDO connection.

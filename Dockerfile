@@ -14,7 +14,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl sqlite3 \
     && rm -rf /var/lib/apt/lists/* \
-    && install-php-extensions intl pcntl pdo_pgsql pdo_sqlite zip
+    && install-php-extensions gmp intl pcntl pdo_pgsql pdo_sqlite zip
 
 COPY docker/uploads.ini ${PHP_INI_DIR}/conf.d/uploads.ini
 RUN cp "${PHP_INI_DIR}/php.ini-production" "${PHP_INI_DIR}/php.ini"

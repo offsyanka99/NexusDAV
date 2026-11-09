@@ -72,7 +72,9 @@ return [
     | plugins are loaded. Tasks (VTODO) and notes (VJOURNAL) decide which
     | calendar components a calendar may hold. Sharing decides whether a
     | sharee's copy is listed. Files decides whether /dav/files/ is served.
-    | All are on by default except Files, which an admin switches on.
+    | Push decides whether WebDAV-Push is advertised and accepts
+    | registrations. All are on by default except Files and Push, which an
+    | admin switches on.
     |
     */
 
@@ -83,6 +85,26 @@ return [
         'notes' => env('NEXUSDAV_NOTES', true),
         'sharing' => env('NEXUSDAV_SHARING', true),
         'files' => env('NEXUSDAV_FILES', false),
+        'push' => env('NEXUSDAV_PUSH', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | WebDAV-Push
+    |--------------------------------------------------------------------------
+    |
+    | docs/design/webdav-push.md. files offers push on file folders too.
+    | max_subscriptions is per user. allow_private lets a push resource be
+    | plain http or on a private network (a self-hosted push service on the
+    | LAN). log_level is the lowest level of push log lines.
+    |
+    */
+
+    'push' => [
+        'files' => env('NEXUSDAV_PUSH_FILES', false),
+        'max_subscriptions' => env('NEXUSDAV_PUSH_MAX_SUBSCRIPTIONS', 100),
+        'allow_private' => env('NEXUSDAV_PUSH_ALLOW_PRIVATE', false),
+        'log_level' => env('NEXUSDAV_PUSH_LOG_LEVEL', 'info'),
     ],
 
     /*

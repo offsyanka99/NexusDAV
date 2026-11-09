@@ -6,6 +6,7 @@ use App\Models\AddressBook;
 use App\Models\AddressBookInstance;
 use App\Models\CalendarInstance;
 use App\Models\User;
+use App\Services\Push\PushChanges;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -100,6 +101,7 @@ final class SharingService
 
             $this->shareQuery($collection, $sharee)->delete();
             app(DavDataCleaner::class)->deletePath(self::sharePath($collection instanceof CalendarInstance, $sharee->principal_uri, (string) $share->uri));
+            app(PushChanges::class)->homeChanged($collection instanceof CalendarInstance, $sharee->principal_uri);
 
             return true;
         });
@@ -284,6 +286,8 @@ final class SharingService
             'share_invitestatus' => self::ACCEPTED,
         ]);
 
+        app(PushChanges::class)->homeChanged(true, $principal);
+
         return CalendarInstance::query()->findOrFail($id);
     }
 
@@ -321,6 +325,8 @@ final class SharingService
             'share_displayname' => mb_substr($sharee->display_name, 0, self::SHAREE_NAME_LENGTH),
             'share_invitestatus' => self::ACCEPTED,
         ]);
+
+        app(PushChanges::class)->homeChanged(false, $principal);
 
         return AddressBookInstance::query()->findOrFail($id);
     }

@@ -2,6 +2,7 @@
 
 namespace App\Services\Dav;
 
+use App\Services\Push\PushChanges;
 use Illuminate\Support\Facades\DB;
 use PDO;
 use RuntimeException;
@@ -132,6 +133,7 @@ final class AddressBookBackend extends SabreAddressBookBackend
         parent::addChange($addressBookId, $objectUri, $operation);
 
         app(SyncHistoryPruner::class)->afterWrite();
+        app(PushChanges::class)->addressBookChanged((int) $addressBookId, (string) $objectUri);
     }
 
     /**
@@ -151,16 +153,28 @@ final class AddressBookBackend extends SabreAddressBookBackend
             throw new MethodNotAllowed('The resource you tried to create already exists');
         }
 
-        return parent::createAddressBook($principalUri, $url, $properties);
+        $id = parent::createAddressBook($principalUri, $url, $properties);
+        app(PushChanges::class)->homeChanged(false, (string) $principalUri);
+
+        return $id;
     }
 
     /**
      * The owner's book goes with its shares, and with the locks and
-     * properties each sharee kept under their own path for it.
+     * properties each sharee kept under their own path for it. It is the
+     * book's last push message.
      */
     public function deleteAddressBook($addressBookId)
     {
         $shares = DB::table('addressbookinstances')->where('addressbookid', $addressBookId)->get(['principaluri', 'uri']);
+        $owner = DB::table('addressbooks')->where('id', $addressBookId)->value('principaluri');
+        $principals = $shares->pluck('principaluri')->map(static fn (mixed $principal): string => (string) $principal)->all();
+
+        if (is_string($owner)) {
+            $principals[] = $owner;
+        }
+
+        app(PushChanges::class)->collectionDeleted(false, (int) $addressBookId, $principals);
 
         foreach ($shares as $share) {
             app(DavDataCleaner::class)->deletePath(SharingService::sharePath(false, (string) $share->principaluri, (string) $share->uri));
@@ -186,6 +200,7 @@ final class AddressBookBackend extends SabreAddressBookBackend
 
             DB::table('addressbookinstances')->where('id', $instanceId)->delete();
             app(DavDataCleaner::class)->deletePath(SharingService::sharePath(false, (string) $share->principaluri, (string) $share->uri));
+            app(PushChanges::class)->homeChanged(false, (string) $share->principaluri);
         });
     }
 

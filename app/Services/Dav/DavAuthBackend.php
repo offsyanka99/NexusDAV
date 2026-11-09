@@ -38,6 +38,8 @@ final class DavAuthBackend extends AbstractBasic
 
     private ?string $attemptedUsername = null;
 
+    private ?int $appPasswordId = null;
+
     public function __construct(
         private AppPasswordService $passwords,
         private DiagnosticEventWriter $events,
@@ -62,6 +64,14 @@ final class DavAuthBackend extends AbstractBasic
     public function username(): ?string
     {
         return $this->username;
+    }
+
+    /**
+     * The app password the current request signed in with.
+     */
+    public function appPasswordId(): ?int
+    {
+        return $this->appPasswordId;
     }
 
     /**
@@ -114,6 +124,7 @@ final class DavAuthBackend extends AbstractBasic
         $this->failureReason = null;
         $this->publicId = null;
         $this->username = null;
+        $this->appPasswordId = null;
         $this->attemptedUsername = null;
 
         $result = parent::check($request, $response);
@@ -189,6 +200,7 @@ final class DavAuthBackend extends AbstractBasic
         $this->passwords->markUsed($appPassword);
         $this->failureReason = null;
         $this->username = $user->username;
+        $this->appPasswordId = (int) $appPassword->getKey();
 
         return $user->username;
     }

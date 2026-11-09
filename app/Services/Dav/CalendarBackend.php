@@ -3,6 +3,7 @@
 namespace App\Services\Dav;
 
 use App\Models\User;
+use App\Services\Push\PushChanges;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use PDO;
@@ -84,7 +85,10 @@ final class CalendarBackend extends SabreCalendarBackend
             $properties[$timezone] = CalendarTimezone::vcalendar($this->timezoneFor((string) $principalUri));
         }
 
-        return parent::createCalendar($principalUri, $calendarUri, $properties);
+        $id = parent::createCalendar($principalUri, $calendarUri, $properties);
+        app(PushChanges::class)->homeChanged(true, (string) $principalUri);
+
+        return $id;
     }
 
     /**
@@ -173,6 +177,7 @@ final class CalendarBackend extends SabreCalendarBackend
         parent::addChange($calendarId, $objectUri, $operation);
 
         app(SyncHistoryPruner::class)->afterWrite();
+        app(PushChanges::class)->calendarChanged((int) $calendarId, (string) $objectUri);
     }
 
     /**
@@ -196,7 +201,9 @@ final class CalendarBackend extends SabreCalendarBackend
     /**
      * sabre deletes every instance when the owner deletes the calendar, and
      * only the sharee's instance when a sharee does. The sharees' locks and
-     * properties live under their own paths, so they are removed here.
+     * properties live under their own paths, so they are removed here. The
+     * owner's delete is the calendar's last push message; a sharee's delete
+     * only changes their own home.
      */
     public function deleteCalendar($calendarId)
     {
@@ -205,6 +212,10 @@ final class CalendarBackend extends SabreCalendarBackend
             $instance = DB::table('calendarinstances')->where('id', $instanceId)->first(['access', 'principaluri', 'uri']);
 
             if ($instance !== null && (int) $instance->access === SharingPlugin::ACCESS_SHAREDOWNER) {
+                $principals = DB::table('calendarinstances')->where('calendarid', $id)->pluck('principaluri')
+                    ->map(static fn (mixed $principal): string => (string) $principal)->all();
+                app(PushChanges::class)->collectionDeleted(true, (int) $id, $principals);
+
                 $shares = DB::table('calendarinstances')
                     ->where('calendarid', $id)
                     ->where('access', '!=', SharingPlugin::ACCESS_SHAREDOWNER)
@@ -215,6 +226,7 @@ final class CalendarBackend extends SabreCalendarBackend
                 }
             } elseif ($instance !== null) {
                 app(DavDataCleaner::class)->deletePath(SharingService::sharePath(true, (string) $instance->principaluri, (string) $instance->uri));
+                app(PushChanges::class)->homeChanged(true, (string) $instance->principaluri);
             }
         }
 

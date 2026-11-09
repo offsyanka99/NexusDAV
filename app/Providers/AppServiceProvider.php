@@ -5,6 +5,12 @@ namespace App\Providers;
 use App\Services\AuthThrottle;
 use App\Services\Dav\DavAuthBackend;
 use App\Services\DiagnosticEventWriter;
+use App\Services\Push\PushChanges;
+use App\Services\Push\PushKeys;
+use App\Services\Push\PushResolver;
+use App\Services\Push\PushSender;
+use App\Services\Push\SystemPushResolver;
+use App\Services\Push\WebPushSender;
 use App\Services\SettingsService;
 use App\Support\LocaleCatalog;
 use Filament\Forms\Components\DateTimePicker;
@@ -26,6 +32,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(DavAuthBackend::class);
         $this->app->singleton(SettingsService::class);
         $this->app->singleton(LocaleCatalog::class);
+
+        // Per request, and per job in the queue worker.
+        $this->app->scoped(PushKeys::class);
+        $this->app->scoped(PushChanges::class);
+        $this->app->bind(PushSender::class, WebPushSender::class);
+        $this->app->bind(PushResolver::class, SystemPushResolver::class);
     }
 
     /**

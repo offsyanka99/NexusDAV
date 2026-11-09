@@ -14,7 +14,7 @@ The work is split into five milestones and 31 PRs, listed in the order they are 
 
 Sources: [guide](../guide.md), [apps](../apps/README.md), the [admin panel](../apps/admin.md) description, the design notes for [Settings](../design/admin-settings.md), [Configuration](../design/admin-configuration.md) and the [Dashboard](../design/admin-dashboard.md), the pinned WebDAV-Push draft, and the current code.
 
-**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is done and released as **0.3.0** (PR 20 to PR 27). The Sharing pass of the [client checklist](../testing/client-checklist.md#11-sharing) passed on 0.3.0+404d77b with DAVx5 + jtx Board, Thunderbird and an iPad on both databases (Pass 3 table; all of step 11 passed on both databases). M4 is done and released as **0.4.0** (PR 28 to PR 32; the release pass over HTTPS passed on both databases, see [Files testing](../testing/files-testing.md#results-of-the-release-pass)). M5 is in progress: PR 33 (the push spike) is done and PR 34 (the worker) is implemented. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
+**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is done and released as **0.3.0** (PR 20 to PR 27). The Sharing pass of the [client checklist](../testing/client-checklist.md#11-sharing) passed on 0.3.0+404d77b with DAVx5 + jtx Board, Thunderbird and an iPad on both databases (Pass 3 table; all of step 11 passed on both databases). M4 is done and released as **0.4.0** (PR 28 to PR 32; the release pass over HTTPS passed on both databases, see [Files testing](../testing/files-testing.md#results-of-the-release-pass)). M5 is in progress: PR 33 (the push spike) is done, PR 34 (the worker) is done, and PR 35 (push discovery and registration), PR 36 (change events and the push queue) and PR 37 (Web Push delivery and the SSRF guard) are implemented. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
 
 Effort levels are the same as in Version 1:
 - **Low** — small, mostly boilerplate or config
@@ -55,10 +55,10 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 | 23 | PR 31 | M4 | Files in the admin panel (done) | Medium | 28, 30 |
 | 24 | PR 32 | M4 | M4 release (done, 0.4.0) | Medium | 27, 28–31 |
 | 25 | PR 33 | M5 | Spike: Web Push library and DAVx5 push (done; phone test in PR 35) | Medium | — |
-| 26 | PR 34 | M5 | Worker service and heartbeat (implemented) | Medium | — |
-| 27 | PR 35 | M5 | Push discovery and subscription registration | High | 23, 24, 28, 33 |
-| 28 | PR 36 | M5 | Change events and the push queue | High | 34, 35 |
-| 29 | PR 37 | M5 | Web Push delivery and the SSRF guard | High | 33, 36 |
+| 26 | PR 34 | M5 | Worker service and heartbeat (done) | Medium | — |
+| 27 | PR 35 | M5 | Push discovery and subscription registration (implemented; DAVx5 check open) | High | 23, 24, 28, 33 |
+| 28 | PR 36 | M5 | Change events and the push queue (implemented) | High | 34, 35 |
+| 29 | PR 37 | M5 | Web Push delivery and the SSRF guard (implemented; DAVx5 check open) | High | 33, 36 |
 | 30 | PR 38 | M5 | Push in the admin panel | Medium | 34, 35, 37 |
 | 31 | PR 39 | M5 | M5 release | Medium | 32, 33–38 |
 
@@ -704,7 +704,7 @@ Results are in the [Files testing](../testing/files-testing.md#results)
 
 **Done when:** the design note is merged, and a prototype push reached DAVx5 through ntfy.
 
-### PR 34 — Worker service and heartbeat (Effort: Medium) — implemented
+### PR 34 — Worker service and heartbeat (Effort: Medium) — done
 
 **Built:**
 - **Worker mode:** `docker/entrypoint.sh` takes its role from the first argument or `NEXUSDAV_ROLE` (`app` by default, or `worker`). The worker needs the app's `/data/app.key`, runs no migrations and no web server, caches the config (`optimize`), then runs `queue:work --max-time=3600 --memory=128 --timeout=120` as `nexusdav` in a loop, so the hourly restart does not restart the container. SIGTERM lets the running job finish (stopped in 0.1 s when idle).
@@ -716,7 +716,7 @@ Results are in the [Files testing](../testing/files-testing.md#results)
 
 **Tests:** `WorkerStatusTest` (the states and the five-minute edge, several workers and old rows, the heartbeat at start and at most once a minute, a failing write, the listener never pausing the worker, the command's exit codes, the probe with and without a worker, a probe on a real database queue).
 
-**Checked by hand** with the built image and the real Compose files: SQLite and PostgreSQL, the worker healthy after about 8 seconds, a probe queued in the app container ran in the worker container (0.8 s and 0.5 s), and a graceful stop. On PostgreSQL, `nexusdav:worker-status` said "Worker stale" (exit 1) once the stopped worker's last heartbeat was over five minutes old, and "Worker running" again a second after it was started. The hand steps for the maintainer's servers (W1 to W8) are in [push testing](../testing/push-testing.md).
+**Checked by hand** with the built image and the real Compose files: SQLite and PostgreSQL, the worker healthy after about 8 seconds, a probe queued in the app container ran in the worker container (0.8 s and 0.5 s), and a graceful stop. On PostgreSQL, `nexusdav:worker-status` said "Worker stale" (exit 1) once the stopped worker's last heartbeat was over five minutes old, and "Worker running" again a second after it was started. On TrueNAS (the custom app with the worker block enabled), W1 to W7 passed; W8 is skipped for now. The results are in [push testing](../testing/push-testing.md).
 
 
 - A worker mode in the entrypoint (proposed `NEXUSDAV_ROLE=worker`): no migrations, no first admin and no web server. It caches the config like the app container, then runs `php artisan queue:work` as `nexusdav`, with a maximum run time so it restarts regularly to release memory.
@@ -727,9 +727,22 @@ Results are in the [Files testing](../testing/files-testing.md#results)
 
 **Tests:** worker mode in the entrypoint; `WorkerStatus` states; the smoke test.
 
-**Done when:** `docker compose -f compose.yaml -f compose.<database>.yaml -f compose.worker.yaml up -d` starts a worker that runs queued jobs on both databases, `WorkerStatus` reports running and then stale after the worker stops, and the smoke test covers worker mode.
+**Done when:** `docker compose -f compose.yaml -f compose.<database>.yaml --profile worker up -d` starts a worker that runs queued jobs on both databases, `WorkerStatus` reports running and then stale after the worker stops, and the smoke test covers worker mode.
 
-### PR 35 — Push discovery and subscription registration (Effort: High)
+### PR 35 — Push discovery and subscription registration (Effort: High) — implemented
+
+**Built:**
+- **Settings** (panel fields come in PR 38): `push` (`NEXUSDAV_PUSH`, off), `push_files` (`NEXUSDAV_PUSH_FILES`, off), `push_max_subscriptions` (`NEXUSDAV_PUSH_MAX_SUBSCRIPTIONS`, 100, 1 to 10000), `push_allow_private` (`NEXUSDAV_PUSH_ALLOW_PRIVATE`, off), `push_log_level` (`NEXUSDAV_PUSH_LOG_LEVEL`, `info`).
+- **`PushPlugin`**, always loaded: `webdav-push` in the `DAV` header, the three properties on calendars, address books (owned or shared), both homes, and with Include Files in push the file home (depth infinity) and its folders. Registration on `POST`, unregistration on `DELETE /dav/push/<id>`, every other method there 405. `Push-Dont-Notify` is read here for PR 36.
+- **Keys:** `minishlink/web-push` 11 added, `gmp` added to the image. The VAPID key pair and the topic key are made on first use (not on switching push on) and stored encrypted in `settings`.
+- **Topics** are HMACs of the collection (design note), not random values stored per resource as this plan first said: a shared collection has one topic for the owner and every sharee without a lookup table.
+- **`push_subscriptions`:** `user_id` and `app_password_id` (both cascade), not a principal URI. Re-registering the same push resource on the same path updates the row (204) and keeps the URL; a new one answers 201.
+- **Cleanup:** revoking or deleting the app password, disabling or deleting the user, unsharing, a sharee leaving a share, and deleting a collection. A deleted collection's rows are *retired*: they get the deletion's message (PR 36), then go. Expired rows and retired rows older than an hour are pruned by the push job and on registration, so no scheduled cleanup is needed.
+- A missing or unknown depth in a trigger is read as the deepest supported one.
+
+**Tests:** `PushRegistrationTest` (21 tests, both databases).
+
+**Open:** the DAVx⁵ check by hand (discovery and registration on a calendar, an address book and the homes; renewal; unregistering) — steps P1 to P5 in [push testing](../testing/push-testing.md). The push that reaches the phone needs PR 37.
 
 - Settings definitions (panel fields in PR 38):
   - `push` (`NEXUSDAV_PUSH`, default off)
@@ -769,7 +782,16 @@ Results are in the [Files testing](../testing/files-testing.md#results)
 
 **Done when:** DAVx5 discovers push and registers on calendars, address books and their homes, re-registration and `DELETE` work, and the limits, preconditions and cleanup paths pass their tests on both databases.
 
-### PR 36 — Change events and the push queue (Effort: High)
+### PR 36 — Change events and the push queue (Effort: High) — implemented
+
+**Built:**
+- **`PushChanges`**, called by the calendar and address book backends (`addChange`, create and delete), `SharingService` (share and unshare change the sharee's home), user deletion, and the file events of `PushPlugin` (`afterBind`, `afterUnbind`, `afterWriteContent`). Changes are queued with `DB::afterCommit`, so a rolled-back write queues nothing, and only for topics that have subscriptions.
+- **Depths:** a member change is depth 1; a change deeper in a file home reaches only depth-infinity subscribers of the home; a deleted collection is a depth 0 content update to its own subscribers. A calendar or address book rename is a property update of it and a content update of the owner's home.
+- **Merge window:** table `push_outbox`, one row per topic, written in the same transaction as its `SendPushMessages` job (delayed 5 seconds); later changes merge into the row. The job takes the row, reads the current sync token, and queues one `DeliverPushMessage` per matching subscription with only the parts it asked for (content, property or both).
+- **`Push-Dont-Notify`:** `*` records nothing for that request; quoted URLs skip the caller's own registrations, and only if every change in the window named them. Other users' URLs are ignored. The header is cleared after each request.
+- **Delivery** is behind a `PushSender` interface (`WebPushSender` since PR 37); a removed or expired subscription gets nothing.
+
+**Tests:** `PushChangesTest` (15 tests, both databases).
 
 - Change detection in one place. A change is any successful write that moves a collection's sync token: calendar objects, cards, collection properties, and collections created or deleted in a home. With Include Files on, file and folder changes count too. The affected topics are recorded after the transaction commits.
 - Matching subscriptions:
@@ -786,7 +808,21 @@ Results are in the [Files testing](../testing/files-testing.md#results)
 
 **Done when:** every write path queues exactly one merged job per affected topic, shared collections reach all their subscribers, and `Push-Dont-Notify` is honoured.
 
-### PR 37 — Web Push delivery and the SSRF guard (Effort: High)
+### PR 37 — Web Push delivery and the SSRF guard (Effort: High) — implemented
+
+**Built:**
+- **`WebPushSender`:** `minishlink/web-push` encrypts (`aes128gcm`) and signs with VAPID (subject `APP_URL`); `TTL: 86400`, `Urgency: normal`, `Topic: <topic>`, `Content-Type: application/xml; charset="UTF-8"`.
+- **SSRF guard (`PushEndpointGuard`):** https only; the host is resolved once and **every** address must be public (so a name cannot mix a public and an internal address). Refused: RFC 6890 non-global IPv4 ranges, multicast and 240/4; `::/96`, `fc00::/7`, `fe80::/10`, `fec0::/10`, `ff00::/8`, Teredo, documentation and other non-global IPv6 ranges; IPv4-mapped, NAT64 and 6to4 addresses are judged by their IPv4 address. With **Allow private networks** on, plain http and private addresses are allowed. A host name that does not resolve is retried like a connection error, not refused.
+- **`PushHttpClient`**, a small PSR-18 client on curl rather than Guzzle, for exact control: connects only to the checked address (`CURLOPT_RESOLVE`), the protocol of the URL only, no redirects, no proxy, 5-second connect and 10-second total timeouts, at most 64 KB of the answer, and error messages without the URL.
+- **Results** (`DeliverPushMessage`), as in the design note rather than the list above: 2xx records `last_success_at`. 404 and 410 remove the subscription once it has had no success for 24 hours. 429, 5xx, timeouts and connection errors are tried again after 30 seconds, 2 minutes and 10 minutes, then dropped. **413 is not retried** (the plan listed it with the retried answers; a too-large message does not get smaller), nor are 3xx and the other 4xx. A failing subscription with no success for 3 days is removed; one the SSRF guard refuses is removed at once. Expired subscriptions are pruned by the push job (PR 36).
+- **Log:** push lines use `NEXUSDAV_PUSH_LOG_LEVEL` and show the push service's host, the status and a cleaned reason phrase, never the URL, keys or secrets.
+
+**Tests:** `PushDeliveryTest` (11 tests, both databases). A fake push service decrypts the message as a UnifiedPush client does (RFC 8291) and verifies the VAPID JWT signature; the SSRF matrix (private and reserved IPv4 and IPv6, embedded IPv4, names that resolve to loopback, link-local or a mix); a real local HTTP server for the redirect, the 64 KB limit and the pinning; removal on 404 and 410; retry and backoff; no secret in the log.
+
+**Checked by hand** with the built image, a worker and a real ntfy server: a change sent a push that ntfy accepted (200), and the message ntfy stored decrypted to the push message with the same sync token as a `PROPFIND`.
+
+**Open:** the phone test with DAVx⁵ through ntfy (steps P9 to P12 in [push testing](../testing/push-testing.md)).
+
 
 - The job builds the encrypted message with VAPID (the subject comes from `APP_URL`), sets `TTL` and `Urgency`, and sends it to each matching subscription.
 - **SSRF guard:**
@@ -834,10 +870,10 @@ Results are in the [Files testing](../testing/files-testing.md#results)
 
   Push on file folders is covered by the automated tests; no client in Decision 15 subscribes to them, unless PR 33 found that DAVx5 does.
 - Docs:
-  - The guide: a WebDAV-Push section, `compose.worker.yaml` in Configuration and Quick start, the TrueNAS worker block, and the settings table
+  - The guide: a WebDAV-Push section, the `worker` Compose profile in Configuration and Quick start, the TrueNAS worker block, and the settings table
   - [apps](../apps/README.md) and the design notes
   - [architecture.md](../architecture.md) (the worker), [data-model.md](../data-model.md) (push tables) and [dav-endpoints.md](../dav-endpoints.md) (push properties and registration URLs)
-- Release notes: push is off after the upgrade and needs the worker override.
+- Release notes: push is off after the upgrade and needs the worker (the `worker` Compose profile).
 
 **Done when:** the Push checklist passes with DAVx5 on both databases, the docs match, and the release is published.
 
@@ -897,7 +933,7 @@ These were open when the plan was first written. Each is now decided.
 
 | Doc | Change | PR |
 |---|---|---|
-| [guide.md](../guide.md) | Settings table: the new variables. Configuration: `compose.worker.yaml`. Client compatibility: tested versions and the results of the checklist | Release PRs 12, 19, 27, 32, 39 |
+| [guide.md](../guide.md) | Settings table: the new variables. Configuration: the `worker` Compose profile. Client compatibility: tested versions and the results of the checklist | Release PRs 12, 19, 27, 32, 39 |
 | [architecture.md](../architecture.md) | Titled "Version 1". Add the worker service, the Files root and storage, and the sharing nodes | PR 27, 32, 39 |
 | [data-model.md](../data-model.md), [dav-endpoints.md](../dav-endpoints.md) | New tables, the Files endpoint and push registration through the collection URLs | PR 19, 27, 32, 39 |
 | [CONTRIBUTING.md](../../CONTRIBUTING.md) | Adding a language | PR 9 |

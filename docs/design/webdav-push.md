@@ -21,13 +21,13 @@ The specification is the bitfire draft at the pinned commit `611abe2e8a0cdd7570c
 | Changing distributor | Unregisters the old push resource (`DELETE`), then registers the new one |
 | Distributor on the phone | Needed: a UnifiedPush app such as ntfy, or Google's FCM through Play services. Without one, DAVx⁵ asks the user to pick one and keeps polling |
 
-**Open: the phone test.** A push that reaches DAVx⁵ on a phone needs the server side of PR 35 (discovery and registration), so it is the first check of PR 35, not of this spike: DAVx⁵ with ntfy on Android, against a test server, subscribes to a calendar, and a change made on another device starts a sync on the phone within seconds. Its result is recorded here.
+**Open: the phone test.** The server side is complete with PR 37. With the built image, a worker and a real ntfy server, a change sent a push that ntfy accepted and that decrypted (as a UnifiedPush client does) to the push message with the current sync token. What is left is DAVx⁵ on a phone through ntfy: it registers (step P3 in [push testing](../testing/push-testing.md)) and a change made on another device starts a sync on the phone within seconds (P9). Its result is recorded here.
 
 ## Library
 
 `minishlink/web-push` (`web-push-libs/web-push-php`), **MIT**, version 11 (11.0.0, July 2026), PHP 8.2 or newer. It does the message encryption (RFC 8291, `aes128gcm`) and VAPID (RFC 8292).
 
-- **HTTP client:** version 11 sends through any PSR-18 client. Laravel already installs Guzzle 8, which is one, so no new dependency is needed. PR 37 passes its own Guzzle client with the SSRF guard, timeouts and no redirects (`new WebPush($auth, $options, $client)`).
+- **HTTP client:** version 11 sends through any PSR-18 client. Laravel already installs Guzzle 8, which is one, so no new dependency is needed. PR 37 passes its own small PSR-18 client on curl (`PushHttpClient`), pinned to the address the SSRF guard checked, with short timeouts, no redirects, no proxy and a 64 KB limit on the answer (`new WebPush($auth, $options, $client)`).
 - **Encoding:** the library's default is still the old `aesgcm`. Every subscription is created with `contentEncoding: 'aes128gcm'`, which is the only encoding the draft and DAVx⁵ use. A registration with another encoding is refused (`invalid-subscription`).
 - **`gmp`:** not needed for speed, but without `gmp` or `bcmath` the library prints a PHP notice ("It is highly recommended to install the GMP or BCMath extension") every time it is set up. The image adds `gmp` in the PR that adds the library (PR 35).
 - **Results:** `MessageSentReport::isSubscriptionExpired()` is true for 404 and 410 from the push service.
@@ -62,7 +62,7 @@ The `vapid-public-key` is always there, because DAVx⁵ does not subscribe witho
 | A file folder, with **Include Files in push** on (`NEXUSDAV_PUSH_FILES`) | depth 1 | — |
 | The file home, with **Include Files in push** on | depth `infinity` (any change in the user's files, Settled question 5) | — |
 
-- A request for a depth the server does not support is lowered to the supported one, as the draft allows. A registration none of whose triggers is supported answers 403 with `no-trigger-supported` (see [The draft's two names](#the-drafts-two-names)).
+- A request for a depth the server does not support is lowered to the supported one, as the draft allows. A trigger without a depth, or with an unknown one, gets the deepest supported depth. A registration none of whose triggers is supported answers 403 with `no-trigger-supported` (see [The draft's two names](#the-drafts-two-names)).
 - `property-update` covers the properties a client can change (`displayname`, `calendar-color`, `calendar-order`, the description). `getetag` and `sync-token` are not included: they change with every content update.
 - Not push-capable in 1.x: principals, subscriptions to external calendars, and the scheduling inbox and outbox (there is no on-server scheduling before Version 2). A file in a folder is not a collection and has no topic.
 - A tasks-only or notes-only change is a calendar content update like any other.
@@ -72,7 +72,7 @@ The `vapid-public-key` is always there, because DAVx⁵ does not subscribe witho
 A topic names a collection, not a URL. A shared calendar or address book has the **same topic** at the owner's path and at every sharee's path, so a change through any of them reaches every subscriber, as the draft wants ("one topic per resource").
 
 - The topic is `base64url(HMAC-SHA256(push topic key, "<kind>:<id>"))`, cut to 22 characters (128 bits). The kind is `calendar`, `addressbook`, `calendar-home`, `addressbook-home` or `files`; the id is `calendars.id`, `addressbooks.id`, the principal URI, or the folder path in the file home.
-- The **push topic key** is 32 random bytes, made when push is first switched on and stored encrypted in `settings`. It is not `APP_KEY`, so a new `APP_KEY` does not change the topics.
+- The **push topic key** is 32 random bytes, made on first use and stored encrypted in `settings`. It is not `APP_KEY`, so a new `APP_KEY` does not change the topics.
 - A topic does not show the user name or the collection name. It is safe to send to the push service as the `Topic` header, which lets the service replace an undelivered message with the newer one.
 - A renamed or moved file folder gets a new topic. Its clients find it on their next `PROPFIND`.
 
@@ -99,7 +99,7 @@ The **registration URL** is `https://<APP_URL host>/dav/push/<id>`, where `<id>`
 
 - The server grants the requested expiry, but at most **7 days** from now. Without an `expires`, it grants **3 days**. A requested time in the past, or under one hour away, is raised to one hour.
 - The draft asks servers to allow at least three days; DAVx⁵ asks for three and renews daily, so 7 days leaves room for a phone that is off for a few days.
-- An expired subscription gets no message. Expired rows are removed by the worker's daily cleanup and when a message for their topic is sent.
+- An expired subscription gets no message. Expired rows are removed when a message is sent (the push job prunes) and when a user registers, so no scheduled cleanup is needed.
 
 ## Data stored
 
@@ -109,7 +109,9 @@ Table `push_subscriptions` (PR 35):
 |---|---|
 | `id` | Primary key |
 | `registration` | The `<id>` of the registration URL, unique |
-| `principaluri` | The subscriber, `principals/<username>`. Deleting the user deletes the rows |
+| `user_id` | The subscriber. Deleting the user deletes the rows (foreign key); disabling the user deletes them too |
+| `app_password_id` | The app password the registration was made with. Revoking or deleting it deletes the rows |
+| `scope` | SHA-256 of the path and the push resource, unique: one row per push resource and path |
 | `path` | The DAV path the client registered on, for example `calendars/bob/team-ada` (shown on Diagnostics, used to remove the rows when a collection or a share goes) |
 | `topic` | The topic of that path at registration time; the message fan-out looks rows up by topic |
 | `push_resource` | The push service URL, text. Unique together with `path` |
@@ -120,19 +122,20 @@ Table `push_subscriptions` (PR 35):
 | `created_at`, `updated_at` | |
 | `last_success_at`, `last_failure_at`, `last_failure` | Delivery results, for the cleanup and for Diagnostics (status code and a short reason, no URL) |
 
-Settings (PR 35, encrypted): the VAPID key pair, made when push is first switched on, and the push topic key. The VAPID subject (`sub`) is `APP_URL` (Settled question 4).
+Settings (PR 35, encrypted): the VAPID key pair and the push topic key, both made on first use. The VAPID subject (`sub`) is `APP_URL` (Settled question 4).
 
-When a collection is deleted, a share is removed, or Sharing is switched off, the subscriptions on the paths that go away are deleted (shares) or get no messages (Sharing off), like the locks and properties of those paths today.
+When a share is removed or a sharee leaves it, the subscriptions on that path are deleted, like the locks and properties of the path. When Sharing is switched off they get no messages and expire. When the owner deletes a collection (or a file folder is deleted or moved away), its rows are **retired** (`removed_at`): they get the deletion as a last content update, then go. A retired row whose message is never sent (push off, no worker) is pruned after an hour. With push off, or with `Push-Dont-Notify: *`, the rows of a deleted collection are deleted at once.
 
 ## Sending
 
-A change is recorded where the sync token moves (calendar and address book backends), where a collection is created, renamed or deleted (homes), on a `PROPPATCH` of a collection, and on a file write (PR 36). It queues work for the worker; the web request never talks to a push service.
+A change is recorded where the sync token moves (calendar and address book backends, which covers objects, cards and the properties of a collection), where a collection is created, renamed or deleted (homes), where a share is added or removed (the sharee's home), and on a file or folder write, delete, copy or move (PR 36). A dead property set with `PROPPATCH` does not move the sync token and is not a change. A change is queued only after its transaction commits and only for a topic that has subscriptions. It queues work for the worker; the web request never talks to a push service.
 
 ### Merge window
 
 - A change starts a **5-second** window per topic. Further changes to that topic within the window join the same message, so an import of a thousand contacts sends one message, not a thousand.
 - The message carries the **latest** sync token in `content-update`, and `property-update` when any change in the window was a property change. A property change is never dropped by merging.
-- `Push-Dont-Notify` is recorded with each change. A subscription is skipped only if **every** change in the window named it (or used `*`). Values that are not this user's registration URLs are ignored.
+- The window is a `push_outbox` row per topic, written in the same transaction as its `SendPushMessages` job (delayed 5 seconds). Later changes update the row; the job takes it, so the next change opens a new window.
+- `Push-Dont-Notify` is recorded with each change. A subscription is skipped only if **every** change in the window named it. Values that are not this user's registration URLs are ignored. `*` records nothing for that request, as the draft asks ("SHOULD NOT send any push notifications").
 - Message: `POST` to the push resource, `Content-Type: application/xml; charset="UTF-8"`, `Content-Encoding: aes128gcm`, `TTL: 86400`, `Urgency: normal`, `Topic: <topic>`, VAPID `Authorization`. The body:
 
 ```xml
@@ -148,8 +151,8 @@ A change is recorded where the sync token moves (calendar and address book backe
 |---|---|
 | 2xx | `last_success_at` is set |
 | 404 or 410 (expired) | The subscription is removed when it has had no success for **24 hours** (or never had one and is older than 24 hours); otherwise `last_failure_at` is set. The draft asks not to remove on the first failure |
-| 429, 5xx, a timeout or a connection error | Retried after 30 seconds, 2 minutes and 10 minutes. After that the message is dropped (the next change sends a new one) and `last_failure_at` is set. A subscription with no success for **3 days** is removed |
-| Other 4xx (400, 401, 403, 413) | Not retried. Removed after **3 days** with no success |
+| 429, 5xx, a timeout, a connection error, or a host name that does not resolve | Retried after 30 seconds, 2 minutes and 10 minutes. After that the message is dropped (the next change sends a new one) and `last_failure_at` is set. A subscription with no success for **3 days** is removed |
+| Other 4xx (400, 401, 403, 413), a redirect (3xx, never followed), or a message that cannot be encrypted with the stored keys | Not retried. Removed after **3 days** with no success |
 | A push resource that the SSRF guard refuses (PR 37) | Not sent. Removed at once and logged |
 
 One slow push service never holds up the others: each subscription is its own job, with a 10-second timeout.

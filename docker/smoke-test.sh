@@ -31,6 +31,12 @@ settings=$(docker run --rm --entrypoint php "$IMAGE" -r 'echo ini_get("expose_ph
 [ "$settings" = "off on off" ] || fail "expected expose_php off, OPcache on, validate_timestamps off; got: $settings"
 ok "expose_php off, OPcache on, validate_timestamps off"
 
+# pcntl: the worker stops gracefully. gmp: the Web Push library would print a
+# notice on every use without it.
+extensions=$(docker run --rm --entrypoint php "$IMAGE" -r 'echo extension_loaded("pcntl") ? "on" : "off", " ", extension_loaded("gmp") ? "on" : "off";')
+[ "$extensions" = "on on" ] || fail "expected the pcntl and gmp extensions; got: $extensions"
+ok "pcntl and gmp extensions"
+
 docker run -d --name "$NAME" -p "127.0.0.1:$PORT:8080" -v "$VOLUME:/data" \
     -e APP_URL="$BASE" \
     -e ADMIN_EMAIL=smoke@example.com \

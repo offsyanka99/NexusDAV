@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\Dav\DavDataCleaner;
+use App\Services\Push\PushSubscriptions;
 use App\Services\UserService;
 use App\Support\LocaleCatalog;
 use Database\Factories\UserFactory;
@@ -67,6 +68,12 @@ class User extends Authenticatable implements FilamentUser, HasName
         });
 
         static::saved(function (User $user): void {
+            // A disabled user's devices stop getting push messages; they
+            // register again once the user is enabled and syncs.
+            if ($user->wasChanged('is_active') && ! $user->is_active) {
+                app(PushSubscriptions::class)->forgetUser((int) $user->getKey());
+            }
+
             if (! $user->wasChanged(['display_name', 'email']) && $user->principal()->exists()) {
                 return;
             }

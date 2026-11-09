@@ -2,6 +2,7 @@
 
 namespace App\Services\Dav;
 
+use App\Services\Dav\Push\PushPlugin;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Sabre\CalDAV\Plugin as CalDavPlugin;
@@ -71,6 +72,8 @@ final class DavServerFactory
             ],
         ]);
         $server->addPlugin($acl);
+
+        $server->addPlugin(app(PushPlugin::class));
 
         if ($this->enabled('caldav') || $this->enabled('carddav')) {
             $server->addPlugin(new SyncPlugin);

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AppPassword;
 use App\Models\User;
 use App\Services\Dav\BusyDatabase;
+use App\Services\Push\PushSubscriptions;
 use DateTimeInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -149,6 +150,9 @@ final class AppPasswordService
         }
 
         $appPassword->forceFill(['revoked_at' => now()])->save();
+
+        // Push subscriptions registered with it stop with it.
+        app(PushSubscriptions::class)->forgetAppPassword((int) $appPassword->getKey());
     }
 
     /**

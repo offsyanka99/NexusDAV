@@ -4,6 +4,8 @@ namespace App\Services\Dav;
 
 use App\Models\Principal;
 use App\Models\User;
+use App\Services\Push\PushChanges;
+use App\Services\Push\PushSubscriptions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -26,10 +28,23 @@ final class DavDataCleaner
         // or finds the principal gone and is refused (HomeNamespace).
         HomeNamespace::lock($uri);
 
+        // The user's own push subscriptions go now. Their collections'
+        // other subscribers (sharees) get the deletion as a last message.
+        app(PushSubscriptions::class)->forgetUser((int) $user->getKey());
+
         $ownedCalendarIds = DB::table('calendarinstances')
             ->where('principaluri', $uri)
             ->where('access', 1)
             ->pluck('calendarid');
+
+        foreach ($ownedCalendarIds as $calendarId) {
+            app(PushChanges::class)->collectionDeleted(true, (int) $calendarId, DB::table('calendarinstances')
+                ->where('calendarid', $calendarId)
+                ->where('principaluri', '!=', $uri)
+                ->pluck('principaluri')
+                ->map(static fn (mixed $principal): string => (string) $principal)
+                ->all());
+        }
 
         if ($ownedCalendarIds->isNotEmpty()) {
             $this->deleteSharePaths(true, DB::table('calendarinstances')
@@ -48,6 +63,14 @@ final class DavDataCleaner
         DB::table('schedulingobjects')->where('principaluri', $uri)->delete();
 
         $addressBookIds = DB::table('addressbooks')->where('principaluri', $uri)->pluck('id');
+
+        foreach ($addressBookIds as $addressBookId) {
+            app(PushChanges::class)->collectionDeleted(false, (int) $addressBookId, DB::table('addressbookinstances')
+                ->where('addressbookid', $addressBookId)
+                ->pluck('principaluri')
+                ->map(static fn (mixed $principal): string => (string) $principal)
+                ->all());
+        }
 
         // Shares this user received. Their paths are under this user's home,
         // which is cleared below.
@@ -96,6 +119,7 @@ final class DavDataCleaner
     {
         $this->deleteByPath('propertystorage', 'path', $path);
         $this->deleteByPath('locks', 'uri', $path);
+        app(PushSubscriptions::class)->forgetPath($path);
     }
 
     private function deleteByPath(string $table, string $column, string $path): void

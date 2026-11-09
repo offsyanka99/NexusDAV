@@ -1,6 +1,6 @@
 # WebDAV-Push and worker testing (M5)
 
-Hand checks for M5 ([the plan](../plans/implementation-plan-v1x.md#m5--webdav-push-and-the-worker-effort-extra-high)). Each M5 PR adds its steps here: PR 34 (the queue worker) is below; PR 35 to PR 38 (push discovery, registration, delivery and the panel) follow, starting with a push that reaches DAVx5 on a phone through ntfy. The release PR 39 runs all of them on both databases.
+Hand checks for M5 ([the plan](../plans/implementation-plan-v1x.md#m5--webdav-push-and-the-worker-effort-extra-high)). Each M5 PR adds its steps here: PR 34 (the queue worker), PR 35 and PR 36 (push discovery, registration and the queue), and PR 37 (the push that reaches DAVx⁵ on a phone through ntfy). PR 38 adds the panel. The release PR 39 runs all of them on both databases.
 
 ## Setup
 
@@ -40,6 +40,39 @@ php artisan test --filter=WorkerStatusTest
 
 The worker writes a log line only when it runs a job; checking the queue every few seconds while idle is normal and does not show in the log.
 
+## Automated tests (PR 35 to PR 37) — ✅ done
+
+`PushRegistrationTest` covers discovery on and off, the VAPID and topic keys, one topic for a shared collection, registration (201, then 204 for the same push resource), the expiry cap, depth fallback, each precondition, `DELETE` on the registration URL (including another user's), the per-user limit, the client keys stored encrypted, and each cleanup path. `PushChangesTest` covers which topics each change queues (objects, cards, renames, new and deleted collections, shares, file folders), the merge window, the sync token in the message, a shared calendar reaching every subscriber through one topic, `Push-Dont-Notify` (own URLs, another user's URL, `*`), and that a rolled-back or failing change never breaks the write. `PushDeliveryTest` decrypts a sent message as a UnifiedPush client does and verifies its VAPID signature, and covers the SSRF guard (private, loopback, link-local and reserved IPv4 and IPv6, embedded IPv4, names that resolve to them), no redirects, the 64 KB limit, removal after 404 and 410, retry and backoff, and that no URL, key or secret reaches the log.
+
+```bash
+php artisan test --filter='PushRegistrationTest|PushChangesTest|PushDeliveryTest'
+```
+
+## Steps (PR 35 to PR 37)
+
+P1 to P8 check discovery, registration and the queue; P9 to P12 the push that reaches the phone. They need an image built from these PRs, the worker running, and on the phone DAVx⁵ 4.4.10 or newer with a UnifiedPush distributor (the ntfy app, with ntfy.sh or your own ntfy server).
+
+Switch push on with `NEXUSDAV_PUSH=true` in the `environment:` of **both** services (app and worker) and recreate them. Registration lines are logged at `info`; set `NEXUSDAV_PUSH_LOG_LEVEL=debug` on the worker to also see each message sent.
+
+**A self-hosted ntfy on your LAN:** the server refuses to send to private addresses (the SSRF guard). If the ntfy host name resolves to a private address from the NexusDAV container (for example `192.168.x.x` through local DNS), set `NEXUSDAV_PUSH_ALLOW_PRIVATE=true` on both services. ntfy.sh needs nothing.
+
+| ID | Do | Expected |
+|---|---|---|
+| P1 | `curl -s -X OPTIONS -u <user>:<app password> -D - -o /dev/null https://<host>/dav/calendars/<user>/` | The `DAV` header ends with `webdav-push` |
+| P2 | `curl -s -X PROPFIND -H 'Depth: 1' -u <user>:<app password> https://<host>/dav/calendars/<user>/ --data '<d:propfind xmlns:d="DAV:" xmlns:P="https://bitfire.at/webdav-push"><d:prop><P:topic/><P:transports/><P:supported-triggers/></d:prop></d:propfind>'` | Every calendar and the home have a `P:topic` (22 characters) and the same `P:vapid-public-key type="p256ecdsa"`. Calendars list `content-update` depth 1 and `property-update` depth 0; the home only `content-update` depth 1 |
+| P3 | On the phone: DAVx⁵ → Settings → Push, pick ntfy. Then sync the account (pull down in the account) | The app log has one `Push subscription registered` line per synced calendar and address book, with the ntfy host and an expiry three days ahead. Diagnostics shows no 403 for POST |
+| P4 | Sync the account again | `Push subscription renewed` lines with the same paths; no new `registered` lines |
+| P5 | Change an event from another client (Thunderbird or the web) in a calendar the phone syncs, and watch `docker logs -f nexusdav-worker` | Within about 5 seconds a `SendPushMessages` job and then one `DeliverPushMessage` job per subscription of that calendar, each `DONE`. With the push log level at `debug`: `Push message sent` with the ntfy host and `200 OK` (or `201`) |
+| P6 | Change an event **on the phone** (only the phone subscribes to that calendar) | `SendPushMessages` runs, but no `DeliverPushMessage` for the phone: DAVx⁵ sent `Push-Dont-Notify` with its own registration |
+| P7 | In the admin panel, revoke the app password the phone uses; then change an event from another client | `SendPushMessages` runs with no `DeliverPushMessage`. (Sign the phone in again with a new app password afterwards) |
+| P8 | Set `NEXUSDAV_PUSH=false` on both services, recreate them, and repeat P1 and P2 | No `webdav-push` in the `DAV` header and no `P:topic`. Calendars and contacts sync as before |
+| P9 | Push on again (P3 done). Lock the phone. Add an event from Thunderbird in a calendar the phone syncs | Within about 10 seconds the event is on the phone without a manual sync (DAVx⁵ shows a short sync). The worker log has `Push message sent` |
+| P10 | Add a contact from another client in an address book the phone syncs | The contact is on the phone within about 10 seconds |
+| P11 | Add three events quickly from Thunderbird | One push, one sync on the phone: one `SendPushMessages` in the worker log for that calendar |
+| P12 | Stop the worker, add an event from Thunderbird, wait a minute, start the worker | Nothing reaches the phone while the worker is down; within seconds of the start the push arrives and the phone syncs |
+
+**Fail:** a push never reaches the phone (check the worker log: `Push message not delivered` shows the status; `its push service address is not allowed` means the private-network setting, above), the phone gets more than one push for one change, DAVx⁵ registers nothing (check that the image has push on, that a UnifiedPush distributor is set, and the app log for a 403 with `invalid-subscription`), a second sync adds new registrations instead of renewing, a change queues more than one `SendPushMessages` job in 5 seconds for one calendar, or any 5xx.
+
 ## Results
 
 | Run log | |
@@ -50,13 +83,28 @@ The worker writes a log line only when it runs a job; checking the queue every f
 
 | Step | PostgreSQL | SQLite (Compose) | TrueNAS | Notes |
 |---|---|---|---|---|
-| W1 Worker starts, healthy | ⬜ | ⬜ | ⬜ | |
-| W2 Probe from the app | ⬜ | ⬜ | ⬜ | |
-| W3 Worker log | ⬜ | ⬜ | ⬜ | |
-| W4 Graceful stop | ⬜ | ⬜ | ⬜ | |
-| W5 Stale, then running | ⬜ | ⬜ | ⬜ | |
-| W6 Restart of the stack | ⬜ | ⬜ | ⬜ | |
-| W7 Without the worker | ⬜ | ⬜ | ⬜ | |
-| W8 Regression | ⬜ | ⬜ | ⬜ | |
+| W1 Worker starts, healthy | ✅ | ✅ | ✅ | |
+| W2 Probe from the app | ✅ | ✅ | ✅ | Worker running: a3cab6b1c04d, last heartbeat 33 seconds ago. Probe job ran on a3cab6b1c04d in 0.8 s. |
+| W3 Worker log | ✅ | ✅ | ✅ | |
+| W4 Graceful stop | ✅ | ✅ | ✅ | stopped in 0 s |
+| W5 Stale, then running | ✅ | ✅ | ✅ | Error response from daemon: container nexus-worker is not running. Then ix-nexusdav-p-nexusdav-worker-1 start |
+| W6 Restart of the stack | ✅ | ✅ | ✅ | No issues |
+| W7 Without the worker | ✅ | ✅ | ✅ | No issues |
+| W8 Regression | ⬜ | ⬜ | ⬜ | Skipped for now |
+
+| Step | PostgreSQL | SQLite (Compose) | TrueNAS | Notes |
+|---|---|---|---|---|
+| P1 `webdav-push` in OPTIONS | ⬜ | ⬜ | ⬜ | |
+| P2 Push properties | ⬜ | ⬜ | ⬜ | |
+| P3 DAVx⁵ registers | ⬜ | ⬜ | ⬜ | |
+| P4 Renewal | ⬜ | ⬜ | ⬜ | |
+| P5 A change is queued | ⬜ | ⬜ | ⬜ | |
+| P6 Push-Dont-Notify | ⬜ | ⬜ | ⬜ | |
+| P7 Revoked app password | ⬜ | ⬜ | ⬜ | |
+| P8 Push off | ⬜ | ⬜ | ⬜ | |
+| P9 Event reaches the phone | ⬜ | ⬜ | ⬜ | |
+| P10 Contact reaches the phone | ⬜ | ⬜ | ⬜ | |
+| P11 One push for a burst | ⬜ | ⬜ | ⬜ | |
+| P12 Worker down, then up | ⬜ | ⬜ | ⬜ | |
 
 Checked before the hand pass, with the built image and the real Compose files on SQLite and PostgreSQL (November 9, 2026): W1, W2, W4 and W5 passed (healthy after about 8 seconds, probes in 0.8 s and 0.5 s, stop in 0.1 s with exit code 0, stale after five minutes and running again after a start).
