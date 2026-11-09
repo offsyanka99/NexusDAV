@@ -6,6 +6,8 @@ set -eu
 IMAGE=${1:?usage: docker/smoke-test.sh <image>}
 PORT=${SMOKE_PORT:-18080}
 NAME=nexusdav-smoke-$$
+WORKER=nexusdav-smoke-worker-$$
+VOLUME=nexusdav-smoke-data-$$
 BASE="http://127.0.0.1:$PORT"
 MIN_PHP=8.4.27
 
@@ -17,7 +19,7 @@ fail() {
 }
 
 body=$(mktemp)
-trap 'docker rm -f "$NAME" >/dev/null 2>&1 || true; rm -f "$body"' EXIT
+trap 'docker rm -f "$WORKER" "$NAME" >/dev/null 2>&1 || true; docker volume rm "$VOLUME" >/dev/null 2>&1 || true; rm -f "$body"' EXIT
 
 # CVE-2026-109618 and CVE-2026-109619 are fixed from PHP 8.4.27.
 php_version=$(docker run --rm --entrypoint php "$IMAGE" -r 'echo PHP_VERSION;')
@@ -29,7 +31,7 @@ settings=$(docker run --rm --entrypoint php "$IMAGE" -r 'echo ini_get("expose_ph
 [ "$settings" = "off on off" ] || fail "expected expose_php off, OPcache on, validate_timestamps off; got: $settings"
 ok "expose_php off, OPcache on, validate_timestamps off"
 
-docker run -d --name "$NAME" -p "127.0.0.1:$PORT:8080" \
+docker run -d --name "$NAME" -p "127.0.0.1:$PORT:8080" -v "$VOLUME:/data" \
     -e APP_URL="$BASE" \
     -e ADMIN_EMAIL=smoke@example.com \
     -e ADMIN_PASSWORD=smoke-test-password \
@@ -144,5 +146,36 @@ if docker exec "$NAME" sh -c 'ls /app/storage/logs/*.log >/dev/null 2>&1'; then
     fail "a log file was written under storage/logs"
 fi
 ok "nothing is written under storage/logs"
+
+# Worker mode: the same image and /data, started after the app.
+docker run -d --name "$WORKER" -v "$VOLUME:/data" \
+    -e DB_CONNECTION=sqlite \
+    -e DB_DATABASE=/data/database/nexusdav.sqlite \
+    "$IMAGE" worker >/dev/null
+
+i=0
+until docker exec -u nexusdav "$WORKER" php artisan nexusdav:worker-status >/dev/null 2>&1; do
+    i=$((i + 1))
+    [ "$i" -lt 60 ] || { docker logs "$WORKER" >&2 2>&1 || true; fail "the worker wrote no heartbeat within 60 seconds"; }
+    sleep 1
+done
+ok "the worker container starts and writes its heartbeat"
+
+if docker logs "$WORKER" 2>&1 | grep -qiE 'migrat|first admin|frankenphp'; then
+    fail "the worker ran migrations, created an admin or started the web server"
+fi
+docker exec "$WORKER" sh -c 'curl -fs http://127.0.0.1:8080/health' >/dev/null 2>&1 && fail "the worker serves HTTP"
+ok "the worker runs no migrations and no web server"
+
+probe=$(docker exec -u nexusdav "$NAME" php artisan nexusdav:worker-status --probe --wait=30) \
+    || { docker logs "$WORKER" >&2 2>&1 || true; fail "no worker ran the probe job: $probe"; }
+printf '%s\n' "$probe" | grep -q "Probe job ran on $(docker inspect -f '{{.Config.Hostname}}' "$WORKER")" \
+    || fail "the probe job ran somewhere else: $probe"
+docker logs "$WORKER" 2>&1 | grep -q 'Worker probe ran' || fail "the probe job is not in the worker's log"
+ok "a job queued by the app runs in the worker"
+
+docker stop -t 20 "$WORKER" >/dev/null
+[ "$(docker inspect -f '{{.State.ExitCode}}' "$WORKER")" = "0" ] || fail "the worker did not stop cleanly"
+ok "the worker stops cleanly on SIGTERM"
 
 echo "Smoke test passed for $IMAGE"

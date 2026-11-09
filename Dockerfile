@@ -14,7 +14,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl sqlite3 \
     && rm -rf /var/lib/apt/lists/* \
-    && install-php-extensions intl pdo_pgsql pdo_sqlite zip
+    && install-php-extensions intl pcntl pdo_pgsql pdo_sqlite zip
 
 COPY docker/uploads.ini ${PHP_INI_DIR}/conf.d/uploads.ini
 RUN cp "${PHP_INI_DIR}/php.ini-production" "${PHP_INI_DIR}/php.ini"
@@ -31,7 +31,7 @@ RUN APP_KEY=base64:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE= \
     && chown -R nexusdav:nexusdav storage bootstrap/cache \
     && chmod +x docker/entrypoint.sh \
     && php -r 'if (version_compare(PHP_VERSION, $argv[1], "<")) { fwrite(STDERR, "PHP ".PHP_VERSION." is older than ".$argv[1].". Rebuild with --pull.\n"); exit(1); }' "$MIN_PHP_VERSION" \
-    && php -r '$required = ["ctype","curl","date","dom","fileinfo","filter","hash","iconv","intl","json","libxml","mbstring","openssl","pcre","pdo","pdo_pgsql","pdo_sqlite","session","simplexml","tokenizer","xml","zip"]; foreach ($required as $ext) { if (!extension_loaded($ext)) { fwrite(STDERR, "Missing PHP extension: {$ext}\n"); exit(1); } } if (!defined("PASSWORD_ARGON2ID")) { fwrite(STDERR, "Argon2id is not available\n"); exit(1); }' \
+    && php -r '$required = ["ctype","curl","date","dom","fileinfo","filter","hash","iconv","intl","json","libxml","mbstring","openssl","pcntl","pcre","pdo","pdo_pgsql","pdo_sqlite","session","simplexml","tokenizer","xml","zip"]; foreach ($required as $ext) { if (!extension_loaded($ext)) { fwrite(STDERR, "Missing PHP extension: {$ext}\n"); exit(1); } } if (!defined("PASSWORD_ARGON2ID")) { fwrite(STDERR, "Argon2id is not available\n"); exit(1); }' \
     && command -v curl \
     && command -v sqlite3
 

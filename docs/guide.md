@@ -127,13 +127,23 @@ See [Requirements](#requirements) for the exact versions.
 Docker Compose is split into a shared base file and one override per database, so the database is already defined at install time:
 
 ```
-compose.yaml            # application (pinned image), shared volumes, ports
+compose.yaml            # application (pinned image), shared volumes, ports; the optional worker
 compose.postgres.yaml   # adds the postgres service and DB_* variables
 compose.sqlite.yaml     # sets DB_CONNECTION=sqlite and the database file path
 compose.build.yaml      # optional, last: builds the image from this checkout
 ```
 
 Reverse proxy overrides (Caddy, Traefik) are in [docs/proxy](proxy/); see [Reverse proxy and `.well-known`](#reverse-proxy-and-well-known).
+
+### Queue worker (optional)
+
+A second container, `nexusdav-worker`, runs the same image in worker mode: it takes jobs from the database queue and runs them, so the app never waits for them. **Nothing needs it yet**; WebDAV-Push (a later 1.x release) will send its messages through it.
+
+- **Start it:** add `COMPOSE_PROFILES=worker` to `.env` and run `docker compose … up -d` as usual, or add `--profile worker` to the command. Without the profile it is not started.
+- **What it uses:** the same environment, the same `/data` volume and the same database as the app (the database file adds its variables to the worker too). With SQLite both containers use the same file; WAL mode allows that on one host. It has no port, runs no migrations and creates no admin, and it starts once the app is healthy.
+- **Is it running?** `docker compose exec nexusdav php artisan nexusdav:worker-status` prints "Worker running", "Worker stale" (no heartbeat for five minutes) or "No worker has been seen". `--probe` also sends a test job and waits for the worker to run it. The worker writes its heartbeat to the database about once a minute, and the worker container's health check uses the same command.
+- **Restarts:** `queue:work` stops by itself after an hour, or above 128 MB, and starts again inside the container. On `docker compose stop` the job that is running finishes first.
+- **TrueNAS:** the custom app files have a worker block that is commented out; remove the `# ` from its lines to use it.
 
 See [Quick start](#quick-start) for the exact commands. PostgreSQL is recommended for production; SQLite is intended for simple deployments and development.
 
@@ -612,6 +622,7 @@ Automatic backups are a long-term goal (see [Roadmap](#roadmap)).
 | Large file upload fails | 413 from the app: the file is over Maximum upload size (Settings → Files). 413 from the proxy, a reset connection or a timeout: the proxy's body limit or timeouts are too low (nginx allows 1 MB by default; the files in [docs/proxy](proxy/) allow 128 MB). 507: the data volume is full. See [Large file uploads](#large-file-uploads-files). |
 | `/dav/files/` answers 403 "Files is turned off on this server." | Files is off. Switch it on under **Settings → Files**. |
 | GNOME Files shows "Operation not supported" after a copy and paste | The copy is complete. Choose **Skip**; Retry makes a second copy (see [Files](#files)). |
+| You want to know what a status code on Diagnostics means | The (i) button on **Latest DAV errors** lists the codes the server returns, what each means here and what to check. |
 | A DAV error is listed on Diagnostics and you need more detail | Search the log for its Request ID: `docker compose logs nexusdav \| grep <id>`. |
 | Tasks or notes are not visible | The client app does not display them (see [Client compatibility](#client-compatibility)). |
 | The first contact sync in DAVx5 takes many minutes | DAVx5 saves each contact into Android's contacts storage one at a time, about 0.5 s per contact on a Pixel 7 Pro: roughly 10 minutes for 2,000 contacts. The server's part is a few seconds. Later syncs fetch only changes and are quick. Calendars and other clients (Thunderbird, iPhone, iPad) are not affected ([#1](https://github.com/offsyanka99/NexusDAV/issues/1)). |
@@ -622,7 +633,6 @@ Automatic backups are a long-term goal (see [Roadmap](#roadmap)).
 | DAVx5 does not use sync tokens for a calendar | **Time range (past days)** is set, even to `0`: DAVx5 then lists the whole calendar on every sync instead. That is correct, only slower for big calendars. Leave the field empty to use sync tokens. |
 | A calendar created from an iPad or iPhone has no tasks or notes on the server | The client chooses what a new calendar holds when it creates it, and Apple Calendar asks for events only. Open the calendar under **Edit** on the user's Calendars tab and turn on Tasks and Notes. |
 | A calendar or address book deleted and created again with the same name still shows its old name in the client | Clients keep the name they first saw. Refresh the collection list (DAVx5: **Refresh list**) or add the calendar again in Thunderbird. The contents are already the new ones. |
-| You want to know what a status code on Diagnostics means | The (i) button on **Latest DAV errors** lists the codes the server returns, what each means here and what to check. |
 
 ### Migrating from another server
 

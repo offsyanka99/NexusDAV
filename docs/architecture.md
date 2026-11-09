@@ -12,6 +12,7 @@ This document describes how the main components fit together for Version 1. It i
 | **sabre/dav PDO backend** | Storage for calendars, address books, objects and cards |
 | **File home** | Files under `/dav/files/<username>/`: sabre's `FSExt` nodes on the data volume (`/data/files`), through `FileStorage` |
 | **PostgreSQL / SQLite** | Database |
+| **Queue worker** (optional) | The same image in worker mode (`nexusdav-worker`, Compose profile `worker`): `php artisan queue:work` on the database queue, with a heartbeat in `worker_heartbeats`. Used by WebDAV-Push |
 
 ## High-level request flow
 
@@ -74,6 +75,7 @@ app/
       FileResource.php      # a file: uploads written to a temporary file, then renamed into place
       FileStorage.php       # the disk: names in NFC, uploads and the upload limit, 507, deletes that never follow a link
       UploadTooLarge.php    # 413
+    WorkerStatus.php        # the queue worker's heartbeat: running, stale or never seen
     UserService.php         # Create user + principal + default calendar and address book
     AuthThrottle.php        # IP plus username limit for admin login and DAV
     DiagnosticEventWriter.php  # stores rejected logins and DAV errors with their request ID; prunes expired rows on write
@@ -132,6 +134,12 @@ config/
 4. `FileResource` writes the body to a temporary file in `/data/files/.uploads/` and renames it into place, so a failed upload leaves nothing and an overwritten file keeps its content. A full disk is a 507.
 5. A download is sent in 1 MB chunks, and a range answer stops after its `Content-Length`.
 6. Locks and dead properties are sabre's `locks` and `propertystorage` rows, keyed by the path `files/<username>/...`. A move moves the properties and releases the locks; deleting a file or a user removes both. Deleting a user also deletes the home, after the deletion commits.
+
+### 6. The queue worker (Version 1.x)
+
+1. `docker/entrypoint.sh` takes a role from its first argument or `NEXUSDAV_ROLE`: `app` (the default: migrations, the first admin, FrankenPHP) or `worker`. The worker needs the app's `/data/app.key` and starts after the app is healthy; it caches the config and runs `queue:work` as `nexusdav` in a loop, so the hourly restart (`--max-time`) and the memory limit do not restart the container. SIGTERM lets the running job finish.
+2. `RecordWorkerHeartbeat` listens to the worker's `WorkerStarting` and `Looping` events (found by Laravel's listener discovery) and writes the heartbeat at most once a minute; an idle worker loops every three seconds. A failure to write is logged and never stops the worker.
+3. `WorkerStatus` reads the newest heartbeat. `nexusdav:worker-status` prints it and is the worker container's health check; `--probe` queues `WorkerProbe` and waits for a worker to run it (the image smoke test uses it).
 
 ## Integration points
 

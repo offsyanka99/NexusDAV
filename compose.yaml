@@ -1,6 +1,10 @@
 # NexusDAV — base Compose file
 # Use together with compose.postgres.yaml or compose.sqlite.yaml.
 # To build the image from this checkout instead, add compose.build.yaml.
+#
+# The queue worker (nexusdav-worker) is optional and starts only with the
+# "worker" profile: add COMPOSE_PROFILES=worker to .env, or pass
+# --profile worker. Nothing needs it before WebDAV-Push.
 
 services:
   nexusdav:
@@ -11,7 +15,7 @@ services:
       - "8080:8080"
     volumes:
       - nexusdav_data:/data
-    environment:
+    environment: &nexusdav-environment
       - APP_URL=${APP_URL}
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
@@ -22,7 +26,7 @@ services:
       # Empty when unset, so the entrypoint can drop it and keep the config default.
       - LOG_LEVEL=${LOG_LEVEL-}
     restart: unless-stopped
-    logging:
+    logging: &nexusdav-logging
       driver: json-file
       options:
         max-size: "10m"
@@ -33,6 +37,31 @@ services:
       timeout: 5s
       retries: 3
       start_period: 40s
+
+  # The same image in worker mode: the same environment and /data, no port,
+  # no migrations. It starts once the app is healthy. The database file
+  # (compose.sqlite.yaml or compose.postgres.yaml) adds its variables here too.
+  nexusdav-worker:
+    image: ghcr.io/offsyanka99/nexusdav:0.4.0
+    container_name: nexusdav-worker
+    profiles: ["worker"]
+    command: ["worker"]
+    volumes:
+      - nexusdav_data:/data
+    environment: *nexusdav-environment
+    depends_on:
+      nexusdav:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *nexusdav-logging
+    # Healthy while this or another worker wrote a heartbeat in the last
+    # five minutes.
+    healthcheck:
+      test: ["CMD", "setpriv", "--reuid=nexusdav", "--regid=nexusdav", "--init-groups", "php", "/app/artisan", "nexusdav:worker-status"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
 volumes:
   nexusdav_data:

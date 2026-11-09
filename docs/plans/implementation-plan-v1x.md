@@ -14,7 +14,7 @@ The work is split into five milestones and 31 PRs, listed in the order they are 
 
 Sources: [guide](../guide.md), [apps](../apps/README.md), the [admin panel](../apps/admin.md) description, the design notes for [Settings](../design/admin-settings.md), [Configuration](../design/admin-configuration.md) and the [Dashboard](../design/admin-dashboard.md), the pinned WebDAV-Push draft, and the current code.
 
-**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is done and released as **0.3.0** (PR 20 to PR 27). The Sharing pass of the [client checklist](../testing/client-checklist.md#11-sharing) passed on 0.3.0+404d77b with DAVx5 + jtx Board, Thunderbird and an iPad on both databases (Pass 3 table; all of step 11 passed on both databases). M4 is done and released as **0.4.0** (PR 28 to PR 32; the release pass over HTTPS passed on both databases, see [Files testing](../testing/files-testing.md#results-of-the-release-pass)). M5 is not started. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
+**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is done and released as **0.3.0** (PR 20 to PR 27). The Sharing pass of the [client checklist](../testing/client-checklist.md#11-sharing) passed on 0.3.0+404d77b with DAVx5 + jtx Board, Thunderbird and an iPad on both databases (Pass 3 table; all of step 11 passed on both databases). M4 is done and released as **0.4.0** (PR 28 to PR 32; the release pass over HTTPS passed on both databases, see [Files testing](../testing/files-testing.md#results-of-the-release-pass)). M5 is in progress: PR 33 (the push spike) is done and PR 34 (the worker) is implemented. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
 
 Effort levels are the same as in Version 1:
 - **Low** — small, mostly boilerplate or config
@@ -54,8 +54,8 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 | 22 | PR 30 | M4 | Upload size limit, streaming and a full disk (done) | Medium | 28 |
 | 23 | PR 31 | M4 | Files in the admin panel (done) | Medium | 28, 30 |
 | 24 | PR 32 | M4 | M4 release (done, 0.4.0) | Medium | 27, 28–31 |
-| 25 | PR 33 | M5 | Spike: Web Push library and DAVx5 push | Medium | — |
-| 26 | PR 34 | M5 | Worker service and heartbeat | Medium | — |
+| 25 | PR 33 | M5 | Spike: Web Push library and DAVx5 push (done; phone test in PR 35) | Medium | — |
+| 26 | PR 34 | M5 | Worker service and heartbeat (implemented) | Medium | — |
 | 27 | PR 35 | M5 | Push discovery and subscription registration | High | 23, 24, 28, 33 |
 | 28 | PR 36 | M5 | Change events and the push queue | High | 34, 35 |
 | 29 | PR 37 | M5 | Web Push delivery and the SSRF guard | High | 33, 36 |
@@ -677,7 +677,14 @@ Results are in the [Files testing](../testing/files-testing.md#results)
 
 **Goal:** a client that subscribes to a collection gets a push message when the collection changes, as in the pinned bitfire draft. Push is switched on or off in the admin panel. Subscriptions are visible on the Diagnostics page.
 
-### PR 33 — Spike: Web Push library and DAVx5 push (Effort: Medium)
+### PR 33 — Spike: Web Push library and DAVx5 push (Effort: Medium) — done, phone test moved to PR 35
+
+**Result:** the design note [webdav-push.md](../design/webdav-push.md) (library, DAVx⁵ behaviour read from its source, discovery, registration URL `/dav/push/<id>`, topics, triggers and depths, expiry at most 7 days, data stored, 5-second merge window, retry and removal policy).
+- **Library:** `minishlink/web-push` 11 (MIT), through Laravel's Guzzle (PSR-18). The encoding must be set to `aes128gcm`; the library's default is still `aesgcm`. The image adds `gmp` with the library (PR 35): without it the library prints a PHP notice each time, at no speed difference.
+- **Prototype (not merged):** a VAPID-signed, `aes128gcm` push message went through a local ntfy and decrypted unchanged, also in the NexusDAV image.
+- **DAVx⁵:** subscribes only to synced calendars and address books, with `content-update` depth 1, asks for 3 days and renews daily, sends `Push-Dont-Notify`, and **does not register without a VAPID key**.
+- **Moved:** the push that reaches DAVx⁵ through ntfy needs the server side of registration, which is PR 35. It is PR 35's first check, and its result goes into the design note.
+
 
 - Pick the Web Push library. The candidate is `minishlink/web-push` (MIT), which does message encryption (RFC 8291) and VAPID (RFC 8292). It sends through a PSR-18 HTTP client, so PR 37 can give it a client with the SSRF guard. Check whether the image should add the `gmp` extension, which the library suggests for speed.
 - A prototype against a local ntfy server with DAVx5 on Android (UnifiedPush). Find out:
@@ -697,7 +704,20 @@ Results are in the [Files testing](../testing/files-testing.md#results)
 
 **Done when:** the design note is merged, and a prototype push reached DAVx5 through ntfy.
 
-### PR 34 — Worker service and heartbeat (Effort: Medium)
+### PR 34 — Worker service and heartbeat (Effort: Medium) — implemented
+
+**Built:**
+- **Worker mode:** `docker/entrypoint.sh` takes its role from the first argument or `NEXUSDAV_ROLE` (`app` by default, or `worker`). The worker needs the app's `/data/app.key`, runs no migrations and no web server, caches the config (`optimize`), then runs `queue:work --max-time=3600 --memory=128 --timeout=120` as `nexusdav` in a loop, so the hourly restart does not restart the container. SIGTERM lets the running job finish (stopped in 0.1 s when idle).
+- **`pcntl`** added to the image: without it `queue:work` cannot stop gracefully or enforce `--timeout`.
+- **Compose, deviating from the plan:** not a `compose.worker.yaml`, because Compose resolves `extends` per file before merging, so a worker file cannot inherit the database variables of `compose.sqlite.yaml` or `compose.postgres.yaml`. Instead `compose.yaml` has a `nexusdav-worker` service with the Compose **profile** `worker` (the same image, environment through a YAML anchor, `/data` volume and log rotation; no port; `depends_on` the app being healthy; a health check). Each database file adds its variables to the worker, and `compose.build.yaml` gives it the built image. Start it with `COMPOSE_PROFILES=worker` in `.env` or `--profile worker`; without the profile nothing changes.
+- **Heartbeat:** table `worker_heartbeats`, one row per worker (host name), written by `RecordWorkerHeartbeat` on `WorkerStarting` and then at most once a minute on `Looping`. `WorkerStatus` answers running, stale (over five minutes) or never seen. `nexusdav:worker-status` prints it (exit 0 when running; the worker's health check) and `--probe` queues `WorkerProbe` and waits for a worker to run it.
+- **TrueNAS:** both files have a commented-out worker block on the same dataset.
+- **Smoke test:** starts the image as a worker on the app's volume and checks the heartbeat, no migrations and no web server, a probe job queued by the app, and a clean stop.
+
+**Tests:** `WorkerStatusTest` (the states and the five-minute edge, several workers and old rows, the heartbeat at start and at most once a minute, a failing write, the listener never pausing the worker, the command's exit codes, the probe with and without a worker, a probe on a real database queue).
+
+**Checked by hand** with the built image and the real Compose files: SQLite and PostgreSQL, the worker healthy after about 8 seconds, a probe queued in the app container ran in the worker container (0.8 s and 0.5 s), and a graceful stop. On PostgreSQL, `nexusdav:worker-status` said "Worker stale" (exit 1) once the stopped worker's last heartbeat was over five minutes old, and "Worker running" again a second after it was started. The hand steps for the maintainer's servers (W1 to W8) are in [push testing](../testing/push-testing.md).
+
 
 - A worker mode in the entrypoint (proposed `NEXUSDAV_ROLE=worker`): no migrations, no first admin and no web server. It caches the config like the app container, then runs `php artisan queue:work` as `nexusdav`, with a maximum run time so it restarts regularly to release memory.
 - A `compose.worker.yaml` override with a `nexusdav-worker` service: the same image, environment and `/data` volume, no ports, `depends_on` the app being healthy, the same log rotation. The worker also needs the database variables from `compose.postgres.yaml` or `compose.sqlite.yaml`; the PR picks how (Compose `extends`, or one worker override per database).

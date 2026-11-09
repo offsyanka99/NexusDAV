@@ -3,6 +3,11 @@
 
 services:
   nexusdav:
-    environment:
+    environment: &database-environment
       - DB_CONNECTION=sqlite
       - DB_DATABASE=/data/database/nexusdav.sqlite
+
+  # Used only with the worker profile (see compose.yaml). SQLite's WAL mode
+  # lets both containers use the same file on one host.
+  nexusdav-worker:
+    environment: *database-environment

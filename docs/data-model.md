@@ -90,6 +90,21 @@ Rejected logins (`kind` `auth_failed`) and DAV answers with status 400 or higher
 
 One address gets at most 10 rows per bucket (`diagnostics.max_rows_per_address`). Further failures from it in that bucket are counted on one summary row with username and path `*` and reason `many usernames`, and only that row's first failure is logged. `http_error` rows have their own limit per address and their own summary row, with reason `many requests`. They get no log line of their own; the request's log line has the same request ID. Repeats in the same minute share a row. The minute is an epoch bucket, so two failures a few seconds apart can be two rows when they cross a bucket boundary. Rows older than 30 days (`config/nexusdav.php`, `diagnostics.retention_days`) are deleted when a new row is written, and at most once per hour. Nothing schedules that delete.
 
+### worker_heartbeats
+
+One row per queue worker container (optional, see the guide's [Queue worker](guide.md#queue-worker-optional)), written by the worker about once a minute. The app reads it through `WorkerStatus`: running while the newest heartbeat is at most five minutes old, stale after that, never seen without a row. A row that has not been written for a day is removed by the next heartbeat of another worker.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | bigint | PK |
+| worker | string(100) | unique, the container's host name |
+| version | string(100) | nullable, the image version |
+| started_at | timestamp | when this `queue:work` process started |
+| beat_at | timestamp | indexed, the last heartbeat |
+| last_probe | string(64) | nullable, the token of the last probe job it ran (`nexusdav:worker-status --probe`) |
+
+The queue itself is Laravel's `jobs` and `failed_jobs` tables, which exist since Version 1.
+
 ## sabre/dav storage tables
 
 Laravel migrations create these tables. sabre/dav 4.7.1 only ships SQL examples and creates nothing itself. The standard PDO backends read and write them through Laravel's PDO connection.

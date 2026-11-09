@@ -8,3 +8,7 @@ services:
     build:
       context: .
       pull: true
+
+  # The worker (worker profile) runs the image built above.
+  nexusdav-worker:
+    image: nexusdav:local

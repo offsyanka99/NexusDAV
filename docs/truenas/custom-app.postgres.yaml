@@ -78,6 +78,44 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Optional queue worker (not needed before WebDAV-Push). To use it, remove
+  # the leading "# " from every line of this block. It runs the same image
+  # in worker mode with the same dataset: no port, no migrations.
+  # nexusdav-worker:
+  #   image: ghcr.io/offsyanka99/nexusdav:0.4.0 # the same version as nexusdav above
+  #   command: ["worker"]
+  #   restart: unless-stopped
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: "0.5"
+  #         memory: 256M
+  #   volumes:
+  #     - /mnt/tank/apps/nexusdav/data:/data # CHANGE ME: the same dataset path as nexusdav
+  #   environment:
+  #     DB_CONNECTION: pgsql
+  #     DB_HOST: postgres
+  #     DB_PORT: "5432"
+  #     DB_DATABASE: nexusdav
+  #     DB_USERNAME: nexusdav
+  #     DB_PASSWORD: change-me-too # CHANGE ME: the same as DB_PASSWORD above
+  #     PUID: "568" # the same as nexusdav
+  #     PGID: "568"
+  #   depends_on:
+  #     nexusdav:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD", "setpriv", "--reuid=nexusdav", "--regid=nexusdav", "--init-groups", "php", "/app/artisan", "nexusdav:worker-status"]
+  #     interval: 60s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 60s
+  #   logging:
+  #     driver: json-file
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+
   postgres:
     image: postgres:18-alpine # 17 also supported; see docs/guide.md#requirements
     restart: unless-stopped
