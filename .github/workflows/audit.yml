@@ -1,0 +1,23 @@
+name: Security audit
+on:
+  pull_request:
+    paths: [composer.lock, package-lock.json]
+  push:
+    branches: [main]
+    paths: [composer.lock, package-lock.json]
+  schedule:
+    - cron: '0 4 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+      - run: composer audit
+      - run: npm audit --audit-level=high
