@@ -65,7 +65,7 @@ jobs:
 
       - name: Tags and labels
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ steps.version.outputs.image }}
           # A pre-release (v1.0.0-rc.1) gets only its exact tag; latest moves on stable releases only.
