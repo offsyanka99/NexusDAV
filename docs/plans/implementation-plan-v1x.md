@@ -14,7 +14,7 @@ The work is split into five milestones and 31 PRs, listed in the order they are 
 
 Sources: [guide](../guide.md), [apps](../apps/README.md), the [admin panel](../apps/admin.md) description, the design notes for [Settings](../design/admin-settings.md), [Configuration](../design/admin-configuration.md) and the [Dashboard](../design/admin-dashboard.md), the pinned WebDAV-Push draft, and the current code.
 
-**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is done and released as **0.3.0** (PR 20 to PR 27). The Sharing pass of the [client checklist](../testing/client-checklist.md#11-sharing) passed on 0.3.0+404d77b with DAVx5 + jtx Board, Thunderbird and an iPad on both databases (Pass 3 table; all of step 11 passed on both databases). M4 is done and released as **0.4.0** (PR 28 to PR 32; the release pass over HTTPS passed on both databases, see [Files testing](../testing/files-testing.md#results-of-the-release-pass)). M5 is in progress: PR 33 (the push spike) is done, PR 34 (the worker) is done, and PR 35 (push discovery and registration), PR 36 (change events and the push queue) and PR 37 (Web Push delivery and the SSRF guard) are implemented. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
+**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is done and released as **0.3.0** (PR 20 to PR 27). The Sharing pass of the [client checklist](../testing/client-checklist.md#11-sharing) passed on 0.3.0+404d77b with DAVx5 + jtx Board, Thunderbird and an iPad on both databases (Pass 3 table; all of step 11 passed on both databases). M4 is done and released as **0.4.0** (PR 28 to PR 32; the release pass over HTTPS passed on both databases, see [Files testing](../testing/files-testing.md#results-of-the-release-pass)). M5 is implemented (PR 33 to PR 39) and prepared as **0.5.0**; its release pass (step 12 of the [client checklist](../testing/client-checklist.md#12-webdav-push), with the phone test) is open. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
 
 Effort levels are the same as in Version 1:
 - **Low** — small, mostly boilerplate or config
@@ -59,8 +59,8 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 | 27 | PR 35 | M5 | Push discovery and subscription registration (implemented; DAVx5 check open) | High | 23, 24, 28, 33 |
 | 28 | PR 36 | M5 | Change events and the push queue (implemented) | High | 34, 35 |
 | 29 | PR 37 | M5 | Web Push delivery and the SSRF guard (implemented; DAVx5 check open) | High | 33, 36 |
-| 30 | PR 38 | M5 | Push in the admin panel | Medium | 34, 35, 37 |
-| 31 | PR 39 | M5 | M5 release | Medium | 32, 33–38 |
+| 30 | PR 38 | M5 | Push in the admin panel (implemented) | Medium | 34, 35, 37 |
+| 31 | PR 39 | M5 | M5 release (prepared as 0.5.0; release pass open) | Medium | 32, 33–38 |
 
 Notes on the order:
 
@@ -846,7 +846,16 @@ Results are in the [Files testing](../testing/files-testing.md#results)
 
 **Done when:** DAVx5 receives a push through ntfy after a change made from another device, the SSRF tests pass, dead subscriptions are removed, and no secret appears in the log.
 
-### PR 38 — Push in the admin panel (Effort: Medium)
+### PR 38 — Push in the admin panel (Effort: Medium) — implemented
+
+**Built:**
+- **Settings:** a **WebDAV-Push** section below Files: the switch, and while it is on, Include Files in push, Push subscriptions per user, Allow private networks and Push log level, each locked by its variable. The help under the switch says whether the queue worker runs.
+- **Diagnostics:** a **Queue worker** card (running or not with the last heartbeat and the worker's name, the jobs waiting, and a warning while push is on and it does not run) and a **Push subscriptions** table (user, collection path, push service host only, created, expires, last push, status Delivered / Failing with the push service's answer / No push yet / Expired / Removing, a status filter, and revoke).
+- **Dashboard:** WebDAV-Push and the Queue worker in the Services card (now 2, 4 and 8 columns), and a Needs attention line when push is on and the worker is stale or never seen. `App\Support\WorkerStatusLabel` words the worker's state the same way on all three pages.
+- English and Russian text.
+
+**Tests:** `PushAdminTest` (8 tests): the fields, hidden while push is off, saving and validation, the locked states, the worker hint, the Services card, the Needs attention line, the Queue worker card, the subscriptions table (host only, statuses, filter, revoke), and the per-job settings reload below. Checked in the browser.
+
 
 - The Settings page: WebDAV-Push on or off, and its options (shown when on), each locked by its variable. The help text says that push needs the worker.
 - The Diagnostics page:
@@ -861,7 +870,16 @@ Results are in the [Files testing](../testing/files-testing.md#results)
 
 **Done when:** an admin can switch push on and set its options, sees and revokes subscriptions, and the Dashboard warns when push is on without a running worker.
 
-### PR 39 — M5 release (Effort: Medium)
+### PR 39 — M5 release (Effort: Medium) — prepared as 0.5.0, release pass open
+
+**Done:**
+- Step 12 (WebDAV-Push) in the [client checklist](../testing/client-checklist.md#12-webdav-push) with a Pass 4 results table; the server-side steps P1 to P12 stay in [push testing](../testing/push-testing.md).
+- Docs: the guide (a WebDAV-Push section, the worker in Quick start, TrueNAS and Configuration, the settings table, endpoints, upgrade, backup, logging, troubleshooting, the client table and the roadmap), [apps](../apps/README.md) and [the admin panel](../apps/admin.md), the Settings, Dashboard and push design notes, [architecture.md](../architecture.md), [data-model.md](../data-model.md) (since PR 35) and [dav-endpoints.md](../dav-endpoints.md#webdav-push).
+- Version 0.5.0 in `compose.yaml`, the TrueNAS files, `SECURITY.md` and the README; the comments that said nothing needs the worker are gone.
+- **Found while preparing:** the worker kept the panel settings it read at start, and its settings cache is in its own container, so switching push on in the panel did not reach it (its jobs dropped the messages as "push off") until the container was recreated. The worker now reads the saved settings again before each job (`ReloadSettingsForJob`). Also new since 0.4.0: log lines and the worker's job lines use the server time zone.
+
+**Open:** the release pass (step 12 and a short regression on both databases), then the release notes and the tag.
+
 
 - A Push section in the client checklist, run with DAVx5 and ntfy on both databases:
   - A calendar and an address book

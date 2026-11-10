@@ -47,7 +47,7 @@ Included in Version 1:
 Not in Version 1 (later):
 
 - Sharing / ACL
-- WebDAV-Push
+- WebDAV-Push (built in Version 1.x, see [WebDAV-Push](#webdav-push) below)
 - Scheduling (free/busy, invitations)
 - Managed attachments
 - Files (WebDAV file storage; it arrived in Version 1.x, see [Files](#files) below)
@@ -133,6 +133,38 @@ Ordinary WebDAV at `/dav/files/<username>/` (0.4.0). It is off until an admin sw
 - The `ACL` method is refused, and there are no sync tokens and no `REPORT` on the file home.
 - A write to a file home is not run again after a busy database; it answers **503** with `Retry-After`.
 - Uploads in progress are in `/data/files/.uploads/`, outside every home. A leftover older than a day is removed by the next upload.
+
+## WebDAV-Push
+
+The bitfire draft (`draft-bitfire-webdav-push-00`, commit `611abe2`), 0.5.0. It is off until an admin switches it on in **Settings → WebDAV-Push**; the queue worker sends the messages. Design: [webdav-push.md](design/webdav-push.md).
+
+**Discovery.** With push on, `OPTIONS` lists `webdav-push` in the `DAV` header, and a `PROPFIND` for these properties (namespace `https://bitfire.at/webdav-push`) answers on push-capable collections:
+
+| Collection | `topic` | `supported-triggers` |
+|---|---|---|
+| A calendar or an address book (owned or shared) | One per collection; the owner and every sharee see the same | `content-update` depth 1, `property-update` depth 0 |
+| The calendar home, the address book home | One per home | `content-update` depth 1 (a collection added, removed or renamed) |
+| A file folder, with **Include Files in push** on | One per folder path | `content-update` depth 1 |
+| The file home, with **Include Files in push** on | One per home | `content-update` depth `infinity` |
+
+`transports` holds `web-push` with the server's `vapid-public-key` (`type="p256ecdsa"`), the same everywhere. Principals, events, cards and files have none of these properties.
+
+**Registration.** A `POST` of a `push-register` body (`Content-Type: application/xml`) to the collection:
+
+| Case | Answer |
+|---|---|
+| New registration | **201**, `Location: <APP_URL>/dav/push/<id>`, `Expires` (the requested time, at most 7 days and at least 1 hour ahead; 3 days when none was asked for) |
+| The same push resource on the same collection again | **204**, the same `Location`, a new `Expires`; the row is updated |
+| Push off, a collection that offers no push, or over **Push subscriptions per user** | **403** with `push-not-available` |
+| Not an `https` push resource (plain http only with **Allow private networks**), a `content-encoding` other than `aes128gcm`, a key that is not an uncompressed P-256 point, or an auth secret that is not 16 bytes | **403** with `invalid-subscription` |
+| No supported trigger left (a depth above the supported one is lowered) | **403** with `no-trigger-supported` (the grammar's name) |
+| Another user's collection | **404** |
+
+**Removal.** `DELETE /dav/push/<id>` by the user who registered: **204**. Unknown, expired or another user's id: **404**. Every other method on `/dav/push/` is **405** (`Allow: DELETE`).
+
+**Push-Dont-Notify.** On a write, `*` sends no message for it; quoted registration URLs skip those registrations of the signed-in user. Other users' URLs are ignored.
+
+**Messages.** About five seconds after a change (changes within those seconds are merged), each matching subscription gets a `POST` to its push resource: `Content-Encoding: aes128gcm`, `TTL: 86400`, `Urgency: normal`, `Topic`, and a VAPID `Authorization` with subject `APP_URL`. The body is a `push-message` with the topic, a `content-update` with the collection's current `sync-token`, and a `property-update` when a property changed, each only when the subscription asked for it. A deleted collection sends a last `content-update`.
 
 ## Concurrent writes
 

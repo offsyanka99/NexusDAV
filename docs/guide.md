@@ -12,7 +12,7 @@ Related documents:
 - [Implementation plan (v1.x)](plans/implementation-plan-v1x.md) — milestones and PRs for the Version 1.x features
 - [Plan for Version 2 and later](plans/version-2-and-later.md) — features for 2.0, 2.x and beyond
 
-Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `0.4.0` (first release `0.1.0`). "Version 1" and "Version 1.x" in these documents name the feature plan, not release numbers: releases stay 0.x until the plan is finished and 1.0.0 is tagged. 0.4.0 completes the first four milestones of the Version 1.x plan: the admin panel in English and Russian (M1), reliable sync (M2), sharing of calendars and address books (M3) and Files, WebDAV file storage (M4). The server passes automated sync tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
+Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `0.5.0` (first release `0.1.0`). "Version 1" and "Version 1.x" in these documents name the feature plan, not release numbers: releases stay 0.x until the plan is finished and 1.0.0 is tagged. 0.5.0 completes the five milestones of the Version 1.x plan: the admin panel in English and Russian (M1), reliable sync (M2), sharing of calendars and address books (M3), Files, WebDAV file storage (M4), and WebDAV-Push with a queue worker (M5). The server passes automated sync tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
 
 NexusDAV is built for homelabs and small teams that want calendars, contacts, tasks, notes and files without running a full groupware suite.
 
@@ -30,7 +30,7 @@ Current limitations:
 
 ## Quick start
 
-1. Get the Compose files and create your environment file. The Compose files pull the published image, `ghcr.io/offsyanka99/nexusdav:0.4.0`:
+1. Get the Compose files and create your environment file. The Compose files pull the published image, `ghcr.io/offsyanka99/nexusdav:0.5.0`:
 
    ```bash
    git clone https://github.com/offsyanka99/NexusDAV.git
@@ -60,6 +60,8 @@ Current limitations:
 
    On first start the container runs database migrations and creates the first admin account from `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 
+   For [WebDAV-Push](#webdav-push), also start the queue worker: add `COMPOSE_PROFILES=worker` to `.env` before `up -d` (see [Queue worker](#queue-worker-optional)). Nothing else needs it.
+
    To build the image from the checkout instead, add `-f compose.build.yaml` as the last file and `--build`, for example `docker compose -f compose.yaml -f compose.sqlite.yaml -f compose.build.yaml up -d --build`.
 
 4. Log in to the admin panel at `http://localhost:8080/admin` (or your `APP_URL`) with the admin credentials from step 2, then create your first user. The user gets a default calendar and address book; add more from the user page. The admin panel creates users and collections. Events, tasks and notes are written by a CalDAV client, not in the admin panel.
@@ -75,8 +77,9 @@ TrueNAS SCALE 24.10 (Electric Eel) and later run Apps on Docker, so a Docker Com
 1. Create a dataset for NexusDAV's data: **Storage > Datasets > Add Dataset**, for example `tank/apps/nexusdav`. With PostgreSQL, also create a second dataset for its data, for example `tank/apps/nexusdav/postgres`. Keep both on a pool local to this machine. SQLite needs a local filesystem; a dataset mounted from another machine over the network does not qualify (see [Database](#database)).
 2. Copy [docs/truenas/custom-app.sqlite.yaml](truenas/custom-app.sqlite.yaml) (good for a single NAS) or [docs/truenas/custom-app.postgres.yaml](truenas/custom-app.postgres.yaml) (recommended for more than a couple of users).
 3. Edit every line marked `CHANGE ME`: the dataset path(s) from step 1, `APP_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and the host port if `8080` is already used by another app. The file has no separate place for environment variables or a `.env` file, so values are written directly into it.
-4. **Apps > Discover Apps**, then **Custom App** (top right) **> Install via YAML**. Paste the edited file and install.
-5. Continue from step 4 of [Quick start](#quick-start).
+4. For [WebDAV-Push](#webdav-push), also remove the `# ` at the start of each line of the worker block at the end of the file, and give it the same dataset path, image tag and (PostgreSQL) `DB_PASSWORD` as the app. TrueNAS cannot pick Compose profiles, so the block is commented out by default.
+5. **Apps > Discover Apps**, then **Custom App** (top right) **> Install via YAML**. Paste the edited file and install.
+6. Continue from step 4 of [Quick start](#quick-start).
 
 `PUID` and `PGID` default to `568`, the UID TrueNAS SCALE apps conventionally run as, so the dataset's ownership matches what the container expects. Each container is capped at 1 CPU. NexusDAV is limited to 768 MB, and PostgreSQL to 1 GB. Those are ceilings; raise them in the YAML if the app is stopped for running out of memory during a large sync. Put it behind an HTTPS reverse proxy before exposing it outside your network — Nginx Proxy Manager and Caddy are themselves TrueNAS SCALE apps, or use one of the files in [docs/proxy](proxy/). To upload large files to Files, the proxy and the dataset need the settings in [Large file uploads](#large-file-uploads-files).
 
@@ -103,11 +106,11 @@ Running with Docker needs only Docker Engine with the Compose plugin. The table 
 
 **Security note (October 2026):** PHP 8.4.27, 8.3.36, 8.2.35 and 8.5.12 fix two critical unauthenticated RCE vulnerabilities (CVE-2026-109618, CVE-2026-109619). The Docker image must use a patched PHP version.
 
-**Required PHP extensions:** `ctype`, `curl`, `date`, `dom`, `fileinfo`, `filter`, `hash`, `iconv`, `intl`, `json`, `libxml`, `mbstring`, `openssl`, `pcre`, `pdo`, `pdo_pgsql`, `pdo_sqlite`, `session`, `simplexml`, `tokenizer`, `xml`, `zip`.
+**Required PHP extensions:** `ctype`, `curl`, `date`, `dom`, `fileinfo`, `filter`, `gmp`, `hash`, `iconv`, `intl`, `json`, `libxml`, `mbstring`, `openssl`, `pcntl`, `pcre`, `pdo`, `pdo_pgsql`, `pdo_sqlite`, `session`, `simplexml`, `tokenizer`, `xml`, `zip`. `pcntl` lets the queue worker stop gracefully; `gmp` serves the Web Push library (without it the library prints a notice on every use). The image has both.
 
 `intl` is required by Filament. PHP must also be built with Argon2 support (`password_hash` with `PASSWORD_ARGON2ID`); the official PHP Docker images include it.
 
-**WebDAV-Push:** sabre/dav does not provide this. Version 1.x implements the bitfire draft [bitfireAT/webdav-push](https://github.com/bitfireAT/webdav-push) at commit `611abe2e8a0cdd7570cb936844b6588f7145b27d` (`draft-bitfire-webdav-push-00`). NexusDAV stays on that commit until the project publishes a release, then switches to the release. It is switched on or off in the admin panel.
+**WebDAV-Push:** sabre/dav does not provide this. Version 1.x implements the bitfire draft [bitfireAT/webdav-push](https://github.com/bitfireAT/webdav-push) at commit `611abe2e8a0cdd7570cb936844b6588f7145b27d` (`draft-bitfire-webdav-push-00`). NexusDAV stays on that commit until the project publishes a release, then switches to the release. It is switched on or off in the admin panel, and its messages are sent by the queue worker (see [WebDAV-Push](#webdav-push)).
 
 ## Tech stack
 
@@ -137,13 +140,14 @@ Reverse proxy overrides (Caddy, Traefik) are in [docs/proxy](proxy/); see [Rever
 
 ### Queue worker (optional)
 
-A second container, `nexusdav-worker`, runs the same image in worker mode: it takes jobs from the database queue and runs them, so the app never waits for them. **Nothing needs it yet**; WebDAV-Push (a later 1.x release) will send its messages through it.
+A second container, `nexusdav-worker`, runs the same image in worker mode: it takes jobs from the database queue and runs them, so the app never waits for them. [WebDAV-Push](#webdav-push) sends its messages through it; nothing else needs it, so without push it can stay off.
 
 - **Start it:** add `COMPOSE_PROFILES=worker` to `.env` and run `docker compose … up -d` as usual, or add `--profile worker` to the command. Without the profile it is not started.
 - **What it uses:** the same environment, the same `/data` volume and the same database as the app (the database file adds its variables to the worker too). With SQLite both containers use the same file; WAL mode allows that on one host. It has no port, runs no migrations and creates no admin, and it starts once the app is healthy.
 - **Is it running?** `docker compose exec nexusdav php artisan nexusdav:worker-status` prints "Worker running", "Worker stale" (no heartbeat for five minutes) or "No worker has been seen". `--probe` also sends a test job and waits for the worker to run it. The worker writes its heartbeat to the database about once a minute, and the worker container's health check uses the same command.
 - **Restarts:** `queue:work` stops by itself after an hour, or above 128 MB, and starts again inside the container. On `docker compose stop` the job that is running finishes first.
-- **TrueNAS:** the custom app files have a worker block that is commented out; remove the `# ` from its lines to use it.
+- **TrueNAS:** the custom app files have a worker block that is commented out; remove the `# ` from its lines to use it. To stop only the worker, run `docker stop <worker container>` in the TrueNAS shell (`docker ps` shows its name); it starts again when the app is restarted or updated.
+- **In the panel:** the Dashboard's Services card shows whether it runs, Needs attention warns when push is on and it does not, and Diagnostics shows its last heartbeat and the jobs waiting.
 
 See [Quick start](#quick-start) for the exact commands. PostgreSQL is recommended for production; SQLite is intended for simple deployments and development.
 
@@ -174,7 +178,7 @@ If you lose access to the admin account, see [Resetting the admin password](#res
 
 ### Settings in the admin panel
 
-These settings are changed on the **Settings** and **Configuration** pages. A change applies from the next request, with no restart. Each has an environment variable; when it is set, that value wins and the panel shows the field locked. Leave the variable unset to manage the setting in the panel. With Docker, add a variable to the `environment:` list of the `nexusdav` service in `compose.yaml`.
+These settings are changed on the **Settings** and **Configuration** pages. A change applies from the next request, with no restart. Each has an environment variable; when it is set, that value wins and the panel shows the field locked. Leave the variable unset to manage the setting in the panel. With Docker, add a variable to the `environment:` list of the `nexusdav` service in `compose.yaml`; the worker shares that list. On TrueNAS, add it to the worker block too.
 
 | Setting | Page | Variable | Default |
 |---|---|---|---|
@@ -185,6 +189,11 @@ These settings are changed on the **Settings** and **Configuration** pages. A ch
 | Sharing on or off | Settings | `NEXUSDAV_SHARING` | on |
 | Files on or off | Settings | `NEXUSDAV_FILES` | off |
 | Maximum upload size for Files (MB, 1 to 102400) | Settings | `NEXUSDAV_FILES_MAX_UPLOAD_MB` | `128` |
+| WebDAV-Push on or off | Settings | `NEXUSDAV_PUSH` | off |
+| Include Files in push | Settings | `NEXUSDAV_PUSH_FILES` | off |
+| Push subscriptions per user (1 to 10000) | Settings | `NEXUSDAV_PUSH_MAX_SUBSCRIPTIONS` | `100` |
+| Allow private networks (push services on plain http or the LAN) | Settings | `NEXUSDAV_PUSH_ALLOW_PRIVATE` | off |
+| Push log level | Settings | `NEXUSDAV_PUSH_LOG_LEVEL` | `info` |
 | Log level | Settings | `LOG_LEVEL` | `debug` |
 | Keep sync history for (days) | Settings | `NEXUSDAV_SYNC_HISTORY_DAYS` | `90` |
 | Default panel language (`en` or `ru`) | Configuration | `NEXUSDAV_LOCALE` | `en` |
@@ -212,7 +221,7 @@ What the service switches do:
 
 **Language.** The admin panel ships in English and Russian. Each admin chooses a language under **Language** in the user menu; the item shows the language in use, and "Server default (…)" when it is not the admin's own choice. **Server default** clears the choice and follows the Configuration setting. A language chosen in the user menu always wins over the Configuration setting, so changing the server default does not change an admin who chose their own (Configuration says so when you save). The login page always uses the server default. A value of `NEXUSDAV_LOCALE` that is not a shipped language falls back to English. Only the panel is translated: DAV responses, `/health`, the container log and the reasons stored for Diagnostics stay in English, so log searches keep working; the Diagnostics page shows those reasons in the admin's language. To add a language, see [CONTRIBUTING.md](../CONTRIBUTING.md#translations).
 
-The server time zone applies to users without their own time zone, becomes the `calendar-timezone` of new calendars (the owner's own zone wins when set), and is the zone the panel shows times in. Turning on secure cookies is refused unless the panel is open over HTTPS, so an admin cannot sign themselves out by accident.
+The server time zone applies to users without their own time zone, becomes the `calendar-timezone` of new calendars (the owner's own zone wins when set), is the zone the panel shows times in, and the zone of the times in the log lines of the app and the worker (stored times stay in UTC). Turning on secure cookies is refused unless the panel is open over HTTPS, so an admin cannot sign themselves out by accident.
 
 ### Resetting the admin password
 
@@ -339,6 +348,13 @@ NexusDAV targets standards-compliant clients. The table shows the Version 1 targ
 | **DAVx5 WebDAV mounts** (Android) | 4.5.21 on Android 17, 0.4.0, both databases: connects, lists and downloads. DAVx5's mount offers few functions, so it is a way to read files, not to manage them |
 | Windows Explorer, macOS Finder | Not tested by the project; reports are welcome |
 
+**WebDAV-Push (0.5.0).** The steps are P1 to P12 in [push testing](testing/push-testing.md) and the Push section of the [client checklist](testing/client-checklist.md#12-webdav-push).
+
+| Client | Status |
+|---|---|
+| **DAVx⁵** 4.4.10+ (Android) with ntfy or FCM | Release pass pending. Before it, a real ntfy server received a push from the built image and the message decrypted with the current sync token |
+| Thunderbird, Apple Calendar and Contacts, vdirsyncer | No WebDAV-Push support in the client; they sync on their own schedule as before |
+
 **Recommended clients for testing**
 
 - **Android:** DAVx⁵ (Google Play) + jtx Board — events, contacts, tasks and notes
@@ -432,6 +448,28 @@ Files is each user's own WebDAV storage for documents and other files. It is not
 
 **Known client behaviour.** GNOME Files shows "Operation not supported. Do you want to skip it?" after a copy and paste into another folder, although the copy is complete: it tries to set the copy's modification time, which its WebDAV support cannot do. Choose **Skip**. **Retry** makes a second copy.
 
+### WebDAV-Push
+
+With WebDAV-Push a client hears within seconds that a calendar, an address book or a folder changed, instead of finding out on its next scheduled sync. NexusDAV implements the bitfire draft (see [Requirements](#requirements)). It arrived in 0.5.0 and is **off until an admin switches it on**, also after an upgrade.
+
+**What it needs.**
+
+1. **The queue worker.** The app only records changes; the worker sends the messages. Start it as in [Queue worker](#queue-worker-optional). Without it, messages wait in the queue, and the Dashboard warns.
+2. **Push switched on:** **Settings → WebDAV-Push**, or `NEXUSDAV_PUSH=true` on the app and the worker (the field is then locked).
+3. **A client that supports it.** DAVx⁵ 4.4.10 or newer on Android, with a UnifiedPush distributor: the **ntfy** app (with ntfy.sh or your own ntfy server), or Google's **FCM** through Play services. Pick it in DAVx⁵ under **Settings → Push**, then sync the account once. Other clients keep syncing on their schedule.
+
+**What happens.** On its next sync DAVx⁵ subscribes to every calendar and address book it syncs. A change from any other device (an event added in Thunderbird, a contact changed by a sharee) sends one message to each subscribed device, about five seconds later; changes within those five seconds are merged into one message. The phone then syncs that collection. A device is not told about its own changes. A shared calendar notifies the owner's and every sharee's devices.
+
+- **Subscriptions** last at most seven days; DAVx⁵ renews them every day. They are listed on **Diagnostics → Push subscriptions** with the push service's host, the expiry, the last push and its status. **Revoke** stops one until the device subscribes again; revoking the device's app password stops it for good. Disabling or deleting a user, removing a share or deleting a collection removes its subscriptions.
+- **Per user** at most **Push subscriptions per user** (100 by default); one device uses one per calendar and address book.
+- **Include Files in push** offers push on file folders too. No client tested by the project uses it yet.
+- **Privacy.** Messages go through the push service (ntfy, or Google for FCM), encrypted for the device. The service sees only an opaque topic and the timing, never names or contents.
+- **Security.** The server sends only to `https` push services on public addresses: the address is checked when the message is sent and the connection is pinned to it, with no redirects. A self-hosted ntfy on the LAN needs **Allow private networks** (`NEXUSDAV_PUSH_ALLOW_PRIVATE=true`); otherwise its subscriptions are removed with a warning in the log.
+- **Delivery.** A push service that is busy or unreachable is tried again after 30 seconds, 2 minutes and 10 minutes. A subscription the push service no longer knows (404 or 410) is removed after a day without success, any other failing one after three days.
+- **Log.** Push lines use **Push log level** (`info` by default; `debug` logs every message sent) and show only the push service's host, never its address or keys.
+
+The protocol details (properties, registration, the `/dav/push/<id>` URLs) are in [DAV endpoints](dav-endpoints.md#webdav-push) and the [design note](design/webdav-push.md).
+
 ### DAV endpoints
 
 Most clients need only the root URL; they discover the rest on their own. Use the other URLs only for clients without discovery. Paths follow the sabre/dav layout.
@@ -445,6 +483,7 @@ Most clients need only the root URL; they discover the rest on their own. Use th
 | Address book home | `/dav/addressbooks/<username>/` |
 | Address books | `/dav/addressbooks/<username>/<addressbook-id>/` |
 | Files (WebDAV, off until an admin switches it on) | `/dav/files/<username>/` |
+| WebDAV-Push registration (only `DELETE`, by the client that registered) | `/dav/push/<id>` |
 
 Creating a user creates the two homes and, inside them, a default calendar and a default address book (both named `default`). A client signed in with that user's app password discovers them from the root (`current-user-principal`, `calendar-home-set`, `addressbook-home-set`). Another user's homes are not returned. The admin panel can add, edit, and delete calendars and address books. Calendar and address book URLs use the collection identifier, not its display name.
 
@@ -462,7 +501,7 @@ The table shows the version in which each item arrives (see [Roadmap](#roadmap))
 | Notes (VJOURNAL) via CalDAV | Version 1 |
 | Collection sync (sync-token), provided by sabre/dav | Version 1 |
 | Sharing of calendars and address books (read-only or read-write, set up in the admin panel; clients do not create shares) | Version 1.x |
-| WebDAV-Push (bitfire draft, on/off in the admin panel; not a sabre/dav plugin) | Version 1.x |
+| WebDAV-Push (bitfire draft, on/off in the admin panel, sent by the queue worker; not a sabre/dav plugin) | Version 1.x (0.5.0) |
 | CalDAV Scheduling, on-server invitations and free/busy | Version 2 |
 | Outbound email (external invitations, notices, reminders, reports) | Version 2.x |
 | Files (WebDAV file storage, off until an admin switches it on) | Version 1.x (0.4.0) |
@@ -542,7 +581,7 @@ The database backup commands below were run against the image. The restore steps
 **What to back up**
 
 - The database and the data volume, taken at the same time (or with the application briefly stopped) so they stay consistent. The data volume holds `APP_KEY` (`/data/app.key`) and, with Files on, every user's files in `/data/files`, which can be far larger than the database (see [Files](#files)).
-- `.env`. It holds `APP_URL`, the database password and the other boot settings. `APP_KEY` is not in it, so keep a separate copy of `/data/app.key`: without it, encrypted values cannot be read after a restore. Store that copy apart from the database backup.
+- `.env`. It holds `APP_URL`, the database password and the other boot settings. `APP_KEY` is not in it, so keep a separate copy of `/data/app.key`: without it, encrypted values cannot be read after a restore. Those include the WebDAV-Push keys; without them the server makes new ones and devices subscribe again within a day. Store that copy apart from the database backup.
 
 **Database backup**
 
@@ -580,6 +619,7 @@ Export the settings before an upgrade and keep the file with your other backups.
 3. Run `docker compose pull` and `docker compose up -d`, with the same `-f` files as at install. Database migrations run automatically on start. With `compose.build.yaml`, update the checkout instead and run `up -d --build`.
 4. Upgrade one minor version at a time. There is no rollback other than restoring the backup.
 5. **Files is off after an upgrade to 0.4.0** until an admin switches it on under **Settings → Files** (see [Files](#files)). The upgrade needs no migration and changes no setting.
+6. **WebDAV-Push is off after an upgrade to 0.5.0** until an admin switches it on under **Settings → WebDAV-Push**, and it needs the queue worker (see [WebDAV-Push](#webdav-push)). Set the new image tag on the worker too. The upgrade adds tables for the worker and push; nothing else changes.
 
 **PostgreSQL major version changes** (for example 17 → 18): the official Postgres images changed their data directory layout starting with 18 (a single volume mount, with data stored under a version-specific subdirectory). An existing 17 data volume cannot be reused as-is by an 18 image. `pg_dump` your database first, then either keep using the matching Postgres major version, or follow [upstream's upgrade guidance](https://github.com/docker-library/postgres/issues/37) (`pg_upgrade` or dump-and-restore into a fresh volume) before switching image tags.
 
@@ -590,7 +630,7 @@ Automatic backups are a long-term goal (see [Roadmap](#roadmap)).
 ### Health check and logging
 
 - **Health check:** `GET /health` is unauthenticated. It returns `{"status":"ok"}` when the application and the database are up, and `{"status":"unavailable"}` with HTTP 503 otherwise. It does not include versions, paths, or SQL. Compose uses it as the container healthcheck. A healthy check is not logged, so the log does not fill with a line every 30 seconds; a failing one is. The admin Dashboard shows the same database check. Richer checks inside the admin panel are Version 2+.
-- **Logs:** written to stderr, so `docker compose logs` works. The image sets `LOG_CHANNEL=stderr`. Nothing is written to `storage/logs` inside the container. `LOG_LEVEL` defaults to `debug` when unset. Use `info` or higher in production.
+- **Logs:** written to stderr, so `docker compose logs` works. The image sets `LOG_CHANNEL=stderr`. Nothing is written to `storage/logs` inside the container. `LOG_LEVEL` defaults to `debug` when unset. Use `info` or higher in production. Log lines show the time in the server time zone (Configuration).
 - **What is logged:**
   - **One line per request,** with the method, the path without the query string, the status, the signed-in user (DAV or admin panel, otherwise `null`), the client address and the duration. The level follows the status: `ERROR` for 5xx, `WARNING` for 4xx, and `INFO` for the rest. A 401 is `INFO`, because clients get one on every first contact before they send the password; a rejected password has its own `WARNING` line. For example:
 
@@ -605,7 +645,8 @@ Automatic backups are a long-term goal (see [Roadmap](#roadmap)).
   - **Unexpected errors** inside a DAV request, with the stack trace.
   - **Rejected logins** (admin or DAV), with source, IP, username, path, status, and reason. They are also stored in `diagnostic_events`. One address gets at most 10 rows per minute; further failures from it are counted on one `many usernames` row and logged once.
   - DAV answers with status 400 or higher (except 401) are stored the same way as `http_error` rows; their request line is the log entry. Both kinds are listed on the admin panel's Diagnostics page and summarised on the Dashboard. A DAV request that sends no credentials is not stored.
-  - **Never logged or stored:** passwords, app password secrets, the `Authorization` header, other request headers, query strings and request bodies.
+  - **Push:** subscriptions registered, renewed and removed, and messages that could not be delivered, at **Push log level**. Only the push service's host is logged.
+  - **Never logged or stored:** passwords, app password secrets, the `Authorization` header, other request headers, query strings and request bodies, and push service addresses or keys.
 - **Rotation:** Compose sets `max-size` `10m` and `max-file` `3`.
 - **Caching:** at each start the container caches config, routes, events, views and Filament components (`php artisan optimize`) and serves PHP with OPcache. Changing an environment variable takes a restart, which happens anyway when Compose recreates the container.
 
@@ -622,6 +663,10 @@ Automatic backups are a long-term goal (see [Roadmap](#roadmap)).
 | Large file upload fails | 413 from the app: the file is over Maximum upload size (Settings → Files). 413 from the proxy, a reset connection or a timeout: the proxy's body limit or timeouts are too low (nginx allows 1 MB by default; the files in [docs/proxy](proxy/) allow 128 MB). 507: the data volume is full. See [Large file uploads](#large-file-uploads-files). |
 | `/dav/files/` answers 403 "Files is turned off on this server." | Files is off. Switch it on under **Settings → Files**. |
 | GNOME Files shows "Operation not supported" after a copy and paste | The copy is complete. Choose **Skip**; Retry makes a second copy (see [Files](#files)). |
+| The Dashboard says WebDAV-Push is on but the queue worker is not running | The worker is not started, or stopped. Start it (see [Queue worker](#queue-worker-optional)); waiting messages are sent then. Diagnostics shows its last heartbeat. |
+| DAVx⁵ does not subscribe (no push subscriptions on Diagnostics) | Push is off, DAVx⁵ has no push service (**Settings → Push**: install ntfy or use FCM), or DAVx⁵ is older than 4.4.10. Sync the account after choosing the push service. |
+| Push subscriptions show **Failing** | The push service refused the message; the status shows its answer. A subscription that keeps failing is removed after one to three days. |
+| The log says a push subscription was removed because its push service address is not allowed | The push service is on a private network (a LAN ntfy). Turn on **Allow private networks**. |
 | You want to know what a status code on Diagnostics means | The (i) button on **Latest DAV errors** lists the codes the server returns, what each means here and what to check. |
 | A DAV error is listed on Diagnostics and you need more detail | Search the log for its Request ID: `docker compose logs nexusdav \| grep <id>`. |
 | Tasks or notes are not visible | The client app does not display them (see [Client compatibility](#client-compatibility)). |
@@ -657,7 +702,7 @@ Export calendars as `.ics` and contacts as `.vcf` from your current server (Radi
 ### Version 1.x
 
 - Basic Sharing and ACL: an admin shares a calendar or address book with another user, read-only or read-write. **Released in 0.3.0**
-- WebDAV-Push, with an on/off toggle in the admin panel settings and its subscriptions on the Diagnostics page
+- WebDAV-Push, with an on/off toggle in the admin panel settings and its subscriptions on the Diagnostics page. **Released in 0.5.0**
 - Multilingual admin panel (English and Russian, more as translation files). **Released in 0.1.2**
 - Files (WebDAV file storage). **Released in 0.4.0**
 - Improved sync reliability

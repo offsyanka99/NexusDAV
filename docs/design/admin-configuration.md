@@ -9,7 +9,7 @@ The Configuration page holds server-wide preferences that are not tied to a spec
 ## Version 1
 
 **Time** section:
-- Server time zone (`NEXUSDAV_TIMEZONE`, default `UTC`). Used for users without their own time zone, as the `calendar-timezone` of new calendars (the owner's own zone wins when set), and to show times in the panel.
+- Server time zone (`NEXUSDAV_TIMEZONE`, default `UTC`). Used for users without their own time zone, as the `calendar-timezone` of new calendars (the owner's own zone wins when set), to show times in the panel, and for the times in the log lines of the app and the worker. Stored times stay in UTC.
 - Time format, 24-hour or 12-hour (`NEXUSDAV_TIME_FORMAT`, default `24`)
 - Week starts on, Sunday to Saturday (`NEXUSDAV_WEEK_START`, default Monday)
 

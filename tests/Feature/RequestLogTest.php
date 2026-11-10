@@ -7,6 +7,7 @@ use App\Logging\ContainerLineFormatter;
 use App\Models\DiagnosticEvent;
 use App\Models\User;
 use App\Services\AppPasswordService;
+use App\Services\SettingsService;
 use App\Services\UserService;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -92,6 +93,25 @@ class RequestLogTest extends TestCase
         $this->assertStringContainsString('[stacktrace]', $line, 'The stack trace stays with the error.');
         $this->assertStringNotContainsString('production', strtok($line, "\n"));
         $this->assertSame(ContainerLineFormatter::class, config('logging.channels.stderr.formatter'));
+    }
+
+    public function test_log_lines_and_worker_lines_use_the_server_time_zone(): void
+    {
+        $settings = app(SettingsService::class);
+        $settings->save(['timezone' => 'America/New_York']);
+
+        try {
+            $record = new LogRecord(new \DateTimeImmutable('2026-11-09 23:09:07', new \DateTimeZone('UTC')), 'production', Level::Debug, 'Push messages queued');
+
+            $this->assertStringStartsWith('2026-11-09 18:09:07 DEBUG Push messages queued', (new ContainerLineFormatter)->format($record));
+            $this->assertSame('America/New_York', config('queue.output_timezone'));
+            $this->assertSame('UTC', config('app.timezone'), 'The application itself stays in UTC.');
+
+            config(['nexusdav.default_timezone' => 'Not/AZone']);
+            $this->assertStringStartsWith('2026-11-09 23:09:07 DEBUG', (new ContainerLineFormatter)->format($record));
+        } finally {
+            $settings->save(['timezone' => 'UTC']);
+        }
     }
 
     public function test_other_log_lines_of_the_request_carry_its_id(): void

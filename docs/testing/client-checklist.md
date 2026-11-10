@@ -2,7 +2,7 @@
 
 A hand test with real clients, run before a release on the devices in [Decision 15](../plans/implementation-plan-v1x.md#decisions): **DAVx5** with **jtx Board** on Android, and **Thunderbird** on Linux. Automated tests cover the protocol; this checklist covers what the clients actually do with it.
 
-Run every step for each client on both databases, record one result per cell in [Results](#results), and open a GitHub issue for each failure (see [When a step fails](#when-a-step-fails)). Later milestones add their own sections ([Sharing](#11-sharing) is in; [Files](files-testing.md) has the PR 28 checks; WebDAV-Push follows). Before a release, run the sections the release touched; the results also go in the guide's [client compatibility](../guide.md#client-compatibility) table.
+Run every step for each client on both databases, record one result per cell in [Results](#results), and open a GitHub issue for each failure (see [When a step fails](#when-a-step-fails)). Later milestones add their own sections ([Sharing](#11-sharing) and [WebDAV-Push](#12-webdav-push) are in; [Files](files-testing.md) and [push testing](push-testing.md) have their own checks). Before a release, run the sections the release touched; the results also go in the guide's [client compatibility](../guide.md#client-compatibility) table.
 
 ## Setup
 
@@ -218,6 +218,27 @@ Give `owner` an event, a task and a note in its default calendar (note and task 
 
 **Fail:** any 500; a write by `ro` that is saved; `rw`'s change missing for `owner`; a collection of `owner` other than the shared one visible to a sharee; a share still shown after it was removed and the client synced; the owner's data changed by a rename, a removal or leaving a share.
 
+### 12. WebDAV-Push
+
+Run this step for the M5 release (and whenever push code changes), on both servers. It needs the queue worker (Compose: `COMPOSE_PROFILES=worker`; TrueNAS: the worker block uncommented), the phone with DAVx⁵ 4.4.10+ and a push service picked under **DAVx⁵ → Settings → Push** (the ntfy app, or FCM), and Thunderbird as the "other device". Keep the users of step 11 (`owner` shares its calendar with `rw`; the phone has a DAVx5 account for `owner` and one for `rw`). For a self-hosted ntfy on the LAN, turn on **Allow private networks**. The server-side steps with the worker log are P1 to P12 in [push testing](push-testing.md).
+
+| ID | Do | Pass |
+|---|---|---|
+| 12a | **Settings → WebDAV-Push** on, **Save**. Open the **Dashboard** | The help under the switch says the worker is running. Services shows WebDAV-Push **On** and Queue worker **Running**; Needs attention is quiet |
+| 12b | On the phone, sync both DAVx5 accounts. Open **Diagnostics → Push subscriptions** | One row per synced calendar and address book of `owner` and `rw`, with the push service host (ntfy or the FCM gateway), an expiry about three days ahead and **No push yet**. No 403 for `POST` under Latest DAV errors |
+| 12c | Lock the phone. In Thunderbird as `owner`, add an event to the default calendar | Within about 10 seconds the event is on the phone without a manual sync. The calendar's row on Diagnostics shows **Delivered** and a **Last push** time |
+| 12d | In Thunderbird as `owner`, add a contact | The contact is on the phone within about 10 seconds |
+| 12e | In Thunderbird as `owner`, edit an event of the calendar shared with `rw` | `rw`'s DAVx5 account on the phone shows the change within seconds, through the same topic |
+| 12f | In Thunderbird add three events quickly | One push and one sync on the phone, not three |
+| 12g | In the panel, revoke `rw`'s app password used by the phone. Change the shared calendar in Thunderbird | `rw`'s subscriptions are gone from Diagnostics and nothing reaches `rw`'s account. Sign `rw` in again with a new app password afterwards |
+| 12h | Stop the worker (`docker stop <worker>`). Open the Dashboard, then add an event in Thunderbird. Wait a minute, then start the worker | Within five minutes the Dashboard shows Queue worker **Not running** and a Needs attention line; Diagnostics shows the last heartbeat and jobs waiting. Nothing reaches the phone while it is stopped; the push arrives within seconds of the start |
+| 12i | **Revoke** one subscription on Diagnostics, then sync that DAVx5 account | The row disappears, then comes back after the sync (DAVx5 subscribes again) |
+| 12j | **WebDAV-Push** off, **Save**. Sync the phone | The Push subscriptions table says push is off; the phone keeps syncing on its schedule. Calendars and contacts work as before |
+| 12k | Switch the panel to Russian: the WebDAV-Push section of Settings, the Services card, the Needs attention line and the two Diagnostics cards | The text is in Russian and nothing is cut off |
+| 12l | **Diagnostics** after the whole run | No 5xx rows |
+
+**Fail:** a change that does not reach the phone within a minute while the worker runs; more than one push for one change or a burst; a push after the app password was revoked; a subscription row that shows a full push address or a key; any 5xx.
+
 ## When a step fails
 
 1. Note the step ID, the client and its version, the database, and what happened.
@@ -347,3 +368,31 @@ Run on the release candidate (the tag that will be released), with both servers 
 | 11r Delete a user with received shares | ➖ | ➖ | ➖ | ➖ | Panel only. PostgreSQL ✅ · SQLite ✅ |
 | 11s Russian text | ➖ | ➖ | ➖ | ➖ | Panel only. PostgreSQL ✅ · SQLite ✅ |
 | 11t Diagnostics | ➖ | ➖ | ➖ | ➖ | PostgreSQL ✅ · SQLite ✅ |
+
+### Pass 4 (M5 release candidate, PR 39)
+
+| Run log | |
+|---|---|
+| Date | |
+| Build (Dashboard version) | |
+| Tester | |
+| PostgreSQL server | |
+| SQLite server | |
+| DAVx5 and its push service (ntfy or FCM) | |
+| Thunderbird | |
+
+| Step | PostgreSQL | SQLite | Notes |
+|---|---|---|---|
+| 12a Push on, Dashboard | ⬜ | ⬜ | |
+| 12b DAVx5 subscribes | ⬜ | ⬜ | |
+| 12c An event reaches the phone | ⬜ | ⬜ | |
+| 12d A contact reaches the phone | ⬜ | ⬜ | |
+| 12e A shared calendar reaches the sharee | ⬜ | ⬜ | |
+| 12f One push for a burst | ⬜ | ⬜ | |
+| 12g Revoked app password | ⬜ | ⬜ | |
+| 12h Worker stopped, then started | ⬜ | ⬜ | |
+| 12i Revoke a subscription | ⬜ | ⬜ | |
+| 12j Push off | ⬜ | ⬜ | |
+| 12k Russian text | ⬜ | ⬜ | |
+| 12l Diagnostics | ⬜ | ⬜ | |
+| Regression: steps 1, 2a, 2e, 4 and 11d with DAVx5 and Thunderbird | ⬜ | ⬜ | |

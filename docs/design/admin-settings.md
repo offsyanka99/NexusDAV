@@ -28,13 +28,13 @@ A **Save** button stores the values. A change applies from the next request.
   When enabled, the following field becomes available:
   - Maximum upload size (`NEXUSDAV_FILES_MAX_UPLOAD_MB`, default 128, 1 to 102400 MB). It applies to uploads to `/dav/files/` only. A larger upload is refused with 413. Above 128 MB the reverse proxy's body limit has to be raised too (see the guide's [large file uploads](../guide.md#large-file-uploads-files)). The saved value is kept while Files is off.
   Both fields are locked when their variable is set.
-- Enable or disable WebDAV-Push, default off after an upgrade
+- Enable or disable WebDAV-Push (`NEXUSDAV_PUSH`, default off after an upgrade). Built in 0.5.0, in its own **WebDAV-Push** section below Files. The help under the switch says whether the queue worker, which sends the messages, is running.
   When enabled, the following fields become available:
-  - Include WebDAV-Push for file storage
-  - Max push subscriptions per user (default 100)
-  - Push log level
-  - Allow push endpoints on private networks
-  Push uses the same `/dav/` URLs as sync, so there is no separate push URL setting.
+  - Include Files in push (`NEXUSDAV_PUSH_FILES`, default off): file folders offer push too, while Files is on
+  - Push subscriptions per user (`NEXUSDAV_PUSH_MAX_SUBSCRIPTIONS`, default 100, 1 to 10000)
+  - Allow private networks (`NEXUSDAV_PUSH_ALLOW_PRIVATE`, default off): push services on plain http or private addresses, such as ntfy on the LAN
+  - Push log level (`NEXUSDAV_PUSH_LOG_LEVEL`, default `info`)
+  Each is locked when its variable is set. The saved options are kept while push is off. Push uses the same `/dav/` URLs as sync, so there is no separate push URL setting.
 
 File storage is on the data volume, so it has no path setting. Per-user quotas, trash and deleted-user file retention are not part of Version 1.x; quotas are Version 2.x (see [Files](../apps/files.md)). See also [WebDAV-Push](../guide.md#requirements).
 

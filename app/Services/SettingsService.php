@@ -143,6 +143,12 @@ final class SettingsService
             if ($key === 'log_level') {
                 $this->applyLogLevel((string) $value);
             }
+
+            // queue:work prints its job lines in this zone, like the log lines
+            // (ContainerLineFormatter). The application stays in UTC.
+            if ($key === 'timezone') {
+                config(['queue.output_timezone' => (string) $value]);
+            }
         }
     }
 
@@ -158,6 +164,23 @@ final class SettingsService
     }
 
     /**
+     * Reads the saved values from the database again, past the cache, and
+     * applies them. The queue worker does this before each job: its cache
+     * is in its own container, so a save in the panel never clears it, and
+     * its process outlives many saves.
+     */
+    public function reload(): void
+    {
+        try {
+            $this->stored = $this->readDatabase();
+        } catch (Throwable) {
+            return;
+        }
+
+        $this->apply();
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function stored(): array
@@ -167,21 +190,27 @@ final class SettingsService
         }
 
         try {
-            $values = $this->cache()->rememberForever(self::CACHE_KEY, function (): array {
-                $values = [];
-
-                foreach (Setting::query()->pluck('value', 'key') as $key => $json) {
-                    $values[(string) $key] = json_decode((string) $json, true);
-                }
-
-                return $values;
-            });
+            $values = $this->cache()->rememberForever(self::CACHE_KEY, fn (): array => $this->readDatabase());
         } catch (Throwable) {
             // Before the first migration the table does not exist yet.
             return [];
         }
 
         return $this->stored = $values;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function readDatabase(): array
+    {
+        $values = [];
+
+        foreach (Setting::query()->pluck('value', 'key') as $key => $json) {
+            $values[(string) $key] = json_decode((string) $json, true);
+        }
+
+        return $values;
     }
 
     private function cache(): Repository

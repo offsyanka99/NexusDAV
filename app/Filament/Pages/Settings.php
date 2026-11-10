@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Services\SettingsService;
+use App\Services\WorkerStatus;
 use BackedEnum;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -38,7 +39,7 @@ class Settings extends SettingsPage
      */
     protected function settingKeys(): array
     {
-        return ['caldav', 'carddav', 'tasks', 'notes', 'sharing', 'files', 'files_max_upload_mb', 'log_level', 'sync_history_days'];
+        return ['caldav', 'carddav', 'tasks', 'notes', 'sharing', 'files', 'files_max_upload_mb', 'push', 'push_files', 'push_max_subscriptions', 'push_allow_private', 'push_log_level', 'log_level', 'sync_history_days'];
     }
 
     public function form(Schema $schema): Schema
@@ -97,6 +98,47 @@ class Settings extends SettingsPage
                             'files_max_upload_mb',
                         ),
                     ]),
+                Section::make(__('WebDAV-Push'))
+                    ->description(__('Clients that support WebDAV-Push, such as DAVx⁵, are told within seconds when a calendar, address book or folder changes, instead of waiting for their next sync. The messages are sent by the queue worker, which must be running.'))
+                    ->schema([
+                        $this->lockable(
+                            Toggle::make('push')
+                                ->label(__('WebDAV-Push'))
+                                ->live()
+                                ->helperText(fn (): string => $this->workerHint()),
+                            'push',
+                        ),
+                        $this->lockable(
+                            Toggle::make('push_files')
+                                ->label(__('Include Files in push'))
+                                ->visible(fn (Get $get): bool => (bool) $get('push'))
+                                ->helperText(__('Offer push on the file home and its folders too. Needs Files.')),
+                            'push_files',
+                        ),
+                        $this->lockable(
+                            $this->number('push_max_subscriptions', __('Push subscriptions per user'))
+                                ->visible(fn (Get $get): bool => (bool) $get('push'))
+                                ->helperText(__('A device subscribes once per calendar and address book it syncs. A new subscription over the limit is refused.')),
+                            'push_max_subscriptions',
+                        ),
+                        $this->lockable(
+                            Toggle::make('push_allow_private')
+                                ->label(__('Allow private networks'))
+                                ->visible(fn (Get $get): bool => (bool) $get('push'))
+                                ->helperText(__('Lets push messages go to a push service on plain http or on a private network, such as ntfy on your LAN. Leave it off for push services on the internet, such as ntfy.sh or Google (FCM).')),
+                            'push_allow_private',
+                        ),
+                        $this->lockable(
+                            Select::make('push_log_level')
+                                ->label(__('Push log level'))
+                                ->options(array_combine(SettingsService::LOG_LEVELS, array_map('ucfirst', SettingsService::LOG_LEVELS)))
+                                ->required()
+                                ->selectablePlaceholder(false)
+                                ->visible(fn (Get $get): bool => (bool) $get('push'))
+                                ->helperText(__('The least severe push message that is logged. Debug logs every message sent. Lines show only the push service host, never the address or keys.')),
+                            'push_log_level',
+                        ),
+                    ]),
                 Section::make(__('Logging'))
                     ->schema([
                         $this->lockable(
@@ -132,5 +174,14 @@ class Settings extends SettingsPage
             ->required()
             ->minValue($definition['min'] ?? null)
             ->maxValue($definition['max'] ?? null);
+    }
+
+    private function workerHint(): string
+    {
+        return match (app(WorkerStatus::class)->state()) {
+            WorkerStatus::RUNNING => __('The queue worker is running.'),
+            WorkerStatus::STALE => __('The queue worker is not running: push messages wait until it starts. See Diagnostics.'),
+            default => __('No queue worker has run yet. Start it before turning push on (the guide shows how).'),
+        };
     }
 }

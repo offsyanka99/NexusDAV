@@ -1,6 +1,6 @@
 # WebDAV-Push design
 
-Design for M5 of the [Version 1.x plan](../plans/implementation-plan-v1x.md#m5--webdav-push-and-the-worker-effort-extra-high), the result of the PR 33 spike. It fixes what PR 35 to PR 38 build: the library, the data stored, the registration URL, the topics and triggers, the expiry, and the merge window and retry policy.
+Design for M5 of the [Version 1.x plan](../plans/implementation-plan-v1x.md#m5--webdav-push-and-the-worker-effort-extra-high), the result of the PR 33 spike. It fixes what PR 35 to PR 38 build: the library, the data stored, the registration URL, the topics and triggers, the expiry, and the merge window and retry policy. Built in PR 35 to PR 38 and released in **0.5.0**; where the build differs from the first draft of this note, the note was updated. The admin panel (PR 38) shows the subscriptions and the queue worker on Diagnostics and the worker on the Dashboard (see the [Settings](admin-settings.md) and [Dashboard](admin-dashboard.md) notes).
 
 The specification is the bitfire draft at the pinned commit `611abe2e8a0cdd7570cb936844b6588f7145b27d` (`draft-bitfire-webdav-push-00`, [bitfireAT/webdav-push](https://github.com/bitfireAT/webdav-push/tree/611abe2e8a0cdd7570cb936844b6588f7145b27d), text in `content.mkd`, grammar in `xml/webdav-push.rng`). The `main` branch is one commit ahead, and that commit changes only the README (it now calls the specification finished and lists DAVx⁵, Nextcloud, Xandikos and others as implementations). The protocol text is identical, so the pin stays.
 

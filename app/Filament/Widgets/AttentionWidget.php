@@ -5,6 +5,7 @@ namespace App\Filament\Widgets;
 use App\Filament\Pages\Diagnostics;
 use App\Services\DiagnosticsSummary;
 use App\Support\DatabaseHealth;
+use App\Support\WorkerStatusLabel;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Number;
@@ -58,6 +59,16 @@ class AttentionWidget extends SchemaWidget
                 ->label(__('DAV errors'))
                 ->hiddenLabel()
                 ->state(trans_choice(':count DAV error in the last 24 hours|:count DAV errors in the last 24 hours', $davErrors, ['count' => Number::format($davErrors)]))
+                ->icon(Heroicon::ExclamationTriangle)
+                ->iconColor('warning')
+                ->url($diagnostics);
+        }
+
+        if (WorkerStatusLabel::describe()['warning']) {
+            $lines[] = TextEntry::make('worker')
+                ->label(__('Queue worker'))
+                ->hiddenLabel()
+                ->state(__('WebDAV-Push is on, but the queue worker is not running. Push messages wait until it starts.'))
                 ->icon(Heroicon::ExclamationTriangle)
                 ->iconColor('warning')
                 ->url($diagnostics);

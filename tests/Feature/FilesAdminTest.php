@@ -163,10 +163,10 @@ class FilesAdminTest extends TestCase
             ->assertDontSee('Set by environment');
 
         $card = strip_tags(Livewire::test(ServicesWidget::class)->html());
-        $this->assertSame(1, substr_count($card, 'Off'), 'Only Files is off by default.');
+        $this->assertSame(2, substr_count($card, 'Off'), 'Only Files and WebDAV-Push are off by default.');
 
         app(SettingsService::class)->save(['files' => true]);
-        $this->assertSame(0, substr_count(strip_tags(Livewire::test(ServicesWidget::class)->html()), 'Off'));
+        $this->assertSame(1, substr_count(strip_tags(Livewire::test(ServicesWidget::class)->html()), 'Off'));
 
         config(['nexusdav.env_set' => ['NEXUSDAV_FILES']]);
         Livewire::test(ServicesWidget::class)->assertSee('Set by environment');

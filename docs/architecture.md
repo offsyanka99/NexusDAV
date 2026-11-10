@@ -12,7 +12,8 @@ This document describes how the main components fit together for Version 1. It i
 | **sabre/dav PDO backend** | Storage for calendars, address books, objects and cards |
 | **File home** | Files under `/dav/files/<username>/`: sabre's `FSExt` nodes on the data volume (`/data/files`), through `FileStorage` |
 | **PostgreSQL / SQLite** | Database |
-| **Queue worker** (optional) | The same image in worker mode (`nexusdav-worker`, Compose profile `worker`): `php artisan queue:work` on the database queue, with a heartbeat in `worker_heartbeats`. Used by WebDAV-Push |
+| **Queue worker** (optional) | The same image in worker mode (`nexusdav-worker`, Compose profile `worker`): `php artisan queue:work` on the database queue, with a heartbeat in `worker_heartbeats`. Sends the WebDAV-Push messages |
+| **WebDAV-Push** | `PushPlugin` (discovery, registration, `/dav/push/<id>`) in the sabre server; `PushChanges` records changes after commit into `push_outbox`; the worker's `SendPushMessages` and `DeliverPushMessage` jobs send them through the SSRF guard with `minishlink/web-push` |
 
 ## High-level request flow
 
@@ -75,10 +76,27 @@ app/
       FileResource.php      # a file: uploads written to a temporary file, then renamed into place
       FileStorage.php       # the disk: names in NFC, uploads and the upload limit, 507, deletes that never follow a link
       UploadTooLarge.php    # 413
+      Push/
+        PushPlugin.php      # webdav-push in OPTIONS, the push properties, push-register POST, DELETE /dav/push/<id>, Push-Dont-Notify, file events
+        PushRegisterParser.php  # the push-register body: the Web Push subscription, triggers, expiry
+    Push/
+      PushConfig.php        # the push settings and the push log level
+      PushKeys.php          # VAPID key pair and topic key, made on first use, encrypted in settings
+      PushTopics.php        # topics (HMAC of the collection) and which nodes offer push
+      PushSubscriptions.php # register, renew, unregister, limits, expiry, cleanup paths
+      PushChanges.php       # the one place write paths report changes; queued after commit
+      PushQueue.php         # the 5-second merge window in push_outbox
+      PushMessage.php       # the push-message body with the current sync token
+      PushEndpointGuard.php # SSRF guard: https, public addresses only, resolved once
+      PushHttpClient.php    # PSR-18 client on curl, pinned to the checked address, no redirects
+      WebPushSender.php     # encrypts (aes128gcm) and signs (VAPID), returns a PushResult
     WorkerStatus.php        # the queue worker's heartbeat: running, stale or never seen
     UserService.php         # Create user + principal + default calendar and address book
     AuthThrottle.php        # IP plus username limit for admin login and DAV
     DiagnosticEventWriter.php  # stores rejected logins and DAV errors with their request ID; prunes expired rows on write
+  Jobs/
+    SendPushMessages.php    # closes a topic's merge window, one delivery per subscription
+    DeliverPushMessage.php  # sends one message; retry, backoff and removal
   Http/
     Controllers/
       HealthController.php  # /health
@@ -141,6 +159,14 @@ config/
 2. `RecordWorkerHeartbeat` listens to the worker's `WorkerStarting` and `Looping` events (found by Laravel's listener discovery) and writes the heartbeat at most once a minute; an idle worker loops every three seconds. A failure to write is logged and never stops the worker.
 3. `WorkerStatus` reads the newest heartbeat. `nexusdav:worker-status` prints it and is the worker container's health check; `--probe` queues `WorkerProbe` and waits for a worker to run it (the image smoke test uses it).
 
+### 7. WebDAV-Push (Version 1.x)
+
+1. With push on, `PushPlugin` adds `webdav-push` to `OPTIONS` and the `transports`, `topic` and `supported-triggers` properties to calendars, address books, their homes and (optionally) file folders. A topic is an HMAC of the collection, so a shared collection has one topic for the owner and every sharee.
+2. DAVx5 `POST`s a `push-register` body. `PushSubscriptions` stores the push resource and the client's keys (encrypted), grants at most seven days, and answers 201 (or 204 when renewed) with the registration URL `/dav/push/<id>`.
+3. A write calls `PushChanges` from the backend (`addChange`, creating or deleting a collection), from `SharingService`, from user deletion, or from the file events. After the transaction commits, `PushQueue` opens or joins the topic's five-second window in `push_outbox` and queues `SendPushMessages`.
+4. In the worker, `SendPushMessages` takes the window, reads the current sync token and queues one `DeliverPushMessage` per matching subscription, skipping those named in `Push-Dont-Notify`.
+5. `DeliverPushMessage` sends through `WebPushSender`: `PushEndpointGuard` checks the push resource and resolves its host once, and `PushHttpClient` connects only to that address. The answer records a success, retries (429, 5xx, network errors: after 30 s, 2 min, 10 min) or removes a dead subscription.
+
 ## Integration points
 
 | Concern | Owner |
@@ -153,15 +179,16 @@ config/
 | Logging | Laravel, to stderr (`LOG_CHANNEL=stderr` in the image). `RequestLog` writes one line per request (method, path, status, user, address, duration) and adds the request ID to every line through Laravel's `Context`. Rejected logins and DAV errors are also stored in `diagnostic_events` with that ID |
 | Container image | `ghcr.io/offsyanka99/nexusdav`, amd64 and arm64, built by `.github/workflows/release.yml` from a `v*` tag. `compose.yaml` pins the version; `compose.build.yaml` builds locally |
 | Reverse proxy | Tested files for Caddy, nginx and Traefik in [docs/proxy](proxy/) |
+| Push services | Any Web Push service (ntfy, FCM through a UnifiedPush gateway) chosen by the client; reached only by the worker, through the SSRF guard |
 
 ## What is intentionally out of Version 1
 
 - User portal
 - Sharing by clients and a full ACL (an admin shares calendars and address books in Version 1.x; clients cannot create shares)
-- WebDAV-Push
 - Scheduling
 - Email
 - Files (WebDAV file storage; built in Version 1.x, off until an admin switches it on)
+- WebDAV-Push (built in Version 1.x, off until an admin switches it on)
 - Managed attachments
 
 These will be added later without changing the core request flow above.

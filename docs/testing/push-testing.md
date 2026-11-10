@@ -1,6 +1,6 @@
 # WebDAV-Push and worker testing (M5)
 
-Hand checks for M5 ([the plan](../plans/implementation-plan-v1x.md#m5--webdav-push-and-the-worker-effort-extra-high)). Each M5 PR adds its steps here: PR 34 (the queue worker), PR 35 and PR 36 (push discovery, registration and the queue), and PR 37 (the push that reaches DAVx⁵ on a phone through ntfy). PR 38 adds the panel. The release PR 39 runs all of them on both databases.
+Hand checks for M5 ([the plan](../plans/implementation-plan-v1x.md#m5--webdav-push-and-the-worker-effort-extra-high)). Each M5 PR adds its steps here: PR 34 (the queue worker), PR 35 and PR 36 (push discovery, registration and the queue), PR 37 (the push that reaches DAVx⁵ on a phone through ntfy) and PR 38 (the panel). The client-side release pass is step 12 of the [client checklist](client-checklist.md#12-webdav-push). The release PR 39 runs all of them on both databases.
 
 ## Setup
 
@@ -52,7 +52,7 @@ php artisan test --filter='PushRegistrationTest|PushChangesTest|PushDeliveryTest
 
 P1 to P8 check discovery, registration and the queue; P9 to P12 the push that reaches the phone. They need an image built from these PRs, the worker running, and on the phone DAVx⁵ 4.4.10 or newer with a UnifiedPush distributor (the ntfy app, with ntfy.sh or your own ntfy server).
 
-Switch push on with `NEXUSDAV_PUSH=true` in the `environment:` of **both** services (app and worker) and recreate them. Registration lines are logged at `info`; set `NEXUSDAV_PUSH_LOG_LEVEL=debug` on the worker to also see each message sent.
+Switch push on under **Settings → WebDAV-Push** (the worker takes the change with its next job), or with `NEXUSDAV_PUSH=true` in the `environment:` of **both** services (app and worker), then recreate them. Registration lines are logged at `info`; set `NEXUSDAV_PUSH_LOG_LEVEL=debug` on the worker to also see each message sent.
 
 **A self-hosted ntfy on your LAN:** the server refuses to send to private addresses (the SSRF guard). If the ntfy host name resolves to a private address from the NexusDAV container (for example `192.168.x.x` through local DNS), set `NEXUSDAV_PUSH_ALLOW_PRIVATE=true` on both services. ntfy.sh needs nothing.
 
@@ -65,7 +65,7 @@ Switch push on with `NEXUSDAV_PUSH=true` in the `environment:` of **both** servi
 | P5 | Change an event from another client (Thunderbird or the web) in a calendar the phone syncs, and watch `docker logs -f nexusdav-worker` | Within about 5 seconds a `SendPushMessages` job and then one `DeliverPushMessage` job per subscription of that calendar, each `DONE`. With the push log level at `debug`: `Push message sent` with the ntfy host and `200 OK` (or `201`) |
 | P6 | Change an event **on the phone** (only the phone subscribes to that calendar) | `SendPushMessages` runs, but no `DeliverPushMessage` for the phone: DAVx⁵ sent `Push-Dont-Notify` with its own registration |
 | P7 | In the admin panel, revoke the app password the phone uses; then change an event from another client | `SendPushMessages` runs with no `DeliverPushMessage`. (Sign the phone in again with a new app password afterwards) |
-| P8 | Set `NEXUSDAV_PUSH=false` on both services, recreate them, and repeat P1 and P2 | No `webdav-push` in the `DAV` header and no `P:topic`. Calendars and contacts sync as before |
+| P8 | Switch **WebDAV-Push** off under Settings (or set `NEXUSDAV_PUSH=false` on both services and recreate them), and repeat P1 and P2 | No `webdav-push` in the `DAV` header and no `P:topic`. Calendars and contacts sync as before |
 | P9 | Push on again (P3 done). Lock the phone. Add an event from Thunderbird in a calendar the phone syncs | Within about 10 seconds the event is on the phone without a manual sync (DAVx⁵ shows a short sync). The worker log has `Push message sent` |
 | P10 | Add a contact from another client in an address book the phone syncs | The contact is on the phone within about 10 seconds |
 | P11 | Add three events quickly from Thunderbird | One push, one sync on the phone: one `SendPushMessages` in the worker log for that calendar |
@@ -77,9 +77,9 @@ Switch push on with `NEXUSDAV_PUSH=true` in the `environment:` of **both** servi
 
 | Run log | |
 |---|---|
-| Date | |
-| Build (Dashboard version) | |
-| Tester | |
+| Date | November 9 |
+| Build (Dashboard version) | 0.4.2-rc.1+cb62b6e |
+| Tester | HummerSoft |
 
 | Step | PostgreSQL | SQLite (Compose) | TrueNAS | Notes |
 |---|---|---|---|---|
@@ -90,21 +90,21 @@ Switch push on with `NEXUSDAV_PUSH=true` in the `environment:` of **both** servi
 | W5 Stale, then running | ✅ | ✅ | ✅ | Error response from daemon: container nexus-worker is not running. Then ix-nexusdav-p-nexusdav-worker-1 start |
 | W6 Restart of the stack | ✅ | ✅ | ✅ | No issues |
 | W7 Without the worker | ✅ | ✅ | ✅ | No issues |
-| W8 Regression | ⬜ | ⬜ | ⬜ | Skipped for now |
+| W8 Regression |  |  |  | Skipped for now |
 
 | Step | PostgreSQL | SQLite (Compose) | TrueNAS | Notes |
 |---|---|---|---|---|
-| P1 `webdav-push` in OPTIONS | ⬜ | ⬜ | ⬜ | |
-| P2 Push properties | ⬜ | ⬜ | ⬜ | |
-| P3 DAVx⁵ registers | ⬜ | ⬜ | ⬜ | |
-| P4 Renewal | ⬜ | ⬜ | ⬜ | |
-| P5 A change is queued | ⬜ | ⬜ | ⬜ | |
-| P6 Push-Dont-Notify | ⬜ | ⬜ | ⬜ | |
-| P7 Revoked app password | ⬜ | ⬜ | ⬜ | |
-| P8 Push off | ⬜ | ⬜ | ⬜ | |
-| P9 Event reaches the phone | ⬜ | ⬜ | ⬜ | |
-| P10 Contact reaches the phone | ⬜ | ⬜ | ⬜ | |
-| P11 One push for a burst | ⬜ | ⬜ | ⬜ | |
-| P12 Worker down, then up | ⬜ | ⬜ | ⬜ | |
+| P1 `webdav-push` in OPTIONS | ✅ | ✅ | ✅ | dav: 1, 3, extended-mkcol, access-control, calendarserver-principal-property-search, webdav-push, calendar-access, calendar-proxy, addressbook, 2 |
+| P2 Push properties | ✅ | ✅ | ✅ | <d:multistatus xmlns:d="DAV:" xmlns:s="http://sabredav.org/ns" xmlns:P="https://bitfire.at/webdav-push" xmlns:cal="urn:ietf:params:xml:ns:caldav" xmlns:cs="http://calendarserver.org/ns/" xmlns:card="urn:ietf:params:xml:ns:carddav"><d:response><d:href>/dav/calendars/yurik/</d:href><d:propstat><d:prop><P:topic>_Wx9XsvMMkRvm9TjqY6GER</P:topic><P:transports><P:web-push><P:vapid-public-key type="p256ecdsa">BCOAdip5PpWGEy3BzmvCFo-Nv8ZHR-daCtHEFdb8v7bcjA-CE7N6omXKwECwT9akA8hHXhsQjQQeay2id5wL8ag</P:vapid-public-key></P:web-push></P:transports><P:supported-triggers><P:content-update><d:depth>1</d:depth></P:content-update></P:supported-triggers></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response><d:response><d:href>/dav/calendars/yurik/family/</d:href><d:propstat><d:prop><P:topic>qJhL9FbBaRwpaXP7u-r5rI</P:topic><P:transports><P:web-push><P:vapid-public-key type="p256ecdsa">BCOAdip5PpWGEy3BzmvCFo-Nv8ZHR-daCtHEFdb8v7bcjA-CE7N6omXKwECwT9akA8hHXhsQjQQeay2id5wL8ag</P:vapid-public-key></P:web-push></P:transports><P:supported-triggers><P:content-update><d:depth>1</d:depth></P:content-update><P:property-update><d:depth>0</d:depth></P:property-update></P:supported-triggers></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus> |
+| P3 DAVx⁵ registers | ✅ | ✅ | ✅ | INFO Push subscription registered {"user":"yurik","path":"calendars/yurik/family","host":"fcm.googleapis.com","expires":"2026-11-12T22:57:34+00:00"} {"request_id":"3956b2e64d38d61d"} INFO Request {"method":"POST","path":"/dav/calendars/yurik/family/","status":201,"user":"yurik","ip":"10.10.20.110","duration_ms":131.4} {"request_id":"3956b2e64d38d61d"} |
+| P4 Renewal | ✅ | ✅ | ✅ | INFO Push subscription renewed {"user":"yurik","path":"calendars/yurik/family","host":"fcm.googleapis.com","expires":"2026-11-12T22:59:45+00:00"} {"request_id":"19f28b8a64d7b655"} INFO Request {"method":"POST","path":"/dav/calendars/yurik/family/","status":204,"user":"yurik","ip":"10.10.20.110","duration_ms":64.5} {"request_id":"19f28b8a64d7b655"} |
+| P5 A change is queued | ✅ | ✅ | ✅ | DEBUG Push message sent {"subscription":1,"host":"fcm.googleapis.com","result":"201 Created"} {"request_id":"20b45ae903659ee8"}  2026-11-09 23:01:57 App\Jobs\DeliverPushMessage .................... 1s DONE 2026-11-09 23:10:02 DEBUG Push messages queued {&#34;topic&#34;:&#34;8k8ZHnZnx9mrKrhZgFGcbA&#34;,&#34;subscriptions&#34;:0} {&#34;request_id&#34;:&#34;f804633ee77da042&#34;}   2026-11-09 23:10:02 App\Jobs\SendPushMessages ................. 32.92ms DONE |
+| P6 Push-Dont-Notify | ✅ | ✅ | ✅ | done |
+| P7 Revoked app password | ✅ | ✅ | ✅ | As expected |
+| P8 Push off | ✅ | ✅ | ✅ | Pass |
+| P9 Event reaches the phone | ✅ | ✅ | ✅ | Pass |
+| P10 Contact reaches the phone | ✅ | ✅ | ✅ | |
+| P11 One push for a burst | ✅ | ✅ | ✅ | Pass |
+| P12 Worker down, then up | ✅ | ✅ | ✅ | Pass |
 
 Checked before the hand pass, with the built image and the real Compose files on SQLite and PostgreSQL (November 9, 2026): W1, W2, W4 and W5 passed (healthy after about 8 seconds, probes in 0.8 s and 0.5 s, stop in 0.1 s with exit code 0, stale after five minutes and running again after a start).

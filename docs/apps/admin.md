@@ -24,8 +24,8 @@ The Settings page holds system-level controls for services and related options. 
 - A field whose environment variable is set (for example `NEXUSDAV_CALDAV` or `LOG_LEVEL`) is read-only, with a lock. The [guide](../guide.md#settings-in-the-admin-panel) lists every variable.
 
 **Version 1.x.**
-- Enable or disable Files (Settings, `NEXUSDAV_FILES`; released in 0.4.0) and WebDAV-Push, and configure their options. Both are off after an upgrade until an admin turns them on.
-- Logging for WebDAV-Push.
+- Enable or disable Files (Settings, `NEXUSDAV_FILES`; released in 0.4.0) and WebDAV-Push (Settings, `NEXUSDAV_PUSH`; released in 0.5.0), and configure their options. Both are off after an upgrade until an admin turns them on.
+- WebDAV-Push options, shown while push is on: Include Files in push, Push subscriptions per user (100), Allow private networks (for a push service on the LAN) and Push log level. The help under the switch says whether the queue worker, which sends the messages, is running.
 - Enable or disable Sharing (Settings, `NEXUSDAV_SHARING`; released in 0.3.0).
 - See how much space the files take: a Files storage card on the Dashboard with the total size, the number of files, the users who have files and the free space of the volume. The total is counted when an admin clicks Refresh, because walking every file is slow on a large library; opening the Dashboard never does it.
 - Maximum upload size for Files (Settings, `NEXUSDAV_FILES_MAX_UPLOAD_MB`, 128 MB by default; released in 0.4.0). Per-user disk space limits (quotas) are Version 2.x.
@@ -80,8 +80,8 @@ The Diagnostics page shows operational status and recent problems. Its heading g
 - Reasons are stored in English, so log searches work in any language. Since 0.1.2 the page shows them in the admin's language
 
 **Version 1.x**
-- WebDAV-Push subscriptions (user, collection, endpoint host, last push, status), with revoke
-- Whether the WebDAV-Push worker is running. Push needs the optional worker service; without it nothing is sent
+- WebDAV-Push subscriptions (user, collection, push service host, expiry, last push, status: Delivered, Failing with the push service's answer, No push yet, Expired), filtered by status, with revoke. A revoked subscription comes back when the device subscribes again; revoking its app password stops it. Released in 0.5.0
+- The queue worker: running or not, its last heartbeat and the jobs waiting, with a warning while push is on and the worker is not running. Released in 0.5.0
 
 **Version 2.x**
 - Collections without recent sync (no requests for a configurable period, for example 30 days)
@@ -108,7 +108,7 @@ The Diagnostics page shows operational status and recent problems. Its heading g
 **Version 1.x.**
 
 - Share a calendar or an address book with one or more users on the server, read-only or read-write, from the user's Calendars or Address books tab, see who has it in a table, change or remove shares one by one or in bulk, and see on a user's page what was shared with them (released in 0.3.0). Shares are made in the panel; a client shows the shared collection but does not create shares.
-- Turn WebDAV-Push on or off, and view its subscriptions on the Diagnostics page. The implementation is the bitfire draft named in the [guide requirements](../guide.md#requirements), not a sabre/dav plugin.
+- Turn WebDAV-Push on or off, see whether the queue worker runs (Dashboard, Diagnostics), and view and revoke its subscriptions on the Diagnostics page. The implementation is the bitfire draft named in the [guide requirements](../guide.md#requirements), not a sabre/dav plugin. Released in 0.5.0.
 - Use the panel in more than one language: English and Russian, with a language per admin and a server default. More languages can be added as translation files. Released in 0.1.2.
 - See that a user's [Files](files.md) home exists, on the user's page, and read in the delete confirmation that the home goes with the user. Released in 0.4.0.
 

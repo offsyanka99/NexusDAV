@@ -68,14 +68,14 @@ Rules:
 
 ### 2. Services
 
-One card listing the six switches from the Settings page: **CalDAV**, **CardDAV**, **Tasks (VTODO)**, **Notes (VJOURNAL)**, **Sharing** and **Files** (off by default). The switches are laid out in two columns on a phone, three on a tablet and six on a wide screen.
+One card listing the seven switches from the Settings page: **CalDAV**, **CardDAV**, **Tasks (VTODO)**, **Notes (VJOURNAL)**, **Sharing**, **Files** and **WebDAV-Push** (both off by default), and the **Queue worker**: `Running` (green) or `Not running` (grey, or a warning colour while push is on), with its last heartbeat in a tooltip. They are laid out in two columns on a phone, four on a tablet and eight on a wide screen.
 
 - `● On` (green) or `○ Off` (grey).
 - If the value is set by an environment variable, show a small lock icon with the tooltip "Set by environment".
 - The card ends with a link, **Manage in Settings →**.
 - The states come from the Settings page (PR 6), or from the environment when a variable is set.
 
-Later versions add WebDAV-Push, Scheduling and Managed Attachments to this card, each only when the feature exists.
+WebDAV-Push and the queue worker arrived in 0.5.0. Later versions add Scheduling and Managed Attachments, each only when the feature exists.
 
 ### 3. Counts
 
@@ -122,6 +122,7 @@ One card that stays quiet when everything is fine.
 - Otherwise it lists short lines with a warning icon, each linking to **Diagnostics**:
   - failed logins in the last 24 hours (admin panel and DAV together);
   - DAV errors in the last 24 hours: rejected DAV logins (401) and other 4xx and 5xx answers, as on the Diagnostics page. A rejected DAV login therefore appears in both lines;
+  - while WebDAV-Push is on and the queue worker is not running (stale for five minutes, or never seen): `WebDAV-Push is on, but the queue worker is not running. Push messages wait until it starts.` (0.5.0);
   - when the database check fails, the card shows only `The database is unavailable` in red, because the other counts cannot be read.
 - Show counts, not details. Names, IP addresses and reasons stay on Diagnostics.
 - The 24-hour window is fixed in Version 1.
@@ -129,7 +130,7 @@ One card that stays quiet when everything is fine.
 ## What is not on the Dashboard in Version 1
 
 - Per-user storage usage, quotas and storage statistics. These come in Version 2.x. The server-wide total of the Files storage card is the only size shown.
-- Extended health checks (queue, SMTP, mail). Version 2.x. A WebDAV-Push worker warning arrives with WebDAV-Push in Version 1.x.
+- Extended health checks (queue, SMTP, mail). Version 2.x. The queue worker's state and the WebDAV-Push warning are the exception (0.5.0).
 - Charts or activity graphs. Version 1 shows numbers only.
 - Quick-action buttons. The navigation already reaches every page.
 - Filament's default welcome and "Filament info" widgets. Remove them. They advertise the framework and give the administrator nothing.
@@ -155,7 +156,7 @@ One card that stays quiet when everything is fine.
 - `ServerStatusWidget`, `ServicesWidget` and `AttentionWidget` extend `SchemaWidget`, which builds the card from schema components and shows "Unavailable" when the card fails to load. `CountsWidget` does the same with a single "Counts — Unavailable" stat. The failure is written to the log.
 - Filament's default `AccountWidget` and `FilamentInfoWidget` are removed with `->widgets([])` in `AdminPanelProvider`; the account stays in the user menu.
 - `App\Services\FileUsage` does the walk (`scan()`, with a time budget and a cache lock), returns the last result (`last()`) and the volume's free space (`volume()`). Only `scan()` touches the file tree, and only the Refresh action calls it.
-- Shared services: `App\Support\DatabaseHealth` (the same check as `GET /health`), `App\Services\ServerCounts` (the counts, cached for 60 seconds) and `App\Services\DiagnosticsSummary` (the 24-hour numbers, also used by the Diagnostics page heading). Service states come from `SettingsService`.
+- The worker's state comes from `App\Support\WorkerStatusLabel`, shared with the Settings page and Diagnostics. Shared services: `App\Support\DatabaseHealth` (the same check as `GET /health`), `App\Services\ServerCounts` (the counts, cached for 60 seconds) and `App\Services\DiagnosticsSummary` (the 24-hour numbers, also used by the Diagnostics page heading). Service states come from `SettingsService`.
 - Polling is off and the widgets are not lazy-loaded.
 - Tests in `tests/Feature/AdminPagesTest.php` cover access, counts, a disabled service, the database check failing without internal detail, and agreement with the Diagnostics numbers.
 
@@ -163,7 +164,7 @@ One card that stays quiet when everything is fine.
 
 | Version | Addition |
 |---|---|
-| 1.x | WebDAV, WebDAV-Push and Sharing in the Services card; a warning in Needs attention when push is on and the worker is not running |
+| 1.x | Sharing (0.3.0), Files (0.4.0), WebDAV-Push and the queue worker (0.5.0) in the Services card; a warning in Needs attention when push is on and the worker is not running (0.5.0) |
 | 2 | Scheduling in the Services card |
 | 2.x | Storage and quota summary, extended health, mail queue and backup status |
 

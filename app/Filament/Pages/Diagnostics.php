@@ -5,6 +5,8 @@ namespace App\Filament\Pages;
 use App\Filament\Widgets\Diagnostics\AppPasswordsTable;
 use App\Filament\Widgets\Diagnostics\DavErrorsTable;
 use App\Filament\Widgets\Diagnostics\FailedLoginsTable;
+use App\Filament\Widgets\Diagnostics\PushSubscriptionsTable;
+use App\Filament\Widgets\Diagnostics\QueueWorkerCard;
 use App\Services\DiagnosticsSummary;
 use BackedEnum;
 use Filament\Pages\Page;
@@ -14,8 +16,9 @@ use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Number;
 
 /**
- * Read-only view of recent problems: failed logins, DAV errors, and every
- * app password, with revoke. The 24-hour numbers match the Dashboard.
+ * Read-only view of recent problems: failed logins, DAV errors, every app
+ * password and every push subscription (each with revoke), and the queue
+ * worker. The 24-hour numbers match the Dashboard.
  */
 class Diagnostics extends Page
 {
@@ -56,6 +59,8 @@ class Diagnostics extends Page
                 FailedLoginsTable::class,
                 DavErrorsTable::class,
                 AppPasswordsTable::class,
+                QueueWorkerCard::class,
+                PushSubscriptionsTable::class,
             ])),
         ]);
     }
