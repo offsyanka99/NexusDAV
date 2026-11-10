@@ -30,6 +30,11 @@ final class RequestLog
     public const USER_ATTRIBUTE = 'nexusdav.user';
 
     /**
+     * DavController sets this to why sabre refused a request (a 4xx answer).
+     */
+    public const REASON_ATTRIBUTE = 'nexusdav.reason';
+
+    /**
      * Healthchecks run every 30 seconds. They get a line only when they fail.
      */
     private const QUIET_PATHS = ['/health', '/up'];
@@ -77,6 +82,12 @@ final class RequestLog
             'ip' => $this->throttle->clientIp(),
             'duration_ms' => round((hrtime(true) - $started) / 1_000_000, 1),
         ];
+
+        $reason = $request->attributes->get(self::REASON_ATTRIBUTE);
+
+        if ($status >= 400 && is_string($reason) && $reason !== '') {
+            $context['reason'] = $reason;
+        }
 
         // 401 is the normal challenge before a client sends its password;
         // a rejected password has its own warning line.

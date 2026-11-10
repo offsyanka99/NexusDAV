@@ -632,7 +632,7 @@ Automatic backups are a long-term goal (see [Roadmap](#roadmap)).
 - **Health check:** `GET /health` is unauthenticated. It returns `{"status":"ok"}` when the application and the database are up, and `{"status":"unavailable"}` with HTTP 503 otherwise. It does not include versions, paths, or SQL. Compose uses it as the container healthcheck. A healthy check is not logged, so the log does not fill with a line every 30 seconds; a failing one is. The admin Dashboard shows the same database check. Richer checks inside the admin panel are Version 2+.
 - **Logs:** written to stderr, so `docker compose logs` works. The image sets `LOG_CHANNEL=stderr`. Nothing is written to `storage/logs` inside the container. `LOG_LEVEL` defaults to `debug` when unset. Use `info` or higher in production. Log lines show the time in the server time zone (Configuration).
 - **What is logged:**
-  - **One line per request,** with the method, the path without the query string, the status, the signed-in user (DAV or admin panel, otherwise `null`), the client address and the duration. The level follows the status: `ERROR` for 5xx, `WARNING` for 4xx, and `INFO` for the rest. A 401 is `INFO`, because clients get one on every first contact before they send the password; a rejected password has its own `WARNING` line. For example:
+  - **One line per request,** with the method, the path without the query string, the status, the signed-in user (DAV or admin panel, otherwise `null`), the client address and the duration. When the DAV server refuses a request with a 4xx status (other than 401 and 404), the line also has a `reason`, for example `"reason":"Validation error in vCard: The supplied value (…) is not a correct DATE-AND-OR-TIME property"` for a contact the server cannot accept. Values from the request body are masked as `(…)` or `"…"`. The level follows the status: `ERROR` for 5xx, `WARNING` for 4xx, and `INFO` for the rest. A 401 is `INFO`, because clients get one on every first contact before they send the password; a rejected password has its own `WARNING` line. For example:
 
     ```text
     2026-11-01 12:49:55 INFO Request {"method":"REPORT","path":"/dav/calendars/ada/default/","status":207,"user":"ada","ip":"192.168.1.20","duration_ms":5.5} {"request_id":"1d451d2e7b720a2b"}
@@ -663,6 +663,7 @@ Automatic backups are a long-term goal (see [Roadmap](#roadmap)).
 | Large file upload fails | 413 from the app: the file is over Maximum upload size (Settings → Files). 413 from the proxy, a reset connection or a timeout: the proxy's body limit or timeouts are too low (nginx allows 1 MB by default; the files in [docs/proxy](proxy/) allow 128 MB). 507: the data volume is full. See [Large file uploads](#large-file-uploads-files). |
 | `/dav/files/` answers 403 "Files is turned off on this server." | Files is off. Switch it on under **Settings → Files**. |
 | GNOME Files shows "Operation not supported" after a copy and paste | The copy is complete. Choose **Skip**; Retry makes a second copy (see [Files](#files)). |
+| PostgreSQL log shows `ERROR: relation "settings" does not exist` on the first start | Expected on a fresh install, not a fault. The app reads the saved settings at boot, before the migrations have created the table, and falls back to the defaults. The error stops appearing once the migrations have run. |
 | The Dashboard says WebDAV-Push is on but the queue worker is not running | The worker is not started, or stopped. Start it (see [Queue worker](#queue-worker-optional)); waiting messages are sent then. Diagnostics shows its last heartbeat. |
 | DAVx⁵ does not subscribe (no push subscriptions on Diagnostics) | Push is off, DAVx⁵ has no push service (**Settings → Push**: install ntfy or use FCM), or DAVx⁵ is older than 4.4.10. Sync the account after choosing the push service. |
 | Push subscriptions show **Failing** | The push service refused the message; the status shows its answer. A subscription that keeps failing is removed after one to three days. |
@@ -678,10 +679,31 @@ Automatic backups are a long-term goal (see [Roadmap](#roadmap)).
 | DAVx5 does not use sync tokens for a calendar | **Time range (past days)** is set, even to `0`: DAVx5 then lists the whole calendar on every sync instead. That is correct, only slower for big calendars. Leave the field empty to use sync tokens. |
 | A calendar created from an iPad or iPhone has no tasks or notes on the server | The client chooses what a new calendar holds when it creates it, and Apple Calendar asks for events only. Open the calendar under **Edit** on the user's Calendars tab and turn on Tasks and Notes. |
 | A calendar or address book deleted and created again with the same name still shows its old name in the client | Clients keep the name they first saw. Refresh the collection list (DAVx5: **Refresh list**) or add the calendar again in Thunderbird. The contents are already the new ones. |
+| Imported contacts do not upload: their PUT answers 415 | The cards are not valid vCards, and the log line's `reason` says why. A common one is `UID MUST NOT appear more than once in a VCARD component` (or `PRODID`): some exports copy a card into a new one and keep both lines. Repair the file ([Migrating from another server](#migrating-from-another-server)), delete the contacts that did not upload in the client, and import the repaired file. |
 
 ### Migrating from another server
 
 Export calendars as `.ics` and contacts as `.vcf` from your current server (Radicale, Baïkal, Nextcloud) and keep them as a backup. Import into NexusDAV is planned for Version 2; until then you can import the files through a client that is already connected to NexusDAV.
+
+The server refuses a contact with two `UID` or two `PRODID` lines (415), as CardDAV requires. Exports that were converted by another sabre-based tool can have them: a `UID:sabre-vobject-…` line next to the card's own UID. This command keeps one `PRODID` per card and drops the `sabre-vobject-` UID only when the card has another one, so each card keeps exactly one UID:
+
+```bash
+awk '
+/^BEGIN:VCARD/ { n = 0; uids = 0 }
+{ line[++n] = $0 }
+/^UID[;:]/ { uids++ }
+/^END:VCARD/ {
+  prodid = 0
+  for (i = 1; i <= n; i++) {
+    if (line[i] ~ /^PRODID[;:]/ && prodid++) continue
+    if (uids > 1 && line[i] ~ /^UID:sabre-vobject-/) continue
+    print line[i]
+  }
+  n = 0; next
+}
+n == 0 { print }
+' contacts.vcf > contacts-fixed.vcf
+```
 
 ## Roadmap
 

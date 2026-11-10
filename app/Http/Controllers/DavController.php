@@ -95,6 +95,11 @@ class DavController extends Controller
         $status = $server->httpResponse->getStatus();
         $username = $this->username($server);
         $request->attributes->set(RequestLog::USER_ATTRIBUTE, $username);
+
+        if ($failure instanceof DavException && $status >= 400 && $status < 500 && $status !== 401 && $status !== 404) {
+            $request->attributes->set(RequestLog::REASON_ATTRIBUTE, self::reason($failure->getMessage()));
+        }
+
         $this->recordError($events, $throttle, $request, $status, $username);
 
         return $this->laravelResponse($server);
@@ -151,6 +156,19 @@ class DavController extends Controller
         }
 
         return [$server, $failure];
+    }
+
+    /**
+     * sabre's message for a refused request, for the request log line. Values
+     * that sabre quotes from the body, such as "The supplied value (1985-13-01)
+     * is not a correct ...", are masked: request bodies are never logged.
+     */
+    private static function reason(string $message): string
+    {
+        $message = (string) preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $message);
+        $message = (string) preg_replace(['/\([^)]*\)/u', '/"[^"]*"/u'], ['(…)', '"…"'], $message);
+
+        return mb_substr(trim((string) preg_replace('/\s+/u', ' ', $message)), 0, 200);
     }
 
     /**

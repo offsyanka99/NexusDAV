@@ -179,6 +179,28 @@ class RequestLogTest extends TestCase
         Livewire::test(DavErrorsTable::class)->assertSee($missing)->assertSee($refused);
     }
 
+    public function test_a_refused_request_logs_why_without_the_values_it_sent(): void
+    {
+        $ada = $this->makeUser('ada');
+        $token = app(AppPasswordService::class)->issue($ada, 'phone')['token'];
+        $logged = $this->captureRequestLines();
+
+        $card = "BEGIN:VCARD\r\nVERSION:3.0\r\nUID:card-1\r\nFN:Ada\r\nBDAY:1985-13-45x\r\nEND:VCARD\r\n";
+        $this->call('PUT', '/dav/addressbooks/ada/default/card-1.vcf', [], [], [], [
+            'HTTP_AUTHORIZATION' => 'Basic '.base64_encode('ada:'.$token),
+            'CONTENT_TYPE' => 'text/vcard',
+        ], $card)->assertStatus(415);
+
+        $this->assertCount(1, $logged->lines);
+        $reason = $logged->lines[0]['reason'] ?? null;
+        $this->assertSame('Validation error in vCard: The supplied value (…) is not a correct DATE-AND-OR-TIME property', $reason);
+        $this->assertStringNotContainsString('1985-13-45x', (string) json_encode($logged->lines));
+
+        // A missing item needs no reason; the status says it.
+        $this->dav('GET', '/dav/addressbooks/ada/default/missing.vcf', 'ada', $token)->assertStatus(404);
+        $this->assertArrayNotHasKey('reason', $logged->lines[1]);
+    }
+
     private function makeUser(string $username, bool $admin = false): User
     {
         return app(UserService::class)->create([
