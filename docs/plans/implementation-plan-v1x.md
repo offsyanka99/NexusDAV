@@ -14,7 +14,7 @@ The work is split into five milestones and 31 PRs, listed in the order they are 
 
 Sources: [guide](../guide.md), [apps](../apps/README.md), the [admin panel](../apps/admin.md) description, the design notes for [Settings](../design/admin-settings.md), [Configuration](../design/admin-configuration.md) and the [Dashboard](../design/admin-dashboard.md), the pinned WebDAV-Push draft, and the current code.
 
-**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is done and released as **0.3.0** (PR 20 to PR 27). The Sharing pass of the [client checklist](../testing/client-checklist.md#11-sharing) passed on 0.3.0+404d77b with DAVx5 + jtx Board, Thunderbird and an iPad on both databases (Pass 3 table; all of step 11 passed on both databases). M4 is done and released as **0.4.0** (PR 28 to PR 32; the release pass over HTTPS passed on both databases, see [Files testing](../testing/files-testing.md#results-of-the-release-pass)). M5 is implemented (PR 33 to PR 39) and prepared as **0.5.0**; its release pass (step 12 of the [client checklist](../testing/client-checklist.md#12-webdav-push), with the phone test) is open. Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
+**Status:** M1 is done and released as **0.1.2** (PR 9 to PR 12; see the notes under [M1](#m1--multilingual-admin-panel-effort-medium)). M2 is done and released as **0.2.0** (PR 13 to PR 19; see the notes under [M2](#m2--sync-reliability-effort-high)). M3 is done and released as **0.3.0** (PR 20 to PR 27). The Sharing pass of the [client checklist](../testing/client-checklist.md#11-sharing) passed on 0.3.0+404d77b with DAVx5 + jtx Board, Thunderbird and an iPad on both databases (Pass 3 table; all of step 11 passed on both databases). M4 is done and released as **0.4.0** (PR 28 to PR 32; the release pass over HTTPS passed on both databases, see [Files testing](../testing/files-testing.md#results-of-the-release-pass)). M5 is done and released as **0.5.0** (PR 33 to PR 39; the release pass of step 12 of the [client checklist](../testing/client-checklist.md#12-webdav-push) and the [push testing](../testing/push-testing.md) passed on both databases, with DAVx⁵ on a phone). Release numbers stay 0.x until the whole plan is done; 1.0.0 is tagged after M5.
 
 Effort levels are the same as in Version 1:
 - **Low** — small, mostly boilerplate or config
@@ -60,7 +60,7 @@ Implement the PRs in this order. "Needs" lists the PRs that must be merged first
 | 28 | PR 36 | M5 | Change events and the push queue (implemented) | High | 34, 35 |
 | 29 | PR 37 | M5 | Web Push delivery and the SSRF guard (implemented; DAVx5 check open) | High | 33, 36 |
 | 30 | PR 38 | M5 | Push in the admin panel (implemented) | Medium | 34, 35, 37 |
-| 31 | PR 39 | M5 | M5 release (prepared as 0.5.0; release pass open) | Medium | 32, 33–38 |
+| 31 | PR 39 | M5 | M5 release (released as 0.5.0) | Medium | 32, 33–38 |
 
 Notes on the order:
 
@@ -870,7 +870,7 @@ Results are in the [Files testing](../testing/files-testing.md#results)
 
 **Done when:** an admin can switch push on and set its options, sees and revokes subscriptions, and the Dashboard warns when push is on without a running worker.
 
-### PR 39 — M5 release (Effort: Medium) — prepared as 0.5.0, release pass open
+### PR 39 — M5 release (Effort: Medium) — released as 0.5.0
 
 **Done:**
 - Step 12 (WebDAV-Push) in the [client checklist](../testing/client-checklist.md#12-webdav-push) with a Pass 4 results table; the server-side steps P1 to P12 stay in [push testing](../testing/push-testing.md).
@@ -878,7 +878,7 @@ Results are in the [Files testing](../testing/files-testing.md#results)
 - Version 0.5.0 in `compose.yaml`, the TrueNAS files, `SECURITY.md` and the README; the comments that said nothing needs the worker are gone.
 - **Found while preparing:** the worker kept the panel settings it read at start, and its settings cache is in its own container, so switching push on in the panel did not reach it (its jobs dropped the messages as "push off") until the container was recreated. The worker now reads the saved settings again before each job (`ReloadSettingsForJob`). Also new since 0.4.0: log lines and the worker's job lines use the server time zone.
 
-**Open:** the release pass (step 12 and a short regression on both databases), then the release notes and the tag.
+**Release pass:** passed on `0.5.0-rc.1+1908632` on PostgreSQL and SQLite (November 10, 2026): step 12 with DAVx⁵ on a phone, and the regression steps with DAVx⁵ and Thunderbird ([results](../testing/client-checklist.md#12-webdav-push)). The worker steps W1 to W7 and the server steps P1 to P12 passed on PostgreSQL, SQLite and TrueNAS ([push testing](../testing/push-testing.md)). **Published** as tag `v0.5.0`; the image build is `ghcr.io/offsyanka99/nexusdav:0.5.0` (also `0.5` and `latest`).
 
 
 - A Push section in the client checklist, run with DAVx5 and ntfy on both databases:

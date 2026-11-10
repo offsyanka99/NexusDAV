@@ -373,26 +373,26 @@ Run on the release candidate (the tag that will be released), with both servers 
 
 | Run log | |
 |---|---|
-| Date | |
-| Build (Dashboard version) | |
-| Tester | |
-| PostgreSQL server | |
-| SQLite server | |
-| DAVx5 and its push service (ntfy or FCM) | |
-| Thunderbird | |
+| Date | Nov 10 |
+| Build (Dashboard version) | 0.5.0-rc.1+1908632 |
+| Tester | HummerSoft |
+| PostgreSQL server | ✅ |
+| SQLite server | ✅ |
+| DAVx5 and its push service (ntfy or FCM) | Google and local (private ntfy) |
+| Thunderbird | ✅ |
 
 | Step | PostgreSQL | SQLite | Notes |
 |---|---|---|---|
-| 12a Push on, Dashboard | ⬜ | ⬜ | |
-| 12b DAVx5 subscribes | ⬜ | ⬜ | |
-| 12c An event reaches the phone | ⬜ | ⬜ | |
-| 12d A contact reaches the phone | ⬜ | ⬜ | |
-| 12e A shared calendar reaches the sharee | ⬜ | ⬜ | |
-| 12f One push for a burst | ⬜ | ⬜ | |
-| 12g Revoked app password | ⬜ | ⬜ | |
-| 12h Worker stopped, then started | ⬜ | ⬜ | |
-| 12i Revoke a subscription | ⬜ | ⬜ | |
-| 12j Push off | ⬜ | ⬜ | |
-| 12k Russian text | ⬜ | ⬜ | |
-| 12l Diagnostics | ⬜ | ⬜ | |
-| Regression: steps 1, 2a, 2e, 4 and 11d with DAVx5 and Thunderbird | ⬜ | ⬜ | |
+| 12a Push on, Dashboard | ✅ | ✅ | |
+| 12b DAVx5 subscribes | ✅ | ✅ | |
+| 12c An event reaches the phone | ✅ | ✅ | |
+| 12d A contact reaches the phone | ✅ | ✅ | |
+| 12e A shared calendar reaches the sharee | ✅ | ✅ | |
+| 12f One push for a burst | ✅ | ✅ | |
+| 12g Revoked app password | ✅ | ✅ | |
+| 12h Worker stopped, then started | ✅ | ✅ | |
+| 12i Revoke a subscription | ✅ | ✅ | |
+| 12j Push off | ✅ | ✅ | |
+| 12k Russian text | ✅ | ✅ | |
+| 12l Diagnostics | ✅ | ✅ | |
+| Regression: steps 1, 2a, 2e, 4 and 11d with DAVx5 and Thunderbird | ✅ | ✅ | |

@@ -352,7 +352,7 @@ NexusDAV targets standards-compliant clients. The table shows the Version 1 targ
 
 | Client | Status |
 |---|---|
-| **DAVx⁵** 4.4.10+ (Android) with ntfy or FCM | Release pass pending. Before it, a real ntfy server received a push from the built image and the message decrypted with the current sync token |
+| **DAVx⁵** 4.4.10+ (Android) with ntfy or FCM | Release pass passed on 0.5.0-rc.1+1908632 on PostgreSQL and SQLite (November 10, 2026): all of step 12 and the regression steps with DAVx⁵ and Thunderbird ([results](testing/client-checklist.md#12-webdav-push)). Push is verified with ntfy and with FCM on the Android phone |
 | Thunderbird, Apple Calendar and Contacts, vdirsyncer | No WebDAV-Push support in the client; they sync on their own schedule as before |
 
 **Recommended clients for testing**
