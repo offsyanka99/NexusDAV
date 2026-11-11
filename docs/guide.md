@@ -631,7 +631,7 @@ Export the settings before an upgrade and keep the file with your other backups.
 4. Upgrade one minor version at a time; 1.6.0 is the release after 0.5.0. There is no rollback other than restoring the backup.
 5. **Files is off after an upgrade to 0.4.0** until an admin switches it on under **Settings → Files** (see [Files](#files)). The upgrade needs no migration and changes no setting.
 6. **WebDAV-Push is off after an upgrade to 0.5.0** until an admin switches it on under **Settings → WebDAV-Push**, and it needs the queue worker (see [WebDAV-Push](#webdav-push)). Set the new image tag on the worker too. The upgrade adds tables for the worker and push; nothing else changes.
-7. **Upgrading to 1.6.0** needs no migration and changes no setting. It adds **Settings backup** and **Danger Zone** at the bottom of **Configuration**.
+7. **Upgrading to 1.6.0** needs no migration and changes no setting. It adds **Settings backup** and **Danger Zone** at the bottom of **Configuration**. Their hand pass (export and import, and a reset with clients, the worker and WebDAV-Push afterwards) passed on 1.6.0+65ad562 on PostgreSQL and SQLite ([admin testing](testing/admin-testing.md#results)).
 
 **PostgreSQL major version changes** (for example 17 → 18): the official Postgres images changed their data directory layout starting with 18 (a single volume mount, with data stored under a version-specific subdirectory). An existing 17 data volume cannot be reused as-is by an 18 image. `pg_dump` your database first, then either keep using the matching Postgres major version, or follow [upstream's upgrade guidance](https://github.com/docker-library/postgres/issues/37) (`pg_upgrade` or dump-and-restore into a fresh volume) before switching image tags.
 

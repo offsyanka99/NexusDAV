@@ -48,7 +48,7 @@ Before you start: take a database backup of each server, and run the queue worke
 | Run log | |
 |---|---|
 | Date | Nov 11 |
-| Build (Dashboard version) | Dev |
+| Build (Dashboard version) | 1.6.0+65ad562 |
 | Tester | Maintainer |
 
 | Step | PostgreSQL | SQLite | Notes |
@@ -59,20 +59,20 @@ Before you start: take a database backup of each server, and run the queue worke
 | S4 Apply | ✅ | ✅ | |
 | S5 Nothing to change | ✅ | ✅ | |
 | S6 Back to the default | ✅ | ✅ | |
-| S7 Secure cookies over HTTP | | | |
-| S8 Not valid and unknown | | | |
-| S9 Refused files | | | |
+| S7 Secure cookies over HTTP | ✅ | ✅ | |
+| S8 Not valid and unknown | ✅ | ✅ | |
+| S9 Refused files | ✅ | ✅ | |
 | S10 Server language | ✅ | ✅ | |
 | S11 Russian | ✅ | ✅ | |
-| D1 Warning and counts | | | |
-| D2 Export settings first | | | |
-| D3 Wrong name | | | |
-| D4 Wrong password and the limit | | | |
-| D5 Reset | | | |
-| D6 Other sessions end | | | |
-| D7 Clients get 401 | | | |
-| D8 Your default collections | | | |
-| D9 Settings back to defaults | | | |
-| D10 The worker keeps running | | | |
-| D11 Push after the reset | | | |
+| D1 Warning and counts | ✅ | ✅ | |
+| D2 Export settings first | ✅ | ✅ | |
+| D3 Wrong name | ✅ | ✅ | |
+| D4 Wrong password and the limit | ✅ | ✅ | |
+| D5 Reset | ✅ | ✅ | |
+| D6 Other sessions end | ✅ | ✅ | |
+| D7 Clients get 401 | ✅ | ✅ | |
+| D8 Your default collections | ✅ | ✅ | |
+| D9 Settings back to defaults | ✅ | ✅ | |
+| D10 The worker keeps running | ✅ | ✅ | |
+| D11 Push after the reset | ✅ | ✅ | |
 | D12 Russian | ✅ | ✅ | |
