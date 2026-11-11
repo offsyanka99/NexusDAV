@@ -1,0 +1,93 @@
+# User portal — basic version (UI draft)
+
+Design note for the first version of the user portal (Version 2). The admin panel remains the operator's tool. This portal lets a signed-in user manage their own data.
+
+## Scope of the basic version
+
+### Dashboard
+
+A landing page that shows what needs attention.
+
+- Upcoming events
+- Overdue tasks
+- Recently modified files
+- **Quota** — not implemented yet. Reserve a card or section for it so it can be added later without a layout change. Until quotas exist, the section can show a placeholder or be hidden.
+
+### Calendars
+
+- List the user's own calendars
+- Create and edit calendar details: name, color, description
+- Import / Export ICS
+- **Share** — same capability already available to the admin (read-only or read-write with other users on this server). The user can create, change and remove shares of their own calendars.
+- **Holidays calendar** — already partially implemented on the server. The user selects a country and gets a holidays calendar. Include it in the first portal version.
+
+### Contacts
+
+- List the user's own address books
+- Create and edit address book details: name, description
+- Import / Export VCF
+- **Share** — same as calendars (already implemented on the server). The user manages shares of their own address books.
+
+### Tasks
+
+- Table of tasks with subtasks
+- Create and edit a task
+- Add a subtask
+- Mark complete
+
+Subtasks are required in the first version because many existing tasks already use them.
+
+### Notes
+
+- Table of notes
+- Create and edit a note
+
+### Files
+
+- Files home / Drive: list of folders and files
+- Actions: rename, delete, download
+- Upload file(s)
+- Create a folder
+
+**Postponed to a later portal version:**
+- Copy / Move
+- Upload folders
+
+### Shared with me
+
+Already implemented on the server. Show calendars and address books that other users have shared with the signed-in user (read-only or read-write according to the share).
+
+### User menu / Settings
+
+- Theme (light / dark / system)
+- Language (the `users.locale` column already exists)
+- Time zone (the `users.timezone` column already exists)
+- Change password
+- **App passwords** — create and revoke app passwords for the user's own devices
+- Show week numbers (optional)
+
+## Server-side settings (not in the user portal)
+
+These belong on the admin Configuration / Settings pages, not in the user menu:
+
+- Portal log level
+- Session settings for the portal (lifetime, etc.)
+
+Add them to the server configuration when the portal is introduced.
+
+## Out of scope for the basic version
+
+- Public share links
+- File versioning
+- In-browser preview
+- Bulk operations beyond simple multi-select delete (if needed)
+- Copy / Move and folder upload
+- Quotas (space reserved on the Dashboard only)
+- On-server scheduling UI (scheduling itself is a server feature)
+- Email of any kind
+
+## Notes
+
+- The portal is the first NexusDAV screen that lets a user edit notes and tasks directly.
+- Sharing UI in the portal reuses the same rules already enforced by the server (Decision 2 and Decision 3 from the 1.x plan: individual users, read-only or read-write, no groups).
+- A user can only manage their own collections and the shares they own. Collections shared with them appear under "Shared with me".
