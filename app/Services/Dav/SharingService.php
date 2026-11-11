@@ -5,6 +5,7 @@ namespace App\Services\Dav;
 use App\Models\AddressBook;
 use App\Models\AddressBookInstance;
 use App\Models\CalendarInstance;
+use App\Models\HolidayCalendar;
 use App\Models\User;
 use App\Services\Push\PushChanges;
 use Illuminate\Database\Eloquent\Collection;
@@ -51,7 +52,7 @@ final class SharingService
      */
     public function share(CalendarInstance|AddressBook $collection, User $sharee, int $access): CalendarInstance|AddressBookInstance
     {
-        $this->assertAccess($access);
+        $this->assertAccess($access, $collection);
         $owner = $this->owner($collection);
         $principal = $sharee->principal_uri;
 
@@ -74,7 +75,7 @@ final class SharingService
 
     public function changeAccess(CalendarInstance|AddressBook $collection, User $sharee, int $access): void
     {
-        $this->assertAccess($access);
+        $this->assertAccess($access, $collection);
         $this->owner($collection);
 
         $changed = $this->shareQuery($collection, $sharee)->update(['access' => $access]);
@@ -391,10 +392,19 @@ final class SharingService
         return $owner;
     }
 
-    private function assertAccess(int $access): void
+    /**
+     * A holiday calendar's events are written by the server only, so its
+     * sharees read them like its owner does.
+     */
+    private function assertAccess(int $access, CalendarInstance|AddressBook $collection): void
     {
         if (! in_array($access, self::SHARED, true)) {
             throw new InvalidArgumentException('Access must be read only or read and write.');
+        }
+
+        if ($access === self::READ_WRITE && $collection instanceof CalendarInstance
+            && HolidayCalendar::query()->where('calendar_id', $collection->calendarid)->exists()) {
+            throw new InvalidArgumentException('A holiday calendar can only be shared read only.');
         }
     }
 }

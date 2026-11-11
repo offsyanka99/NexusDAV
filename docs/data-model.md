@@ -145,6 +145,24 @@ The push merge window: at most one row per topic, written when a change commits 
 
 The VAPID key pair and the push topic key are rows `push.vapid` and `push.topic_key` of `settings`, encrypted with `APP_KEY`.
 
+### holiday_calendars
+
+The holiday settings of a calendar whose events the server makes from the [Yasumi](https://www.yasumi.dev) library (0.7.0). The calendar itself is a normal `calendars` row with its owner's `calendarinstances` row, offering `VEVENT` only; its events are `calendarobjects` written through the calendar backend, so they move the sync token and reach WebDAV-Push like a client's write. Clients can read them but not change them.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | bigint | PK |
+| calendar_id | bigint | unique, FK to `calendars.id`, deleted with the calendar |
+| region | string(16) | ISO 3166 code: a country (`CA`) or a region (`CA-ON`) |
+| locale | string(16) | the language of the names, a Yasumi locale such as `uk_UA` |
+| types | text | JSON list of the holiday types it holds, as Yasumi names them: `official`, `observance`, `season`, `bank`, `other` |
+| from_year, to_year | smallint | the years it holds; a refresh moves `to_year` to three years ahead and keeps the past |
+| data_version | string(64) | the Yasumi version and the generator version that made the events |
+| refreshed_at | timestamp | nullable, the last refresh |
+| created_at, updated_at | timestamp | `created_at` is also each event's `DTSTAMP` |
+
+Each holiday is one all-day event. Its UID is `holiday-<calendar id>-<year>-<holiday key>@nexusdav` (the key in lower case, other characters as `-`, at most 60 characters), and its object URI is the UID with `.ics`. The UID stays the same when the region or the language changes, so a refresh writes only the events that differ.
+
 ## sabre/dav storage tables
 
 Laravel migrations create these tables. sabre/dav 4.7.1 only ships SQL examples and creates nothing itself. The standard PDO backends read and write them through Laravel's PDO connection.
@@ -196,6 +214,7 @@ principals 1—— * addressbookinstances (principaluri, the sharee)
 calendars 1—— * calendarinstances
 calendars 1—— * calendarobjects
 calendars 1—— * calendarchanges
+calendars 1—— 0..1 holiday_calendars
 addressbooks 1—— * cards
 addressbooks 1—— * addressbookchanges
 addressbooks 1—— * addressbookinstances

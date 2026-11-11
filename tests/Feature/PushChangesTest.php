@@ -10,6 +10,7 @@ use App\Models\PushSubscription;
 use App\Models\User;
 use App\Services\Dav\FileStorage;
 use App\Services\Dav\SharingService;
+use App\Services\Holidays\HolidayCalendarService;
 use App\Services\Push\PushChanges;
 use App\Services\Push\PushResult;
 use App\Services\Push\PushSender;
@@ -381,6 +382,23 @@ class PushChangesTest extends TestCase
     /**
      * @param  array<string, string>  $headers
      */
+    public function test_a_holiday_calendar_change_reaches_its_subscribers_once(): void
+    {
+        $this->travelTo(now()->setDate(2026, 11, 10));
+        $holiday = app(HolidayCalendarService::class)->create($this->ada, 'holidays', 'Holidays', '#3366CC', 'CA-ON');
+        $subscription = $this->subscribe('/dav/calendars/ada/holidays/', 'ada', $this->adaToken);
+        Queue::fake();
+
+        app(HolidayCalendarService::class)->refresh($holiday);
+        $this->assertSame(0, DB::table('push_outbox')->count());
+        Queue::assertNothingPushed();
+
+        app(HolidayCalendarService::class)->update($holiday, 'CA-QC', 'en_CA', ['official']);
+
+        Queue::assertPushed(SendPushMessages::class, 1);
+        $this->assertSame(1, (int) $this->outbox($subscription->topic)->content_depth);
+    }
+
     private function putEvent(string $uid, string $username, string $password, array $headers = []): void
     {
         $this->dav('PUT', '/dav/calendars/'.$username.'/default/'.$uid.'.ics', $username, $password, ['Content-Type' => 'text/calendar'] + $headers, $this->event($uid))->assertCreated();

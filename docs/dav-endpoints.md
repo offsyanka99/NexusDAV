@@ -96,6 +96,15 @@ An admin shares a calendar in the panel (see [sharing.md](design/sharing.md)). T
 - Clients cannot share: no sharing plugin is loaded, a sharing `POST` (`share-resource`, CalendarServer `share` or `invite-reply`) is **403**, and no property lists other sharees.
 - With **Sharing** off (`NEXUSDAV_SHARING=false`) shared calendars are not listed and their paths answer 404. The shares are kept.
 
+## Holiday calendars
+
+A holiday calendar is a calendar in its owner's home whose events the server makes from a country's or a region's holidays (0.7.0; see [data-model.md](data-model.md#holiday_calendars)). It offers `VEVENT` only. Each holiday is an all-day event with `TRANSP:TRANSPARENT`, so it does not count as busy.
+
+- **Read only for every client, the owner too.** A `PUT` or `DELETE` of an event, a `PROPPATCH` of an event, a `MOVE` into or out of the calendar and a `COPY` into it are **403**. `current-user-privilege-set` holds `read` and `write-properties` on the calendar and `read` on its events, so DAVx5 and Thunderbird show it as read-only. A `COPY` of a holiday out into another calendar works: it only reads the holiday.
+- The owner can rename it, change its colour and order (`PROPPATCH` of the calendar), and delete it; its holiday settings go with it.
+- It can be shared read only. A read-and-write share is refused in the panel.
+- When the server makes the events again (a new language, region or holiday data), only the events that differ are written, so `sync-collection` reports only them and a refresh without a difference leaves the sync token as it was.
+
 ## Shared address books
 
 An admin shares an address book in the panel. The sharee's client finds it in their own address book home, under a name of its own, usually the owner's (`default-<owner>` when the sharee already has that name), and named "<name> (<owner's display name>)".

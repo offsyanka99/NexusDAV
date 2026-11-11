@@ -25,6 +25,7 @@ final class PanelErrorTranslator
             'That collection no longer exists.' => __('That collection no longer exists.'),
             'That user has no share of this collection.' => __('That user has no share of this collection.'),
             'Access must be read only or read and write.' => __('Access must be read only or read and write.'),
+            'A holiday calendar can only be shared read only.' => __('A holiday calendar can only be shared read only.'),
             "Only the owner's calendar can be shared." => __("Only the owner's calendar can be shared."),
             'That collection has no owner.' => __('That collection has no owner.'),
             'App password name must be between 1 and 255 characters.' => __('App password name must be between 1 and 255 characters.'),

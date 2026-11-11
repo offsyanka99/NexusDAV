@@ -90,6 +90,26 @@ final class DavWriteLock
         $this->finish();
     }
 
+    /**
+     * Takes the lock a DAV write to this calendar takes, inside the caller's
+     * transaction, so a server-side write (holiday calendars) and a client's
+     * write to the same calendar wait for each other. SQLite already holds
+     * its one write lock from BEGIN.
+     */
+    public static function lockCalendar(int $calendarId): void
+    {
+        if (DB::transactionLevel() === 0) {
+            throw new \LogicException('lockCalendar() needs an open transaction.');
+        }
+
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            return;
+        }
+
+        DB::statement("SET LOCAL lock_timeout = '5s'");
+        DB::select('SELECT pg_advisory_xact_lock(?, ?)', [self::PG_CALENDAR, self::idKey($calendarId)]);
+    }
+
     public function isOpen(): bool
     {
         return $this->open;
@@ -192,7 +212,7 @@ final class DavWriteLock
             $id = DB::table('calendarinstances')->where('principaluri', $principal)->where('uri', $uri)->value('calendarid');
 
             if ($id !== null) {
-                return ['namespace' => self::PG_CALENDAR, 'key' => $this->idKey((int) $id)];
+                return ['namespace' => self::PG_CALENDAR, 'key' => self::idKey((int) $id)];
             }
         } else {
             $id = DB::table('addressbooks')->where('principaluri', $principal)->where('uri', $uri)->value('id');
@@ -202,26 +222,26 @@ final class DavWriteLock
             }
 
             if ($id !== null) {
-                return ['namespace' => self::PG_ADDRESSBOOK, 'key' => $this->idKey((int) $id)];
+                return ['namespace' => self::PG_ADDRESSBOOK, 'key' => self::idKey((int) $id)];
             }
         }
 
-        return ['namespace' => self::PG_PATH, 'key' => $this->hashKey($collection)];
+        return ['namespace' => self::PG_PATH, 'key' => self::hashKey($collection)];
     }
 
     /**
      * pg_advisory_xact_lock's second argument is a signed 32-bit int.
      */
-    private function idKey(int $id): int
+    private static function idKey(int $id): int
     {
         if ($id >= 1 && $id <= 0x7FFFFFFF) {
             return $id;
         }
 
-        return $this->hashKey('id:'.$id);
+        return self::hashKey('id:'.$id);
     }
 
-    private function hashKey(string $value): int
+    private static function hashKey(string $value): int
     {
         $hash = crc32($value);
 

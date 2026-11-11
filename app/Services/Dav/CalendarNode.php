@@ -12,6 +12,11 @@ use Sabre\DAV\Sharing\Plugin as SharingPlugin;
  * DAV:owner is this principal, including for a share. Privileges come from
  * the instance access, never from that owner property: a read-only sharee
  * must not receive write. No share privilege and no calendar-proxy principal.
+ *
+ * A holiday calendar's events are written by the server only: its owner may
+ * rename it, recolour it and delete it, but gets read on its events, like a
+ * read-only sharee. sabre then refuses PUT, DELETE, COPY and MOVE into or out
+ * of it (bind, unbind, write-content) and PROPPATCH of an event.
  */
 final class CalendarNode extends SharedCalendar
 {
@@ -21,16 +26,18 @@ final class CalendarNode extends SharedCalendar
     public function getACL()
     {
         $principal = (string) $this->calendarInfo['principaluri'];
+        $access = $this->getShareAccess();
 
-        if ($this->getShareAccess() === SharingPlugin::ACCESS_READ) {
+        if ($access === SharingPlugin::ACCESS_READ) {
             return $this->aces($principal, ['{DAV:}read', '{DAV:}write-properties']);
         }
 
-        if ($this->getShareAccess() === SharingPlugin::ACCESS_READWRITE) {
-            return $this->aces($principal, ['{DAV:}read', '{DAV:}write']);
+        $acl = $this->aces($principal, $this->holiday() ? ['{DAV:}read', '{DAV:}write-properties'] : ['{DAV:}read', '{DAV:}write']);
+
+        if ($access === SharingPlugin::ACCESS_READWRITE) {
+            return $acl;
         }
 
-        $acl = $this->aces($principal, ['{DAV:}read', '{DAV:}write']);
         $acl[] = [
             'privilege' => '{'.Plugin::NS_CALDAV.'}read-free-busy',
             'principal' => '{DAV:}authenticated',
@@ -47,11 +54,16 @@ final class CalendarNode extends SharedCalendar
     {
         $principal = (string) $this->calendarInfo['principaluri'];
 
-        if ($this->getShareAccess() === SharingPlugin::ACCESS_READ) {
+        if ($this->getShareAccess() === SharingPlugin::ACCESS_READ || $this->holiday()) {
             return $this->aces($principal, ['{DAV:}read']);
         }
 
         return $this->aces($principal, ['{DAV:}read', '{DAV:}write']);
+    }
+
+    private function holiday(): bool
+    {
+        return ($this->calendarInfo[CalendarBackend::HOLIDAY] ?? false) === true;
     }
 
     /**

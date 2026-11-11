@@ -30,7 +30,7 @@ final class DavStatusCodes
             [
                 'code' => 403,
                 'name' => __('Forbidden'),
-                'meaning' => __('The user is signed in but the server refuses the request: a service that is switched off (CalDAV, CardDAV or Files), a write to a read-only share, a client trying to share, a path with "..", or copying between Files and calendars.'),
+                'meaning' => __('The user is signed in but the server refuses the request: a service that is switched off (CalDAV, CardDAV or Files), a write to a read-only share or a holiday calendar, a client trying to share, a path with "..", or copying between Files and calendars.'),
                 'check' => __('Settings, the access of the share, and the path.'),
             ],
             [

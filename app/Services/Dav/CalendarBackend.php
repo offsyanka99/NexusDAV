@@ -34,6 +34,13 @@ final class CalendarBackend extends SabreCalendarBackend
 
     private const CTAG = '{http://calendarserver.org/ns/}getctag';
 
+    /**
+     * Set to true in the calendar info of a holiday calendar, whose events
+     * only the server writes (CalendarNode). Not a `{…}` name, so sabre does
+     * not offer it as a property.
+     */
+    public const HOLIDAY = 'nexusdav-holiday';
+
     public function __construct(PDO $pdo)
     {
         parent::__construct($pdo);
@@ -116,8 +123,21 @@ final class CalendarBackend extends SabreCalendarBackend
             $token = SyncToken::format((int) $calendar['id'][0], (int) $calendar[self::SYNC_TOKEN]);
             $calendar[self::SYNC_TOKEN] = $token;
             $calendar[self::CTAG] = SyncPlugin::SYNCTOKEN_PREFIX.$token;
+            $calendar[self::HOLIDAY] = false;
 
             $calendars[] = $calendar;
+        }
+
+        if ($calendars !== []) {
+            $holidays = DB::table('holiday_calendars')
+                ->whereIn('calendar_id', array_map(static fn (array $calendar): int => (int) $calendar['id'][0], $calendars))
+                ->pluck('calendar_id')
+                ->map(static fn (mixed $id): int => (int) $id)
+                ->all();
+
+            foreach ($calendars as $index => $calendar) {
+                $calendars[$index][self::HOLIDAY] = in_array((int) $calendar['id'][0], $holidays, true);
+            }
         }
 
         return $calendars;
