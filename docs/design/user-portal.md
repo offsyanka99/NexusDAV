@@ -15,7 +15,22 @@ A landing page that shows what needs attention.
 
 ### Calendars
 
-- List the user's own calendars
+Three-zone layout:
+
+- **Header**: app icons (Dashboard, Calendar, Contacts, Tasks, Notes, Files), search across events, user menu
+- **Left sidebar**:
+  - New appointment button
+  - Mini calendar (month view)
+  - **My calendars** — list with checkboxes to show or hide each calendar
+  - Each calendar has a `...` menu: Edit details (name, color, description), Share, Import/Export ICS, Delete
+  - **Shared with me** — calendars shared by others, also with checkboxes
+  - Holidays calendar (if enabled) appears in the list
+- **Main area**:
+  - Date navigation (`< Today >` + current period)
+  - View switcher: Day / Week / Workweek / Month / Year
+  - Calendar grid showing events in the color of their calendar
+
+**Capabilities:**
 - Create and edit calendar details: name, color, description
 - Import / Export ICS
 - **Share** — same capability already available to the admin (read-only or read-write with other users on this server). The user can create, change and remove shares of their own calendars.
@@ -23,7 +38,17 @@ A landing page that shows what needs attention.
 
 ### Contacts
 
-- List the user's own address books
+- **Left sidebar**:
+  - New contact button
+  - List of the user's address books with checkboxes (show / hide)
+  - Each address book has a `...` menu: Edit details (name, description), Share, Import/Export VCF, Delete
+  - **Shared with me** — address books shared by others
+- **Main area**:
+  - List of contacts from the selected address books (table or cards)
+  - Search across contacts
+  - Click a contact to view or edit it
+
+**Capabilities:**
 - Create and edit address book details: name, description
 - Import / Export VCF
 - **Share** — same as calendars (already implemented on the server). The user manages shares of their own address books.
