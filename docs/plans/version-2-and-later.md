@@ -69,10 +69,7 @@ A basic user portal beside the admin panel. People manage their own data there; 
 - Audit trail of successful logins and admin actions. Failed logins are already recorded on the Diagnostics page since Version 1
 - Fuller health checks (database, disk, queue, SMTP). The WebDAV-Push worker status arrives in Version 1.x
 - Automatic backups (local + remote: S3, Backblaze, etc.)
-- Export and import of server settings as JSON
-  - Secrets such as the SMTP password are left out, or the file is encrypted
-  - Values that come from the environment are not exported
-  - The file has no users, calendars or contacts
+- Settings that become secrets (the SMTP password) are left out of the settings file, which arrives in 1.6.0
 - Optional two-factor authentication for the admin panel
 - Multilingual user portal
 - **Multi-admin roles** — at least two roles: a full administrator and a user manager who can create and disable users but cannot change server settings, SMTP or backups.
@@ -105,7 +102,6 @@ A basic user portal beside the admin panel. People manage their own data there; 
 - Backup and restore settings for configuration and data
 - Health check settings
 - SMTP settings and the From address used for outbound email
-- Danger Zone: Reset to Default (full factory reset with one or two explicit confirmations)
 
 ## Later / not yet assigned to a version
 

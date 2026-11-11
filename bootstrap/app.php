@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DavController;
 use App\Http\Controllers\HealthController;
+use App\Http\Middleware\RefuseWhileResetting;
 use App\Http\Middleware\RequestLog;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\TrustProxies;
@@ -60,6 +61,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // First, so every answer is logged, including those from the middleware after it.
         $middleware->prepend(RequestLog::class);
+        // During a factory reset, before sessions, authentication and DAV.
+        $middleware->append(RefuseWhileResetting::class);
         // The proxy list comes from config('nexusdav.trusted_proxies') at request time.
         $middleware->replace(BaseTrustProxies::class, TrustProxies::class);
         // An upload to a file home has its own limit instead of post_max_size.

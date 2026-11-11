@@ -12,7 +12,7 @@ Related documents:
 - [Implementation plan (v1.x)](plans/implementation-plan-v1x.md) — milestones and PRs for the Version 1.x features
 - [Plan for Version 2 and later](plans/version-2-and-later.md) — features for 2.0, 2.x and beyond
 
-Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `0.5.0` (first release `0.1.0`). "Version 1" and "Version 1.x" in these documents name the feature plan, not release numbers: releases stay 0.x until the plan is finished and 1.0.0 is tagged. 0.5.0 completes the five milestones of the Version 1.x plan: the admin panel in English and Russian (M1), reliable sync (M2), sharing of calendars and address books (M3), Files, WebDAV file storage (M4), and WebDAV-Push with a queue worker (M5). The server passes automated sync tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
+Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `1.6.0` (first release `0.1.0`). "Version 1" and "Version 1.x" in these documents name the feature plan, not release numbers. 1.6.0 follows 0.5.0 and adds the export and import of server settings and a factory reset (Danger Zone on the Configuration page). 0.5.0 completed the five milestones of the Version 1.x plan: the admin panel in English and Russian (M1), reliable sync (M2), sharing of calendars and address books (M3), Files, WebDAV file storage (M4), and WebDAV-Push with a queue worker (M5). The server passes automated sync tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
 
 NexusDAV is built for homelabs and small teams that want calendars, contacts, tasks, notes and files without running a full groupware suite.
 
@@ -30,7 +30,7 @@ Current limitations:
 
 ## Quick start
 
-1. Get the Compose files and create your environment file. The Compose files pull the published image, `ghcr.io/offsyanka99/nexusdav:0.5.0`:
+1. Get the Compose files and create your environment file. The Compose files pull the published image, `ghcr.io/offsyanka99/nexusdav:1.6.0`:
 
    ```bash
    git clone https://github.com/offsyanka99/NexusDAV.git
@@ -245,6 +245,16 @@ The command asks for the new password twice (input hidden, at least 12 character
 The reset signs out the admin's existing sessions: their rows are removed from the session table, and any other session ends on its next request because the password changed. The reset is logged with the username and the counts of ended sessions and revoked app passwords, never with the password. A command run with `docker compose exec` writes that log line to its own output, not to `docker compose logs`, so keep the output if you need a record. If the admin account is disabled, the command says so; enable it from another admin account. From Version 2.x, an email is sent to the admin if SMTP is configured.
 
 A web-based reset triggered by an environment variable is deliberately not used: anyone who reaches the page first after a restart could set the admin password.
+
+### Danger Zone: Reset to Default
+
+The last section of **Configuration** returns the server to a fresh install (1.6.0). It deletes every other user, all calendars, address books, contacts, events, tasks, notes and files, every app password (yours too), shares, push subscriptions and keys, diagnostics, saved settings, queued jobs and your other sessions. It keeps your account and password, the settings from the environment, `APP_KEY` and the container log. You get a new default calendar and address book, like a new user, and stay signed in. Nothing of it can be undone: take a backup first (see [Backup, restore and upgrade](#backup-restore-and-upgrade)).
+
+1. **Reset to Default** shows what would be deleted, with today's numbers, and what is kept. **Export settings first** downloads the settings file.
+2. **Continue** asks for the server's name from `APP_URL` (for example `dav.example.com`) and your password. **Reset** stays disabled until the name matches. A wrong password is refused and logged as a warning; after 5 wrong passwords in a minute, wait a minute.
+3. While the reset runs (usually seconds; longer with many files), every request answers **503** with `Retry-After`, `/health` excepted, and the queue worker takes no job. Clients retry and then get **401**: set them up again with a new app password. The log gets a `WARNING Factory reset` line with the numbers.
+
+Every admin can run it. If it fails, nothing is deleted and the files are put back. A reset that is cut off (the container stopped) leaves the server closed for at most 15 minutes; delete `/data/.nexusdav-resetting` to open it sooner.
 
 ### Authentication
 
@@ -530,7 +540,6 @@ What each app includes, version by version, is described in [apps](apps/README.m
 - Per-user and server storage statistics
 - WebDAV-Push subscriptions (view and manage)
 - Health checks
-- Export and import of server settings (JSON)
 
 #### Security (long-term)
 
@@ -576,7 +585,7 @@ Items marked with a version are scheduled in the [plan for Version 2 and later](
 
 ## Backup, restore and upgrade
 
-The database backup commands below were run against the image. The restore steps are not tested yet, and the settings export does not exist yet.
+The database backup commands below were run against the image. The restore steps are not tested yet.
 
 **What to back up**
 
@@ -605,21 +614,24 @@ Keep at least three copies on two kinds of storage, with one off-site, and encry
 
 **Server settings**
 
-Settings changed in the admin panel (SMTP, quotas, defaults, etc.) are stored in the database, so a database backup already contains them. For moving settings between installs, or keeping a copy that is separate from user data, the admin panel will offer:
+Settings changed in the admin panel are stored in the database, so a database backup already contains them. For moving settings between installs, or keeping a copy that is separate from user data, the **Settings backup** section at the bottom of **Configuration** has two buttons (1.6.0):
 
-- **Export settings:** downloads a JSON file with the server settings. Values set through environment variables stay in `.env` and are not exported. Secrets such as the SMTP password are left out, or the file is encrypted; they must be re-entered or the file passphrase supplied on import.
-- **Import settings:** uploads that file. The admin sees a summary of the changes and confirms before they are applied. Import is refused when the file comes from an incompatible version.
+- **Export settings** downloads `nexusdav-settings-<host>-<date>.json` with the settings of the Settings and Configuration pages. A setting at its default is written as `null`, so importing the file elsewhere keeps that server's defaults instead of fixing today's. Settings set through environment variables stay in `.env` and are not in the file. Secrets are left out (none of today's settings is a secret; the SMTP password of Version 2.x will be), and so are the WebDAV-Push keys, users, calendars and contacts.
+- **Import settings** takes such a file (at most 256 KB) and shows what would change, with the current and the new value, before anything is saved. **Apply** saves the changes in one step; the worker picks them up before its next job. Settings that cannot be imported are listed with the reason and skipped: set by the environment on this server, not valid here (for example a language this server does not have), unknown to this version, or **Secure cookies** while the panel is open over plain HTTP. A file that is not a settings file, or that comes from a newer NexusDAV, is refused as a whole.
+
+The log gets an `INFO` line `Settings exported` and a `NOTICE` line `Settings imported` with the admin and the names of the changed settings (never their values).
 
 Export the settings before an upgrade and keep the file with your other backups. It does not replace a database backup: it contains no users, calendars or contacts.
 
 **Upgrade**
 
 1. Back up first.
-2. Read the release notes, then change the tag on the `image:` line in `compose.yaml` (for example from `0.4.0` to `0.5.0`). Keep an exact version rather than `latest`, so an upgrade happens only when you choose it.
+2. Read the release notes, then change the tag on the `image:` line in `compose.yaml` (for example from `0.5.0` to `1.6.0`). Keep an exact version rather than `latest`, so an upgrade happens only when you choose it.
 3. Run `docker compose pull` and `docker compose up -d`, with the same `-f` files as at install. Database migrations run automatically on start. With `compose.build.yaml`, update the checkout instead and run `up -d --build`.
-4. Upgrade one minor version at a time. There is no rollback other than restoring the backup.
+4. Upgrade one minor version at a time; 1.6.0 is the release after 0.5.0. There is no rollback other than restoring the backup.
 5. **Files is off after an upgrade to 0.4.0** until an admin switches it on under **Settings → Files** (see [Files](#files)). The upgrade needs no migration and changes no setting.
 6. **WebDAV-Push is off after an upgrade to 0.5.0** until an admin switches it on under **Settings → WebDAV-Push**, and it needs the queue worker (see [WebDAV-Push](#webdav-push)). Set the new image tag on the worker too. The upgrade adds tables for the worker and push; nothing else changes.
+7. **Upgrading to 1.6.0** needs no migration and changes no setting. It adds **Settings backup** and **Danger Zone** at the bottom of **Configuration**.
 
 **PostgreSQL major version changes** (for example 17 → 18): the official Postgres images changed their data directory layout starting with 18 (a single volume mount, with data stored under a version-specific subdirectory). An existing 17 data volume cannot be reused as-is by an 18 image. `pg_dump` your database first, then either keep using the matching Postgres major version, or follow [upstream's upgrade guidance](https://github.com/docker-library/postgres/issues/37) (`pg_upgrade` or dump-and-restore into a fresh volume) before switching image tags.
 
@@ -728,6 +740,8 @@ n == 0 { print }
 - Multilingual admin panel (English and Russian, more as translation files). **Released in 0.1.2**
 - Files (WebDAV file storage). **Released in 0.4.0**
 - Improved sync reliability
+- Export and import of server settings (JSON) on the Configuration page. **Released in 1.6.0**
+- Danger Zone: Reset to Default, a factory reset that keeps the admin who runs it. **Released in 1.6.0**
 
 ### Version 2
 
@@ -746,6 +760,5 @@ n == 0 { print }
 - Automatic backups (local + remote)
 - Multilingual user portal
 - Optional 2FA
-- Export and import of server settings (JSON)
 - Trash and restore of deleted items (including files in the user portal), direct import from Radicale, Baïkal and Nextcloud, and editing office documents in the browser
 - A mobile-friendly user portal with dark mode, and an admin panel optimised for mobile

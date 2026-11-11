@@ -28,6 +28,8 @@ final class PanelErrorTranslator
             "Only the owner's calendar can be shared." => __("Only the owner's calendar can be shared."),
             'That collection has no owner.' => __('That collection has no owner.'),
             'App password name must be between 1 and 255 characters.' => __('App password name must be between 1 and 255 characters.'),
+            'This is not a NexusDAV settings file.' => __('This is not a NexusDAV settings file.'),
+            'The file is larger than 256 KB.' => __('The file is larger than 256 KB.'),
             default => null,
         };
 
@@ -37,6 +39,10 @@ final class PanelErrorTranslator
 
         if (preg_match('/^The password must be at least (\d+) characters\.$/', $message, $matches) === 1) {
             return __('The password must be at least :count characters.', ['count' => $matches[1]]);
+        }
+
+        if (preg_match('/^This file comes from a newer NexusDAV \((.*)\)\. Upgrade this server first\.$/', $message, $matches) === 1) {
+            return __('This file comes from a newer NexusDAV (:version). Upgrade this server first.', ['version' => $matches[1]]);
         }
 
         if (preg_match('/^The value for (.+) is not valid\.$/', $message, $matches) === 1) {

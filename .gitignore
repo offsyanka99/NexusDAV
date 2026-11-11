@@ -52,6 +52,7 @@ docs/plans/*.md
 !/docs/testing/client-checklist.md
 !/docs/testing/files-testing.md
 !/docs/testing/push-testing.md
+!/docs/testing/admin-testing.md
 
 
 # VS Code Local History

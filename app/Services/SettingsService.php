@@ -6,6 +6,7 @@ use App\Models\Setting;
 use App\Support\LocaleCatalog;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Throwable;
 
@@ -24,7 +25,9 @@ final class SettingsService
     public const LOG_LEVELS = ['debug', 'info', 'notice', 'warning', 'error', 'critical', 'alert', 'emergency'];
 
     /**
-     * @var array<string, array{config: string, env: string, type: string, default?: mixed, min?: int, max?: int, options?: list<string>}>
+     * `secret` keeps a setting out of the settings file (SettingsTransfer).
+     *
+     * @var array<string, array{config: string, env: string, type: string, default?: mixed, min?: int, max?: int, options?: list<string>, secret?: bool}>
      */
     public const DEFINITIONS = [
         'caldav' => ['config' => 'nexusdav.features.caldav', 'env' => 'NEXUSDAV_CALDAV', 'type' => 'bool', 'default' => true],
@@ -60,6 +63,15 @@ final class SettingsService
      * @var array<string, mixed>|null
      */
     private ?array $stored = null;
+
+    /**
+     * The config value of each setting from before a saved value was laid
+     * over it, so removing the saved value brings the environment's or the
+     * config file's value back in a process that keeps running (the worker).
+     *
+     * @var array<string, mixed>
+     */
+    private array $baseline = [];
 
     /**
      * Current value, after the environment and saved values are applied.
@@ -116,6 +128,80 @@ final class SettingsService
     }
 
     /**
+     * Replaces saved values in one transaction: a value is saved, null
+     * deletes the saved value so the default applies again. The cache is
+     * cleared only after the commit, so no other request caches the old
+     * values again in between. Locked and unknown keys are ignored.
+     *
+     * @param  array<string, mixed>  $values
+     */
+    public function replace(array $values): void
+    {
+        $writes = [];
+        $deletes = [];
+
+        foreach ($values as $key => $raw) {
+            if (! isset(self::DEFINITIONS[$key]) || $this->isLocked($key)) {
+                continue;
+            }
+
+            if ($raw === null) {
+                $deletes[] = $key;
+
+                continue;
+            }
+
+            $value = $this->normalize(self::DEFINITIONS[$key], $raw);
+
+            if ($value === null) {
+                throw new InvalidArgumentException('The value for '.$key.' is not valid.');
+            }
+
+            $writes[$key] = $value;
+        }
+
+        DB::transaction(function () use ($writes, $deletes): void {
+            foreach ($writes as $key => $value) {
+                Setting::query()->updateOrCreate(['key' => $key], ['value' => json_encode($value, JSON_THROW_ON_ERROR)]);
+            }
+
+            if ($deletes !== []) {
+                Setting::query()->whereIn('key', $deletes)->delete();
+            }
+        });
+
+        $this->forget();
+        $this->apply();
+    }
+
+    /**
+     * Whether a value is saved for the setting, whatever it is.
+     */
+    public function isSaved(string $key): bool
+    {
+        $this->definition($key);
+
+        return array_key_exists($key, $this->stored());
+    }
+
+    /**
+     * The setting's fixed default, or null when it has none (Secure cookies
+     * follows APP_URL).
+     */
+    public function defaultValue(string $key): mixed
+    {
+        return $this->definition($key)['default'] ?? null;
+    }
+
+    /**
+     * The value in its stored form, or null when it is not valid here.
+     */
+    public function normalizeValue(string $key, mixed $raw): mixed
+    {
+        return $this->normalize($this->definition($key), $raw);
+    }
+
+    /**
      * Puts saved values into config for this request. Values that come from
      * the environment are only normalized. A value that is not valid falls
      * back to the default.
@@ -129,6 +215,15 @@ final class SettingsService
 
             if (! $this->isLocked($key) && array_key_exists($key, $stored)) {
                 $value = $this->normalize($definition, $stored[$key]);
+            }
+
+            if ($value !== null) {
+                if (! array_key_exists($key, $this->baseline)) {
+                    $this->baseline[$key] = config($definition['config']);
+                }
+            } elseif (array_key_exists($key, $this->baseline)) {
+                config([$definition['config'] => $this->baseline[$key]]);
+                unset($this->baseline[$key]);
             }
 
             $value ??= $this->normalize($definition, config($definition['config']));
@@ -236,7 +331,7 @@ final class SettingsService
     }
 
     /**
-     * @return array{config: string, env: string, type: string, default?: mixed, min?: int, max?: int, options?: list<string>}
+     * @return array{config: string, env: string, type: string, default?: mixed, min?: int, max?: int, options?: list<string>, secret?: bool}
      */
     private function definition(string $key): array
     {
@@ -248,7 +343,7 @@ final class SettingsService
     }
 
     /**
-     * @param  array{config: string, env: string, type: string, default?: mixed, min?: int, max?: int, options?: list<string>}  $definition
+     * @param  array{config: string, env: string, type: string, default?: mixed, min?: int, max?: int, options?: list<string>, secret?: bool}  $definition
      */
     private function normalize(array $definition, mixed $raw): mixed
     {

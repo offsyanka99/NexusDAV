@@ -39,6 +39,30 @@ Built in 0.1.2 (milestone M1 of the [Version 1.x plan](../plans/implementation-p
 
 Each admin can choose their own language under **Language** in the user menu. The item shows the language in use, with "Server default (…)" when it is not the admin's own choice. **Server default** clears the choice. The page reloads in the new language. A language chosen in the user menu always wins over this setting; when the server default is saved, an admin who has their own language is told that it stays.
 
+## Settings backup (1.6.0)
+
+Built in PR 44 and PR 45. The last section of the page, below **Save**:
+
+- **Export settings** downloads `nexusdav-settings-<host>-<YYYY-MM-DD>.json`:
+
+  ```json
+  {
+    "format": "nexusdav-settings",
+    "format_version": 1,
+    "app_version": "1.6.0",
+    "exported_at": "2026-12-01T18:00:00Z",
+    "settings": { "files": true, "files_max_upload_mb": 512, "log_level": null }
+  }
+  ```
+
+  Every setting of the Settings and Configuration pages that the environment does not set, by its key (not its variable name). A value equal to the setting's default is `null`; Secure cookies, which has no fixed default, is `null` until it is saved. Locked settings, settings marked secret, the WebDAV-Push keys and every other row of the `settings` table are never written.
+- **Import settings** opens a dialog for the file (JSON, at most 256 KB), then **Show changes** opens the preview:
+  - **Changes**: each setting with its label as on the page, `current → new` (`Default (128)` for a `null`)
+  - "N settings are already the same."
+  - **Not imported**: each skipped setting with its reason: set by the environment on this server, not valid on this server, unknown setting, secret, or Secure cookies while the panel is open over plain HTTP (it would sign the admin out)
+  - **Apply** (hidden when nothing changes) saves all changes in one transaction; `null` deletes the saved value, so the default applies again, also in the running worker. The page reloads when the server default language changed.
+- Refused as a whole, with the upload dialog left open: a file that is not JSON, has another `format` or no `settings` object, or a `format_version` newer than the server knows ("This file comes from a newer NexusDAV (x.y.z). Upgrade this server first.").
+
 ## Version 2
 
 - Portal log level and portal session settings (the user portal arrives in Version 2)
@@ -50,9 +74,14 @@ Each admin can choose their own language under **Language** in the user menu. Th
 - Backup and restore settings for configuration and data
 - Health check settings
 
-## Danger Zone (Version 2.x)
+## Danger Zone (1.6.0)
 
-**Reset to Default** performs a full factory reset: configuration, database (all users and data), WebDAV files and the install lock. The action requires one or two explicit confirmations before it runs.
+Built in PR 46 and PR 47. The last section of the page, below **Settings backup**, with a red outline and a warning icon, and a red **Reset to Default** button.
+
+- **Step 1**, a warning: what is deleted, with today's numbers (other users, calendars, address books, events, tasks, notes, contacts, and the file storage total as on the Dashboard, "Not counted yet" before a count), and what is kept (your account and password, settings from the environment, `APP_KEY`, the container log). Buttons: **Export settings first** (downloads the settings file), **Cancel**, **Continue**.
+- **Step 2**: "Type `<host>`" (the host of `APP_URL`, lower case) and **Your password**. **Reset** is disabled until the name matches; the server checks it again. A wrong password is refused with "The password is not correct.", logged as a `WARNING`, and limited to 5 a minute per admin ("Too many wrong passwords. Try again in a minute.").
+- **After the reset**: the Dashboard, with the notification "The server was reset to its defaults.", which stays until closed. The admin stays signed in; their other sessions end.
+- What the reset deletes and keeps, and how it closes the server while it runs, is in `FactoryReset` and the guide's [Danger Zone](../guide.md#danger-zone-reset-to-default). There is no "install lock": the first admin comes from the environment at the first start, and the reset keeps the admin who runs it, so the next start needs no `ADMIN_EMAIL` or `ADMIN_PASSWORD`.
 
 ## Notes
 

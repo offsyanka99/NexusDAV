@@ -12,6 +12,7 @@ use Filament\Forms\Components\Field;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Actions;
+use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\EmbeddedSchema;
 use Filament\Schemas\Components\Form;
 use Filament\Schemas\Schema;
@@ -55,7 +56,18 @@ abstract class SettingsPage extends Page
                             ->keyBindings(['mod+s']),
                     ]),
                 ]),
+            ...$this->afterForm(),
         ]);
+    }
+
+    /**
+     * Components shown below the settings form and its Save button.
+     *
+     * @return list<Component>
+     */
+    protected function afterForm(): array
+    {
+        return [];
     }
 
     public function save(): void
@@ -115,7 +127,7 @@ abstract class SettingsPage extends Page
         }
     }
 
-    private function panelLocale(): string
+    protected function panelLocale(): string
     {
         $user = Filament::auth()->user();
 

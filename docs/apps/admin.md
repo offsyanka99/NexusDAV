@@ -50,13 +50,14 @@ The Configuration page holds server-wide preferences. A UI draft is kept in [doc
 
 **Version 1.x.**
 - Default interface language, built in 0.1.2 (`NEXUSDAV_LOCALE`). Each admin can override it from the user menu.
+- **Settings backup** (1.6.0): export the settings of the Settings and Configuration pages as JSON, and import such a file after a preview of what changes. Values that come from the environment and secrets are not exported, and the file has no users, calendars or contacts (see the guide's [Backup, restore and upgrade](../guide.md#backup-restore-and-upgrade)).
 
 **Version 2.x.**
 - Backup and restore settings for configuration and data.
 - Health check settings.
 - SMTP settings and the From address used for outbound email.
 
-On the same page, a **Danger Zone** section (Version 2.x) contains **Reset to Default**. This performs a full factory reset: configuration, database (all users and data), WebDAV files and the install lock. The action requires one or two explicit confirmations before it runs.
+On the same page, a **Danger Zone** section (1.6.0) contains **Reset to Default**: a factory reset that deletes every other user, all data and files, and the saved settings, and keeps the admin who runs it. It asks twice: a warning with what is deleted and kept, then the server's name and the admin's password (see the guide's [Danger Zone](../guide.md#danger-zone-reset-to-default)).
 
 ### Users
 
@@ -123,7 +124,6 @@ The Diagnostics page shows operational status and recent problems. Its heading g
 - Outbound email settings for the external SMTP server: invitations to people without an account, reminders, share notices, account notices, and reports. Login notifications and account-lockout emails can each be switched off. The panel does not read incoming mail.
 - A password reset can also email a link, once SMTP is configured. The shell command from Version 1 still works without mail.
 - User quotas, storage statistics, an audit log of logins and admin actions, and fuller health checks.
-- Export and import of server settings as JSON. Secrets such as the SMTP password are left out, or the file is encrypted. Values that come from the environment are not exported. The file has no users, calendars, or contacts.
 - Optional two-factor authentication for the panel.
 - A layout optimised for mobile. Filament's layout is already responsive, and its light, dark and system theme switcher is already on.
 
