@@ -69,14 +69,38 @@ Subtasks are required in the first version because many existing tasks already u
 
 ### Files
 
-- Files home / Drive: list of folders and files
-- Actions: rename, delete, download
+Three-zone layout (similar to the calendar view):
+
+- **Header**: app icons, search across files, user menu
+- **Left sidebar**:
+  - **New** button (upload file or create folder)
+  - Favorites
+  - Recent files
+  - **My files** — folder tree
+  - My shares (files/folders shared with others — later)
+  - Trash (later)
+  - Storage usage card at the bottom (quota placeholder)
+- **Main area**:
+  - Breadcrumb (Drive > My files > …)
+  - Toolbar: selected actions (rename, delete, download)
+  - File/folder list with name, modified date, size
+  - Sort and multi-select
+- **Right sidebar** (Details panel, shown when an item is selected):
+  - Preview / icon
+  - General info: size, type, modified, owner
+  - Shares (later)
+
+**Capabilities (basic version):**
+- List folders and files
 - Upload file(s)
 - Create a folder
+- Rename, delete, download
 
 **Postponed to a later portal version:**
 - Copy / Move
 - Upload folders
+- Favorites, Recent, Trash, My shares, public links
+- In-browser preview
 
 ### Shared with me
 
