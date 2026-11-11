@@ -2,6 +2,19 @@
 
 Design note for the first version of the user portal (Version 2). The admin panel remains the operator's tool. This portal lets a signed-in user manage their own data.
 
+## Tech stack
+
+The user portal does **not** use Filament or Livewire (those are reserved for the admin panel).
+
+- **Frontend**: React + TypeScript
+- **UI library**: Mantine
+- **Styling**: Mantine's built-in styles (Tailwind is not used here)
+- **Build**: Vite (already present in the Laravel project)
+- **API**: JSON endpoints under `/portal` (or a dedicated prefix), authenticated with the same Laravel session or Sanctum token
+
+This keeps the complex calendar, contacts and files UIs independent of Filament's resource model and makes the portal easier to evolve separately.
+
+
 ## Scope of the basic version
 
 ### Dashboard
