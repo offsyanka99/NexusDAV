@@ -8,7 +8,7 @@ Sources: [guide.md](../guide.md), the [apps](../apps/README.md) pages, [admin.md
 
 ### User portal
 
-A basic user portal beside the admin panel. People manage their own data there; the admin panel stays the operator's tool.
+A basic user portal beside the admin panel. A UI draft is in [docs/design/user-portal.md](../design/user-portal.md). People manage their own data there; the admin panel stays the operator's tool.
 
 - Their own calendars, contacts, tasks and notes. The portal is the first NexusDAV screen that edits a note
 - Their own file home ([Files](../apps/files.md))
