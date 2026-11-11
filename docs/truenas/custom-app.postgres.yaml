@@ -29,7 +29,7 @@
 
 services:
   nexusdav:
-    image: ghcr.io/offsyanka99/nexusdav:0.5.0
+    image: ghcr.io/offsyanka99/nexusdav:0.6.0
     restart: unless-stopped
     # Ceilings, not reserved amounts. One FrankenPHP process: OPcache is
     # 128 MB and a request may use up to 128 MB. Raise these if the app is
@@ -82,7 +82,7 @@ services:
   # the leading "# " from every line of this block. It runs the same image
   # in worker mode with the same dataset: no port, no migrations.
   # nexusdav-worker:
-  #   image: ghcr.io/offsyanka99/nexusdav:0.5.0 # the same version as nexusdav above
+  #   image: ghcr.io/offsyanka99/nexusdav:0.6.0 # the same version as nexusdav above
   #   command: ["worker"]
   #   restart: unless-stopped
   #   deploy:

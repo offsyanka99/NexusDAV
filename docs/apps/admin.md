@@ -12,7 +12,7 @@ Sign-in lands on the **Dashboard**. The Dashboard shows the server at a glance: 
 
 A menu links to the other admin pages. The items include **Settings**, **Configuration**, **Users** and **Diagnostics**, plus the other pages described below as they arrive. Whether that menu sits on the left or along the top is not decided yet.
 
-The user menu (top right) has a **Language** item (since 0.1.2). Each admin chooses English or Russian there, or **Server default** to follow the Configuration page. The menu item shows the language in use. A language chosen there always wins over the Configuration page. The login page uses the server default.
+The user menu (top right) has a **Language** item (since 0.1.2). Each admin chooses English, Russian or Ukrainian there, or **Server default** to follow the Configuration page. The menu item shows the language in use. A language chosen there always wins over the Configuration page. The login page uses the server default.
 
 ### Settings
 
@@ -109,7 +109,7 @@ The Diagnostics page shows operational status and recent problems. Its heading g
 
 - Share a calendar or an address book with one or more users on the server, read-only or read-write, from the user's Calendars or Address books tab, see who has it in a table, change or remove shares one by one or in bulk, and see on a user's page what was shared with them (released in 0.3.0). Shares are made in the panel; a client shows the shared collection but does not create shares.
 - Turn WebDAV-Push on or off, see whether the queue worker runs (Dashboard, Diagnostics), and view and revoke its subscriptions on the Diagnostics page. The implementation is the bitfire draft named in the [guide requirements](../guide.md#requirements), not a sabre/dav plugin. Released in 0.5.0.
-- Use the panel in more than one language: English and Russian, with a language per admin and a server default. More languages can be added as translation files. Released in 0.1.2.
+- Use the panel in more than one language: English, Russian and Ukrainian, with a language per admin and a server default. More languages can be added as translation files. Released in 0.1.2 (English and Russian); Ukrainian was added in 0.6.0.
 - See that a user's [Files](files.md) home exists, on the user's page, and read in the delete confirmation that the home goes with the user. Released in 0.4.0.
 
 **Version 2.**

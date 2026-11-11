@@ -146,7 +146,7 @@ seq 1 5000 | xargs -P 16 -I{} bash -c 'put {}' | sort | uniq -c
 
 ### 9. Admin panel
 
-In the admin panel on each server, with the language set to English and then Russian:
+In the admin panel on each server, with the language set to English, then Russian, then Ukrainian:
 
 | ID | Do | Pass |
 |---|---|---|
@@ -154,6 +154,8 @@ In the admin panel on each server, with the language set to English and then Rus
 | 9b | On a user with an event, a task and a note created from the clients, open **Calendars** | The **Events**, **Tasks** and **Notes** columns each show their own count |
 | 9c | Open the container log in Dozzle (or `docker compose logs`) while a client syncs, and then request `/admin` without signing in | Request lines show `INFO`, a 4xx shows `WARNING` and a 5xx `ERROR`, so Dozzle colours them |
 | 9d | **Diagnostics** after the whole run | No 5xx rows. 4xx rows are only discovery probes, the 412 from step 5 and the 403 from step 6 |
+| 9e | Choose **Українська** in the user menu, then open every page and dialog: Dashboard, Users (list, create, a user with each tab, the app password, share and delete dialogs), Settings, Configuration, Diagnostics (the status codes dialog and the push and worker cards). Save a form with a wrong value, and wait until the session ends | Every text is Ukrainian, apart from names, paths and values. Notifications and validation messages are Ukrainian. Plurals read right for 1, 2, 5 and 21. Nothing is cut off, and relative times ("5 хвилин тому") are Ukrainian |
+| 9f | Set **Server default language** to Українська, sign out, and open the login page. Then set `NEXUSDAV_LOCALE=uk` in the environment, restart, and open Configuration | The login page is Ukrainian. The field shows **Set by NEXUSDAV_LOCALE** and is locked |
 
 ### 10. Offline for longer than the sync history (optional)
 
@@ -396,3 +398,20 @@ Run on the release candidate (the tag that will be released), with both servers 
 | 12k Russian text | ✅ | ✅ | |
 | 12l Diagnostics | ✅ | ✅ | |
 | Regression: steps 1, 2a, 2e, 4 and 11d with DAVx5 and Thunderbird | ✅ | ✅ | |
+
+### Pass 5 (M6 release candidate, PR 40)
+
+| Run log | |
+|---|---|
+| Date | Nov 10 |
+| Build (Dashboard version) | dev |
+| Tester | maintainer |
+| PostgreSQL server | ✅ |
+| SQLite server | ✅ |
+| A native Ukrainian speaker reviewed the text | ✅ |
+
+| Step | PostgreSQL | SQLite | Notes |
+|---|---|---|---|
+| 9a to 9d Admin panel, in English and Russian (regression) | ✅ | ✅ | |
+| 9e Every page and dialog in Ukrainian | ✅ | ✅ | |
+| 9f Server default language and `NEXUSDAV_LOCALE=uk` | ✅ | ✅ | |

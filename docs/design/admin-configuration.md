@@ -35,7 +35,7 @@ A **Save** button stores the values. A change applies from the next request.
 Built in 0.1.2 (milestone M1 of the [Version 1.x plan](../plans/implementation-plan-v1x.md#m1--multilingual-admin-panel-effort-medium)).
 
 **Language** section, above Time:
-- Server default language (`NEXUSDAV_LOCALE`, default `en`). The options are the shipped languages, each in its own name (English, Русский); a new `lang/<code>.json` adds one. Used on the login page and for every admin who has not chosen a language.
+- Server default language (`NEXUSDAV_LOCALE`, default `en`). The options are the shipped languages, each in its own name (English, Русский, Українська); a new `lang/<code>.json` adds one. Used on the login page and for every admin who has not chosen a language.
 
 Each admin can choose their own language under **Language** in the user menu. The item shows the language in use, with "Server default (…)" when it is not the admin's own choice. **Server default** clears the choice. The page reloads in the new language. A language chosen in the user menu always wins over this setting; when the server default is saved, an admin who has their own language is told that it stays.
 

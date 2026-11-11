@@ -12,7 +12,7 @@ Related documents:
 - [Implementation plan (v1.x)](plans/implementation-plan-v1x.md) — milestones and PRs for the Version 1.x features
 - [Plan for Version 2 and later](plans/version-2-and-later.md) — features for 2.0, 2.x and beyond
 
-Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `0.5.0` (first release `0.1.0`). "Version 1" and "Version 1.x" in these documents name the feature plan, not release numbers: releases stay 0.x until the plan is finished and 1.0.0 is tagged. 0.5.0 completes the five milestones of the Version 1.x plan: the admin panel in English and Russian (M1), reliable sync (M2), sharing of calendars and address books (M3), Files, WebDAV file storage (M4), and WebDAV-Push with a queue worker (M5). The server passes automated sync tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
+Version 1 is built. Releases are published as `ghcr.io/offsyanka99/nexusdav` for amd64 and arm64. The current release is `0.6.0` (first release `0.1.0`). "Version 1" and "Version 1.x" in these documents name the feature plan, not release numbers: releases stay 0.x until the plan is finished. 0.5.0 completed the five milestones of the Version 1.x plan: the admin panel in English and Russian (M1), reliable sync (M2), sharing of calendars and address books (M3), Files, WebDAV file storage (M4), and WebDAV-Push with a queue worker (M5). 0.6.0 adds Ukrainian to the admin panel, the first step of the [Version 1.x.x plan](plans/implementation-plan-v1xx.md), which ends with 1.6.0. The server passes automated sync tests with the vdirsyncer and python caldav clients, and 0.1.1 was tested by hand with DAVx5 and Thunderbird; Apple clients have not been tried by the project yet (see [Client compatibility](#client-compatibility)).
 
 NexusDAV is built for homelabs and small teams that want calendars, contacts, tasks, notes and files without running a full groupware suite.
 
@@ -30,7 +30,7 @@ Current limitations:
 
 ## Quick start
 
-1. Get the Compose files and create your environment file. The Compose files pull the published image, `ghcr.io/offsyanka99/nexusdav:0.5.0`:
+1. Get the Compose files and create your environment file. The Compose files pull the published image, `ghcr.io/offsyanka99/nexusdav:0.6.0`:
 
    ```bash
    git clone https://github.com/offsyanka99/NexusDAV.git
@@ -219,7 +219,7 @@ What the service switches do:
 - **Sharing off:** a calendar or address book shared with a user is no longer listed in that user's home, and its path answers 404. The shares are kept and come back when sharing is turned on. The owner's calendar does not change.
 - **Shared address books and clients:** DAVx5 and Thunderbird cannot delete a shared address book. DAVx5 can only switch syncing off for it, and removing it in Thunderbird only removes it on the device. A sharee stops a share on the device, and an admin removes it in the panel. Thunderbird keeps its own Read-only flag for a book when the access changes: untick it in the address book's properties and restart. A sharee with read and write changes the owner's contacts for everyone.
 
-**Language.** The admin panel ships in English and Russian. Each admin chooses a language under **Language** in the user menu; the item shows the language in use, and "Server default (…)" when it is not the admin's own choice. **Server default** clears the choice and follows the Configuration setting. A language chosen in the user menu always wins over the Configuration setting, so changing the server default does not change an admin who chose their own (Configuration says so when you save). The login page always uses the server default. A value of `NEXUSDAV_LOCALE` that is not a shipped language falls back to English. Only the panel is translated: DAV responses, `/health`, the container log and the reasons stored for Diagnostics stay in English, so log searches keep working; the Diagnostics page shows those reasons in the admin's language. To add a language, see [CONTRIBUTING.md](../CONTRIBUTING.md#translations).
+**Language.** The admin panel ships in English, Russian (since 0.1.2) and Ukrainian (since 0.6.0). Each admin chooses a language under **Language** in the user menu; the item shows the language in use, and "Server default (…)" when it is not the admin's own choice. **Server default** clears the choice and follows the Configuration setting. A language chosen in the user menu always wins over the Configuration setting, so changing the server default does not change an admin who chose their own (Configuration says so when you save). The login page always uses the server default. A value of `NEXUSDAV_LOCALE` that is not a shipped language falls back to English. Only the panel is translated: DAV responses, `/health`, the container log and the reasons stored for Diagnostics stay in English, so log searches keep working; the Diagnostics page shows those reasons in the admin's language. To add a language, see [CONTRIBUTING.md](../CONTRIBUTING.md#translations).
 
 The server time zone applies to users without their own time zone, becomes the `calendar-timezone` of new calendars (the owner's own zone wins when set), is the zone the panel shows times in, and the zone of the times in the log lines of the app and the worker (stored times stay in UTC). Turning on secure cookies is refused unless the panel is open over HTTPS, so an admin cannot sign themselves out by accident.
 
@@ -516,7 +516,7 @@ These are long-term goals for the project. Implementation will be staged. The ar
 - Focused self-hosted DAV server with a modern admin panel, without the weight of a full groupware suite
 - Admin interface for users, calendars, address books, shares, permissions and server settings
 - Separate user portal for managing personal calendars, contacts, notes (VJOURNAL — limited client support), tasks and files (WebDAV)
-- **Multilingual** admin panel (English and Russian since 0.1.2, more as translation files) and user portal (Version 2.x)
+- **Multilingual** admin panel (English and Russian since 0.1.2, Ukrainian since 0.6.0, more as translation files) and user portal (Version 2.x)
 - Docker-friendly
 - Standards-compliant DAV protocols
 - Search across events and contacts
@@ -615,11 +615,12 @@ Export the settings before an upgrade and keep the file with your other backups.
 **Upgrade**
 
 1. Back up first.
-2. Read the release notes, then change the tag on the `image:` line in `compose.yaml` (for example from `0.4.0` to `0.5.0`). Keep an exact version rather than `latest`, so an upgrade happens only when you choose it.
+2. Read the release notes, then change the tag on the `image:` line in `compose.yaml` (for example from `0.5.0` to `0.6.0`). Keep an exact version rather than `latest`, so an upgrade happens only when you choose it.
 3. Run `docker compose pull` and `docker compose up -d`, with the same `-f` files as at install. Database migrations run automatically on start. With `compose.build.yaml`, update the checkout instead and run `up -d --build`.
 4. Upgrade one minor version at a time. There is no rollback other than restoring the backup.
 5. **Files is off after an upgrade to 0.4.0** until an admin switches it on under **Settings → Files** (see [Files](#files)). The upgrade needs no migration and changes no setting.
 6. **WebDAV-Push is off after an upgrade to 0.5.0** until an admin switches it on under **Settings → WebDAV-Push**, and it needs the queue worker (see [WebDAV-Push](#webdav-push)). Set the new image tag on the worker too. The upgrade adds tables for the worker and push; nothing else changes.
+7. **Upgrading to 0.6.0** needs no migration and changes no setting. Українська appears in the user menu and in the server default language list.
 
 **PostgreSQL major version changes** (for example 17 → 18): the official Postgres images changed their data directory layout starting with 18 (a single volume mount, with data stored under a version-specific subdirectory). An existing 17 data volume cannot be reused as-is by an 18 image. `pg_dump` your database first, then either keep using the matching Postgres major version, or follow [upstream's upgrade guidance](https://github.com/docker-library/postgres/issues/37) (`pg_upgrade` or dump-and-restore into a fresh volume) before switching image tags.
 
@@ -725,7 +726,7 @@ n == 0 { print }
 
 - Basic Sharing and ACL: an admin shares a calendar or address book with another user, read-only or read-write. **Released in 0.3.0**
 - WebDAV-Push, with an on/off toggle in the admin panel settings and its subscriptions on the Diagnostics page. **Released in 0.5.0**
-- Multilingual admin panel (English and Russian, more as translation files). **Released in 0.1.2**
+- Multilingual admin panel (English and Russian, more as translation files). **Released in 0.1.2**. Ukrainian followed in **0.6.0**
 - Files (WebDAV file storage). **Released in 0.4.0**
 - Improved sync reliability
 

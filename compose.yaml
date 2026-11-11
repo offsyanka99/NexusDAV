@@ -9,7 +9,7 @@
 services:
   nexusdav:
     # Pin an exact version and change it deliberately when you upgrade.
-    image: ghcr.io/offsyanka99/nexusdav:0.5.0
+    image: ghcr.io/offsyanka99/nexusdav:0.6.0
     container_name: nexusdav
     ports:
       - "8080:8080"
@@ -42,7 +42,7 @@ services:
   # no migrations. It starts once the app is healthy. The database file
   # (compose.sqlite.yaml or compose.postgres.yaml) adds its variables here too.
   nexusdav-worker:
-    image: ghcr.io/offsyanka99/nexusdav:0.5.0
+    image: ghcr.io/offsyanka99/nexusdav:0.6.0
     container_name: nexusdav-worker
     profiles: ["worker"]
     command: ["worker"]
