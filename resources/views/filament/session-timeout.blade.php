@@ -1,14 +1,15 @@
-{{-- Sends an idle admin back to the sign-in page (inactivity timeout). --}}
+{{-- Sends an idle user back to the panel's sign-in page (inactivity timeout). --}}
 <script>
     (() => {
-        // The server drops the session this long after the last request, so the
-        // page counts from its last answer too, and shares that time between tabs:
-        // activity in one tab keeps the session, and so the other tabs, alive.
+        // The server signs the user out this long after the panel's last request
+        // (PanelIdleTimeout), so the page counts from its last answer too, and
+        // shares that time between the tabs of the same panel: activity in one
+        // tab keeps the others alive. The other panel has its own time.
         const lifetimeMs = {{ $lifetime }} * 60 * 1000;
         const loginUrl = @js($loginUrl);
         const logoutUrl = @js($logoutUrl);
         const loginPath = new URL(loginUrl, window.location.href).pathname;
-        const storageKey = 'nexusdav.panel.activity';
+        const storageKey = @js($storageKey);
         let leaving = false
         let lastOwn = Date.now()
 

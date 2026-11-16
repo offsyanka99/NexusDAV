@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Setting;
 use App\Support\LocaleCatalog;
+use App\Support\PanelSessions;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -50,7 +51,10 @@ final class SettingsService
         'rate_limit_max_attempts' => ['config' => 'nexusdav.rate_limit.max_attempts', 'env' => 'NEXUSDAV_RATE_LIMIT_MAX_ATTEMPTS', 'type' => 'int', 'min' => 1, 'max' => 100, 'default' => 5],
         'rate_limit_per_address' => ['config' => 'nexusdav.rate_limit.max_attempts_per_address', 'env' => 'NEXUSDAV_RATE_LIMIT_PER_ADDRESS', 'type' => 'int', 'min' => 1, 'max' => 1000, 'default' => 20],
         'rate_limit_decay_seconds' => ['config' => 'nexusdav.rate_limit.decay_seconds', 'env' => 'NEXUSDAV_RATE_LIMIT_DECAY_SECONDS', 'type' => 'int', 'min' => 10, 'max' => 3600, 'default' => 60],
-        'session_lifetime' => ['config' => 'session.lifetime', 'env' => 'SESSION_LIFETIME', 'type' => 'int', 'min' => 5, 'max' => 10080, 'default' => 120],
+        'session_lifetime' => ['config' => 'nexusdav.admin.session_lifetime', 'env' => 'SESSION_LIFETIME', 'type' => 'int', 'min' => 5, 'max' => 10080, 'default' => 120],
+        'portal' => ['config' => 'nexusdav.portal.enabled', 'env' => 'NEXUSDAV_PORTAL', 'type' => 'bool', 'default' => false],
+        'portal_log_level' => ['config' => 'nexusdav.portal.log_level', 'env' => 'NEXUSDAV_PORTAL_LOG_LEVEL', 'type' => 'choice', 'options' => self::LOG_LEVELS, 'default' => 'info'],
+        'portal_session_lifetime' => ['config' => 'nexusdav.portal.session_lifetime', 'env' => 'NEXUSDAV_PORTAL_SESSION_LIFETIME', 'type' => 'int', 'min' => 5, 'max' => 10080, 'default' => 480],
         'session_secure_cookie' => ['config' => 'session.secure', 'env' => 'SESSION_SECURE_COOKIE', 'type' => 'bool'],
         'diagnostics_retention_days' => ['config' => 'nexusdav.diagnostics.retention_days', 'env' => 'NEXUSDAV_DIAGNOSTICS_RETENTION_DAYS', 'type' => 'int', 'min' => 1, 'max' => 365, 'default' => 30],
         'notification_seconds' => ['config' => 'nexusdav.notifications.seconds', 'env' => 'NEXUSDAV_NOTIFICATION_SECONDS', 'type' => 'int', 'min' => 0, 'max' => 300, 'default' => 6],
@@ -245,6 +249,8 @@ final class SettingsService
                 config(['queue.output_timezone' => (string) $value]);
             }
         }
+
+        config(['session.lifetime' => PanelSessions::sessionLifetime()]);
     }
 
     public function forget(): void

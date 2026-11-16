@@ -29,6 +29,8 @@ php artisan migrate
 npm run dev
 ```
 
+The user portal has its own Filament theme (`resources/css/filament/portal/theme.css`), which imports Filament's CSS from `vendor`, so run `composer install` before building it. `npm run dev` serves it while you work; `npm ci && npm run build` writes `public/build`, as CI and the image do. The admin panel uses Filament's prebuilt styles and needs no build. The tests do not need built assets (`TestCase` turns Vite off).
+
 You can also develop with Docker using the Compose files described in the README (`compose.yaml` plus `compose.postgres.yaml` or `compose.sqlite.yaml`). `compose.yaml` pulls the published image; add `compose.build.yaml` last to build from your checkout:
 
 ```bash
@@ -55,7 +57,15 @@ composer analyse     # PHPStan / Larastan
 
 Notes:
 
-- Tests must pass on **both PostgreSQL and SQLite**. CI runs the suite once per database. Lint and analyse run once.
+- Tests must pass on **both PostgreSQL and SQLite**. CI runs the suite once per database. Lint and analyse run once. To run the suite on PostgreSQL locally, use the image CI uses:
+
+  ```bash
+  docker run -d --rm --name nexusdav-pg -e POSTGRES_PASSWORD=test -e POSTGRES_DB=nexusdav_test -p 55432:5432 postgres:18-alpine
+  DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=55432 DB_DATABASE=nexusdav_test DB_USERNAME=postgres DB_PASSWORD=test DB_URL= php artisan test --compact
+  docker stop nexusdav-pg
+  ```
+
+  Use the Alpine image: the Debian image sorts text differently, and a test that orders by a text column fails on it. One file: `php artisan test --compact tests/Feature/SomeTest.php`.
 - CI also builds the Docker image and runs `docker/smoke-test.sh` against it. The script fails on a PHP older than 8.4.27 and checks `/health`, the admin panel headers, cached config, a DAV request with an app password and its request log line, a client round trip (events, tasks, contacts, sync, creating and deleting a calendar), `.well-known`, `nexusdav:reset-admin-password` run as `nexusdav`, and that logs go to the container output. The Dockerfile itself stops the build on a PHP older than 8.4.27. When you change the Dockerfile, the entrypoint or anything under `docker/`, run it locally:
 
   ```bash
@@ -68,8 +78,8 @@ Notes:
 
 Maintainers publish a release by pushing a version tag. The [release workflow](.github/workflows/release.yml) runs the CI checks, builds the image from a freshly pulled base, runs the smoke test, then builds and pushes `ghcr.io/offsyanka99/nexusdav` for `linux/amd64` and `linux/arm64`. A base image with PHP older than 8.4.27 stops it on either platform.
 
-1. Change the tag on the `image:` line of `compose.yaml` and the version named in the README and the guide (Quick start, Client compatibility) to the new version.
-2. Merge that to `main`, then tag the merge commit and push the tag:
+1. Change the version on the `image:` lines of `compose.yaml` (the app and the worker) and both TrueNAS files under `docs/truenas/`, and the current release named in the README, `SECURITY.md` and the guide (Quick start, upgrade notes, roadmap).
+2. Merge that to `main` and wait until CI passes on that commit. Then tag it and push the tag:
 
    ```bash
    git tag -a v0.1.0 -m "NexusDAV 0.1.0"
@@ -78,25 +88,26 @@ Maintainers publish a release by pushing a version tag. The [release workflow](.
 3. Check that the workflow passed and that the package is public (the first push creates it as private; change it under the package settings).
 4. Write the release notes on GitHub: changes, upgrade steps, and anything an admin must do.
 
-Tags are `v<major>.<minor>.<patch>`, with an optional pre-release suffix such as `-rc.1`. The image gets the exact version, `<major>.<minor>`, `<major>` from 1.0 on, and `latest` for a release without a suffix. A pre-release gets only its exact tag. Release numbers stay 0.x until the Version 1.x plan is finished; "Version 1.x" in the documents is the feature plan, not a release number. The Dashboard shows the version and the tagged commit, for example `0.1.6+4f82db8`.
+Tags are `v<major>.<minor>.<patch>`, with an optional pre-release suffix such as `-rc.1`. The image gets the exact version, `<major>.<minor>`, `<major>` from 1.0 on, and `latest` for a release without a suffix. A pre-release gets only its exact tag. After 0.5.0 the next release was 1.6.0; "Version 1.x" and "Version 2" in the documents are feature plans, not release numbers. The Dashboard shows the version and the tagged commit, for example `0.1.6+4f82db8`.
 
 ### Code conventions
 
 - Follow the Laravel and PSR-12 coding style. Use the project's formatter rather than formatting by hand.
 - Write clear, descriptive commit messages in the imperative mood (for example `Add app password revocation`).
 - Do not commit secrets, real credentials or personal data. Use obviously fake values in tests and examples.
-- User-facing admin-panel text must use Laravel's translation helpers. Keep English and Russian entries in `lang/en.json` and `lang/ru.json`; the translation test rejects missing and unused keys.
+- **Portal writes go through a store.** A portal page writes events, tasks, notes and contacts only through `CalendarItemStore` and `ContactStore`, and files through `FileStore` (`app/Services/Portal`), never into the DAV tables or the file home directly, so the lock, the ETag check, validation, sync tokens and WebDAV-Push are the same as for a DAV client. Every action looks its collection up again with `PortalCollections` from the signed-in user, whatever ids the browser sent; show refusals with `PortalPage::notifyFailure()`. Tests use `Tests\Support\PortalHelpers`, and a test for a new action includes a request for another user's collection, which must fail.
+- User-facing text in the admin panel and the user portal must use Laravel's translation helpers. Keep English and Russian entries in `lang/en.json` and `lang/ru.json`; the translation test rejects missing and unused keys.
 
 ### Translations
 
-The admin panel is translated; DAV responses, `/health`, the container log and the reasons stored for Diagnostics stay in English.
+The admin panel and the user portal are translated; DAV responses, `/health`, the container log and the reasons stored for Diagnostics stay in English.
 
-- Use the English text as the key with `__()` or `trans_choice()`, and add the English and Russian values to `lang/en.json` and `lang/ru.json` in the same change. A Russian plural needs three forms, `one|few|many` (for 1, 2 and 5: `ошибка|ошибки|ошибок`).
+- Use the English text as the key with `__()` or `trans_choice()` (write a key that contains an apostrophe in double quotes, so the key test finds it), and add the English and Russian values to `lang/en.json` and `lang/ru.json` in the same change. A Russian plural needs three forms, `one|few|many` (for 1, 2 and 5: `ошибка|ошибки|ошибок`).
 - To add a language, add `lang/<code>.json` with every key and `_language_name` set to the language's own name. The user menu and the Configuration page pick it up from the file. Add `lang/<code>/` for Laravel's validation and auth messages (`php artisan lang:publish` gives the English ones), and `lang/vendor/<namespace>/<code>/` for any Filament string missing from Filament's own files.
 - A stored diagnostic reason gets its label in `App\Support\DiagnosticReason`; a service exception shown in a notification gets one in `App\Support\PanelErrorTranslator`. The stored and logged value stays English.
 - `tests/Feature/LocalizationTest.php` fails on a key that is missing or unused, on Russian framework messages that do not cover the English ones, and, in the `en_XA` pseudo-locale, on any visible panel text that is not translated.
 - Russian Laravel validation messages are adapted from [Laravel-Lang/lang](https://github.com/Laravel-Lang/lang) under MIT; see [its license](lang/ru/LICENSE.Laravel-Lang).
-- User-portal text is not part of this catalog; the portal arrives in Version 2.
+- The user portal uses the same catalog and the same test. Add every new portal page (and its dialogs) to the `en_XA` check in `LocalizationTest`.
 
 ### Dependencies
 

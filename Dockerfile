@@ -1,4 +1,4 @@
-FROM dunglas/frankenphp:1-php8.4
+FROM dunglas/frankenphp:1-php8.4 AS app
 
 # Shown on the admin Dashboard. CI passes ci+<commit>; a release passes <version>+<commit>.
 ARG NEXUSDAV_VERSION=dev
@@ -49,3 +49,22 @@ ENV XDG_CONFIG_HOME=/home/nexusdav/.config \
     XDG_DATA_HOME=/home/nexusdav/.local/share
 
 ENTRYPOINT ["/app/docker/entrypoint.sh"]
+
+# The portal's Filament theme (resources/css/filament/portal/theme.css) imports
+# Filament's CSS from vendor, which .dockerignore leaves out of the context, so
+# it is built here from the vendor directory the app stage installed.
+FROM node:24-slim AS assets
+
+WORKDIR /app
+
+COPY package.json package-lock.json vite.config.js ./
+RUN npm ci --no-audit --no-fund
+
+COPY resources ./resources
+COPY app ./app
+COPY --from=app /app/vendor/filament ./vendor/filament
+RUN npm run build
+
+FROM app
+
+COPY --from=assets --chown=nexusdav:nexusdav /app/public/build /app/public/build

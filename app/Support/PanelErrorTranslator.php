@@ -30,6 +30,24 @@ final class PanelErrorTranslator
             'App password name must be between 1 and 255 characters.' => __('App password name must be between 1 and 255 characters.'),
             'This is not a NexusDAV settings file.' => __('This is not a NexusDAV settings file.'),
             'The file is larger than 256 KB.' => __('The file is larger than 256 KB.'),
+            'This calendar does not take tasks.' => __('This calendar does not take tasks.'),
+            'This calendar does not take notes.' => __('This calendar does not take notes.'),
+            'This calendar does not take events.' => __('This calendar does not take events.'),
+            'A calendar object must hold exactly one kind of component: VEVENT, VTODO or VJOURNAL.' => __('A calendar object must hold exactly one kind of component: VEVENT, VTODO or VJOURNAL.'),
+            'Every component of a calendar object must have one UID.' => __('Every component of a calendar object must have one UID.'),
+            'Every component of a calendar object must have the same UID.' => __('Every component of a calendar object must have the same UID.'),
+            'A vCard must have one UID.' => __('A vCard must have one UID.'),
+            'The UID is empty.' => __('The UID is empty.'),
+            'The resource name is not valid.' => __('The resource name is not valid.'),
+            'The UID of an item cannot be changed.' => __('The UID of an item cannot be changed.'),
+            'A folder cannot be moved into itself.' => __('A folder cannot be moved into itself.'),
+            'The file or folder could not be moved.' => __('The file or folder could not be moved.'),
+            'The file home cannot be changed this way.' => __('The file home cannot be changed this way.'),
+            'This name is not allowed.' => __('This name is not allowed.'),
+            'This name cannot be used.' => __('This name cannot be used.'),
+            'The name is not valid UTF-8.' => __('The name is not valid UTF-8.'),
+            'The name contains a control character.' => __('The name contains a control character.'),
+            'Another item in this collection has the same UID.' => __('Another item in this collection has the same UID.'),
             default => null,
         };
 
@@ -43,6 +61,20 @@ final class PanelErrorTranslator
 
         if (preg_match('/^This file comes from a newer NexusDAV \((.*)\)\. Upgrade this server first\.$/', $message, $matches) === 1) {
             return __('This file comes from a newer NexusDAV (:version). Upgrade this server first.', ['version' => $matches[1]]);
+        }
+
+        if (preg_match('/^The file is larger than the maximum upload size of (\d+) MB\.$/', $message, $matches) === 1) {
+            return __('The file is larger than the maximum upload size of :size MB.', ['size' => $matches[1]]);
+        }
+
+        if (preg_match('/^The (resource name|UID) is longer than (\d+) characters\.$/', $message, $matches) === 1) {
+            return $matches[1] === 'UID'
+                ? __('The UID is longer than :count characters.', ['count' => $matches[2]])
+                : __('The resource name is longer than :count characters.', ['count' => $matches[2]]);
+        }
+
+        if (preg_match('/^The name is longer than (\d+) bytes\.$/', $message, $matches) === 1) {
+            return __('The name is longer than :count bytes.', ['count' => $matches[1]]);
         }
 
         if (preg_match('/^The value for (.+) is not valid\.$/', $message, $matches) === 1) {

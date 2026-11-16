@@ -24,7 +24,7 @@ class Login extends BaseLogin
     private bool $panelRefused = false;
 
     /**
-     * The panel sends an idle admin here with ?timeout=1. The message stays
+     * The panel sends an idle user here with ?timeout=1. The message stays
      * until it is closed, like an error.
      */
     public function mount(): void
@@ -101,9 +101,17 @@ class Login extends BaseLogin
         $email = $this->data['email'] ?? '';
 
         return app(AuthThrottle::class)->key(
-            DiagnosticEvent::SOURCE_ADMIN,
+            $this->throttleSource(),
             is_string($email) ? $email : '',
         );
+    }
+
+    /**
+     * The AuthThrottle source and the Diagnostics source of this sign-in page.
+     */
+    protected function throttleSource(): string
+    {
+        return DiagnosticEvent::SOURCE_ADMIN;
     }
 
     /**
@@ -139,7 +147,7 @@ class Login extends BaseLogin
     protected function fireFailedEvent(Guard $guard, ?Authenticatable $user, #[SensitiveParameter] array $credentials): void
     {
         request()->attributes->set(
-            'nexusdav.admin_auth_failure',
+            'nexusdav.panel_auth_failure',
             $this->panelRefused ? 'panel' : 'credentials',
         );
 

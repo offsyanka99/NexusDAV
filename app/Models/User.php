@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\Dav\DavDataCleaner;
+use App\Services\Portal\PortalConfig;
 use App\Services\Push\PushSubscriptions;
 use App\Services\UserService;
 use App\Support\LocaleCatalog;
@@ -22,6 +23,8 @@ use InvalidArgumentException;
 
 /**
  * @property-read string $principal_uri
+ * @property bool $show_week_numbers
+ * @property array<string, mixed>|null $portal_state
  */
 #[Fillable([
     'username',
@@ -162,9 +165,28 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->hasMany(AddressBook::class, 'principaluri', 'principal_uri');
     }
 
+    /**
+     * admin: active admins. portal: active users with a password, while the
+     * Portal switch is on.
+     */
     public function canAccessPanel(Panel $panel): bool
     {
-        return $panel->getId() === 'admin' && $this->is_admin && $this->is_active;
+        return match ($panel->getId()) {
+            'admin' => $this->is_admin && $this->is_active,
+            'portal' => $this->is_active && $this->hasPassword() && PortalConfig::enabled(),
+            default => false,
+        };
+    }
+
+    /**
+     * The main password is set. It signs in to the portal and the admin
+     * panel, never to DAV.
+     */
+    public function hasPassword(): bool
+    {
+        $password = $this->getAttributes()['password'] ?? null;
+
+        return is_string($password) && $password !== '';
     }
 
     public function getFilamentName(): string
@@ -218,6 +240,8 @@ class User extends Authenticatable implements FilamentUser, HasName
             'is_active' => 'boolean',
             'quota_bytes' => 'integer',
             'collections_provisioned' => 'boolean',
+            'show_week_numbers' => 'boolean',
+            'portal_state' => 'array',
         ];
     }
 }

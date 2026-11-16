@@ -10,6 +10,7 @@ use Illuminate\Console\Command;
 use Illuminate\Database\QueryException;
 use InvalidArgumentException;
 use RuntimeException;
+use Throwable;
 
 class PrepareApplication extends Command
 {
@@ -59,6 +60,15 @@ class PrepareApplication extends Command
             $this->error($exception->getMessage());
 
             return self::FAILURE;
+        }
+
+        // The portal's item index follows every DAV write; this catches up after
+        // an upgrade (a new indexer version) or a direct change. A failure is
+        // reported and does not stop the start: the hooks keep it current.
+        try {
+            $this->call('nexusdav:index-items');
+        } catch (Throwable $exception) {
+            $this->warn('The item index could not be brought up to date ('.$exception::class.'). It is tried again at the next start.');
         }
 
         if (AuthThrottle::trustsEveryPeer()) {

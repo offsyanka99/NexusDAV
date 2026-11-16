@@ -18,13 +18,15 @@ Decisions:
 | username | string | unique |
 | display_name | string | |
 | email | string | unique, stored in lower case. A unique index on `lower(email)` (`users_email_lower_unique`) stops two accounts whose emails differ only in case, because DAV and the admin login match the email without case |
-| password | string | nullable, Argon2id. Required for admins. Optional for non-admins. Accepted only by the Filament admin login |
+| password | string | nullable, Argon2id. Required for admins. Optional for non-admins. Accepted by the admin panel and (Version 2) the user portal sign-in, never on DAV |
 | is_admin | boolean | default false |
 | is_active | boolean | default true |
-| timezone | string | nullable, falls back to server default |
+| timezone | string | nullable, falls back to server default. The user portal shows times in it (Account page) |
 | locale | string | nullable, falls back to server default. The admin panel language since 0.1.2; an unknown code falls back too |
 | quota_bytes | bigint | nullable, 0 or null = unlimited |
 | collections_provisioned | boolean | default false. Set when the default calendar and address book are inserted. A later prepare does not insert those URIs again |
+| show_week_numbers | boolean | default false. The user's Show week numbers setting in the portal (Version 2) |
+| portal_state | json | nullable. Per-user UI state of the portal, one object of keys named by the app such as `calendar.view` (`App\Portal\PortalState`, at most 64 KB). A write re-reads the row under a lock and changes one key, so two requests do not drop each other's keys. Settings with a meaning get their own column instead |
 | created_at | timestamp | |
 | updated_at | timestamp | |
 
@@ -144,6 +146,32 @@ The push merge window: at most one row per topic, written when a change commits 
 | created_at, updated_at | timestamp | |
 
 The VAPID key pair and the push topic key are rows `push.vapid` and `push.topic_key` of `settings`, encrypted with `APP_KEY`.
+
+### item_index
+
+The user portal's list and search index (Version 2, Decision 9 of the Version 2 plan): one row per calendar object or contact, derived from the sabre rows, which stay the source of truth. `CalendarBackend` and `AddressBookBackend` write it on every create, update and delete of an object, inside the write's transaction and lock, so DAV clients, the portal and server-side writes all keep it current; `nexusdav:index-items` (run by `nexusdav:prepare`) catches up after an upgrade and removes rows whose object was deleted outside the backends. A row belongs to the calendar or address book, not to a user's instance, so a shared calendar has one set of rows; which rows a user sees comes from their calendars and address books.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | bigint | PK |
+| calendar_id | bigint | nullable, FK `calendars.id`, cascade on delete |
+| addressbook_id | bigint | nullable, FK `addressbooks.id`, cascade on delete. Exactly one of the two is set (a CHECK on PostgreSQL, triggers on SQLite) |
+| uri | string(200) | the object's URI; unique per collection (`calendar_id, uri` and `addressbook_id, uri`) |
+| kind | string(16) | `event`, `task`, `note` or `contact` |
+| uid | string(200) | nullable |
+| title | string(255) | nullable: summary, note title or contact display name (`FN`) |
+| sort_name | string(255) | nullable, contacts: family then given name from `N`, else `FN`, lower case |
+| organization, email | string(255) | nullable, contacts: the first `ORG` part, the first email |
+| phone | string(64) | nullable, contacts: the first phone |
+| starts_at, ends_at | datetime | nullable: an event's start and end, a note's date. UTC; all-day and floating values are the wall-clock time stored as UTC |
+| all_day, floating | boolean | the start (for a task, the due date) is a date, or a time without a zone |
+| due_at, completed_at | datetime | nullable, tasks |
+| status | string(32) | nullable, `STATUS` in upper case |
+| parent_uid | string(200) | nullable, tasks: `RELATED-TO` with `RELTYPE=PARENT` (the default) |
+| recurring | boolean | the object holds a series or overrides |
+| search_text | text | nullable, lower case: the item's text fields, and for contacts every email and phone, plus each phone's digits |
+| etag | string(64) | the ETag of the object the row was built from (as in `calendarobjects` and `cards`) |
+| indexer_version | smallint | `ItemIndexer::VERSION`; 0 for an object that could not be parsed (kept by its URI and retried) |
 
 ## sabre/dav storage tables
 

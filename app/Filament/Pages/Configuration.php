@@ -82,6 +82,7 @@ class Configuration extends SettingsPage
             'rate_limit_per_address',
             'rate_limit_decay_seconds',
             'session_lifetime',
+            'portal_session_lifetime',
             'session_secure_cookie',
             'diagnostics_retention_days',
             'notification_seconds',
@@ -147,7 +148,7 @@ class Configuration extends SettingsPage
                         ),
                     ]),
                 Section::make(__('Rate limiting'))
-                    ->description(__('Applies to the admin login and to DAV logins. Counted per client address.'))
+                    ->description(__('Applies to the admin panel, user portal and DAV logins. Counted per client address.'))
                     ->columns(3)
                     ->schema([
                         $this->lockable($this->number('rate_limit_max_attempts', __('Failures per username'))
@@ -163,6 +164,9 @@ class Configuration extends SettingsPage
                         $this->lockable($this->number('session_lifetime', __('Session lifetime'))
                             ->suffix(__('minutes'))
                             ->helperText(__('Minutes without activity before an admin is signed out and the panel returns to the sign-in page. Opening a page, saving and other actions count as activity.')), 'session_lifetime'),
+                        $this->lockable($this->number('portal_session_lifetime', __('Portal session lifetime'))
+                            ->suffix(__('minutes'))
+                            ->helperText(__('Minutes without activity in the user portal before the user is signed out. One sign-in covers both the portal and the admin panel; each counts its own time, and running out of either signs out of both.')), 'portal_session_lifetime'),
                         $this->lockable(
                             Toggle::make('session_secure_cookie')
                                 ->label(__('Secure cookies'))

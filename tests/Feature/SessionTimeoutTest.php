@@ -28,22 +28,37 @@ class SessionTimeoutTest extends TestCase
 
     public function test_signed_in_pages_carry_the_idle_script_with_the_session_lifetime(): void
     {
-        config(['session.lifetime' => 7]);
+        config(['nexusdav.admin.session_lifetime' => 7, 'nexusdav.portal.session_lifetime' => 600]);
         $this->actingAs(User::factory()->create(['is_admin' => true, 'is_active' => true]));
 
         $this->get('/admin')
             ->assertOk()
-            ->assertSee('nexusdav.panel.activity', false)
+            ->assertSee('nexusdav.admin.activity', false)
             ->assertSee('const lifetimeMs = 7 * 60 * 1000;', false)
             ->assertSee('admin\/login?timeout=1', false)
             ->assertSee('admin\/logout', false);
+    }
+
+    public function test_portal_pages_count_the_portal_lifetime_under_their_own_key(): void
+    {
+        config(['nexusdav.portal.enabled' => true, 'nexusdav.admin.session_lifetime' => 7, 'nexusdav.portal.session_lifetime' => 600]);
+        $this->actingAs(User::factory()->create(['is_active' => true, 'password' => 'secret-password']));
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('nexusdav.portal.activity', false)
+            ->assertDontSee('nexusdav.admin.activity', false)
+            ->assertSee('const lifetimeMs = 600 * 60 * 1000;', false)
+            ->assertSee('\/login?timeout=1', false)
+            ->assertSee('\/logout', false)
+            ->assertDontSee('admin\/login', false);
     }
 
     public function test_the_sign_in_page_does_not_carry_the_idle_script(): void
     {
         $this->get('/admin/login')
             ->assertOk()
-            ->assertDontSee('nexusdav.panel.activity', false);
+            ->assertDontSee('nexusdav.admin.activity', false);
     }
 
     public function test_the_sign_in_page_explains_a_timeout_and_the_message_stays(): void

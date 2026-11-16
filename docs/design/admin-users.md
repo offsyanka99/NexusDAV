@@ -30,7 +30,7 @@ Opened with the **New user** button. Fields:
 - Username: lowercase letters, numbers, `_` and `-`; unique; it cannot be changed later, because it is part of every DAV URL
 - Display name
 - Email: stored in lower case, unique without regard to case
-- Password (hidden, with show/hide): at least 12 characters. Required for admins, optional for everyone else; only the admin panel accepts it, DAV clients use app passwords
+- Password (hidden, with show/hide): at least 12 characters. Required for admins, optional for everyone else. It signs in to the user portal, and admins to the admin panel too; never to DAV, where clients use app passwords
 - Confirm password (hidden, with show/hide): required when a password is entered
 - Admin (toggle)
 - Active (toggle, on by default)
@@ -48,6 +48,7 @@ Above the fields, a **User** section shows:
 - Events/Objects count (example: `2812`)
 - Address Books count (example: `1`)
 - Contacts count (example: `93`)
+- Portal sign-in (Version 2): **Possible**, **No password**, **User disabled**, or **User portal is off** while the Portal switch is off
 - File home: **Exists** or **Not created yet** (Files, 0.4.0). There is no browsing and no size per user; per-user storage statistics are Version 2.x. The server-wide total is on the Dashboard
 
 Below the form are four tables.

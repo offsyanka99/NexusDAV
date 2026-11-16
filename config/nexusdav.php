@@ -163,6 +163,39 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Admin panel
+    |--------------------------------------------------------------------------
+    |
+    | session_lifetime is the minutes without activity in /admin before the
+    | signed-in user is signed out (Configuration, Sessions).
+    |
+    */
+
+    'admin' => [
+        'session_lifetime' => env('SESSION_LIFETIME', 120),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | User portal
+    |--------------------------------------------------------------------------
+    |
+    | docs/design/user-portal.md. enabled is the Portal switch: off, every
+    | portal address redirects to /admin. log_level is the lowest level of
+    | portal log lines. session_lifetime is the minutes without activity in
+    | the portal before the user is signed out. Both panels share one session,
+    | which lives for the longer of the two lifetimes while the portal is on.
+    |
+    */
+
+    'portal' => [
+        'enabled' => env('NEXUSDAV_PORTAL', false),
+        'log_level' => env('NEXUSDAV_PORTAL_LOG_LEVEL', 'info'),
+        'session_lifetime' => env('NEXUSDAV_PORTAL_SESSION_LIFETIME', 480),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Admin panel notifications
     |--------------------------------------------------------------------------
     |

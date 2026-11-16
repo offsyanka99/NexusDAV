@@ -194,6 +194,8 @@ These settings are changed on the **Settings** and **Configuration** pages. A ch
 | Push subscriptions per user (1 to 10000) | Settings | `NEXUSDAV_PUSH_MAX_SUBSCRIPTIONS` | `100` |
 | Allow private networks (push services on plain http or the LAN) | Settings | `NEXUSDAV_PUSH_ALLOW_PRIVATE` | off |
 | Push log level | Settings | `NEXUSDAV_PUSH_LOG_LEVEL` | `info` |
+| User portal on or off | Settings | `NEXUSDAV_PORTAL` | off |
+| Portal log level | Settings | `NEXUSDAV_PORTAL_LOG_LEVEL` | `info` |
 | Log level | Settings | `LOG_LEVEL` | `debug` |
 | Keep sync history for (days) | Settings | `NEXUSDAV_SYNC_HISTORY_DAYS` | `90` |
 | Default panel language (`en` or `ru`) | Configuration | `NEXUSDAV_LOCALE` | `en` |
@@ -203,12 +205,26 @@ These settings are changed on the **Settings** and **Configuration** pages. A ch
 | Failures per username | Configuration | `NEXUSDAV_RATE_LIMIT_MAX_ATTEMPTS` | `5` |
 | Failures per address | Configuration | `NEXUSDAV_RATE_LIMIT_PER_ADDRESS` | `20` |
 | Rate-limit window (seconds) | Configuration | `NEXUSDAV_RATE_LIMIT_DECAY_SECONDS` | `60` |
-| Session lifetime (minutes of inactivity) | Configuration | `SESSION_LIFETIME` | `120` |
+| Session lifetime (minutes of inactivity in the admin panel) | Configuration | `SESSION_LIFETIME` | `120` |
+| Portal session lifetime (minutes of inactivity in the portal) | Configuration | `NEXUSDAV_PORTAL_SESSION_LIFETIME` | `480` |
 | Secure session cookie | Configuration | `SESSION_SECURE_COOKIE` | on when `APP_URL` is `https` |
 | Keep diagnostics for (days) | Configuration | `NEXUSDAV_DIAGNOSTICS_RETENTION_DAYS` | `30` |
 | Close messages after (seconds) | Configuration | `NEXUSDAV_NOTIFICATION_SECONDS` | `6` (0 keeps them until closed) |
 
-**Inactivity timeout:** an admin who does nothing for the session lifetime is returned to the sign-in page by the panel itself, with a message ("You were signed out because of inactivity") that stays until it is closed. A page load, a save or any other action that reaches the server counts as activity; reading a page without clicking does not. The time is shared between browser tabs, so activity in one tab keeps the other tabs signed in. A page that finds the server session already gone (for example after a restart that lost sessions, or a server-side sign-out) takes the same path instead of showing "This page has expired".
+**Inactivity timeout:** an admin who does nothing in the admin panel for the session lifetime is returned to the sign-in page by the panel itself, with a message ("You were signed out because of inactivity") that stays until it is closed. A page load, a save or any other action that reaches the server counts as activity; reading a page without clicking does not. The time is shared between browser tabs, so activity in one tab keeps the other tabs signed in. A page that finds the server session already gone (for example after a restart that lost sessions, or a server-side sign-out) takes the same path instead of showing "This page has expired".
+
+**User portal (in development).** Version 2 adds a user portal at the server's address, `/`, where every active user with a password signs in with their **email or username** and their **main password** to manage their own data. It is built step by step behind the **User portal** switch (Settings → User portal), which is off until 2.0.0: while it is off, `/` and every portal address open the admin panel, as before. While it is on, so far it has its sign-in page, a Dashboard, a navigation with one placeholder page per app (Calendar, Tasks, Notes, Contacts, Files; an app is hidden while its service is off on the Settings page), and in the user menu:
+
+- **Account:** the user's time zone (empty: the server's), **Show week numbers**, and **Change password** (needs the current password; at least 12 characters; signs out the user's other sessions, not their devices).
+- **App passwords:** the user's own app passwords for their devices: generate one (shown once), see when each was last used, and revoke it.
+- **Language** and the light, dark or system **theme**.
+
+The portal shows times in the user's time zone, with the server's time format and week start (Configuration). A signed-in user who is not an admin and opens `/admin` sees **Access denied** with a link back to the portal, and stays signed in.
+
+- **The main password** now signs in to the portal (and, for admins, to the admin panel). It still never works on `/dav/`: devices keep using app passwords. A user without a password, or a disabled user, cannot sign in; the user's page in the admin panel shows **Portal sign-in**.
+- **One sign-in for both:** an admin signed in to the portal is signed in to `/admin` too (the user menus link to each other), and signing out of one signs out of both.
+- **Two idle lifetimes:** the admin panel uses **Session lifetime**, the portal **Portal session lifetime**. Each counts its own inactivity; when either runs out, the user is signed out of both. The session cookie lasts for the longer of the two.
+- **Failed portal sign-ins** count toward the same rate limits and are on Diagnostics with the source **User portal** (reasons: unknown user, bad password, user disabled, no password). Portal sign-ins are logged at **Portal log level**, with the username only.
 
 **Admin panel messages:** success and info messages close by themselves after **Close messages after** seconds. `0` keeps them until you close them. Errors and warnings always stay until closed, and so does the one-time app password secret.
 
@@ -632,6 +648,7 @@ Export the settings before an upgrade and keep the file with your other backups.
 5. **Files is off after an upgrade to 0.4.0** until an admin switches it on under **Settings → Files** (see [Files](#files)). The upgrade needs no migration and changes no setting.
 6. **WebDAV-Push is off after an upgrade to 0.5.0** until an admin switches it on under **Settings → WebDAV-Push**, and it needs the queue worker (see [WebDAV-Push](#webdav-push)). Set the new image tag on the worker too. The upgrade adds tables for the worker and push; nothing else changes.
 7. **Upgrading to 1.6.0** needs no migration and changes no setting. It adds **Settings backup** and **Danger Zone** at the bottom of **Configuration**. Their hand pass (export and import, and a reset with clients, the worker and WebDAV-Push afterwards) passed on 1.6.0+65ad562 on PostgreSQL and SQLite ([admin testing](testing/admin-testing.md#results)).
+8. **The release that adds the user portal's item index** (Version 2) indexes every calendar object and contact once, at the first start after the upgrade (`nexusdav:index-items`, run by the start-up step). Measured on 50,000 events and contacts: about 9 seconds on SQLite and 30 seconds on PostgreSQL, during which the server is not yet answering; later starts take a fraction of a second. The index is kept current on every write from then on. Run `php artisan nexusdav:index-items` (as `-u nexusdav`) at any time to check it; it is safe to repeat.
 
 **PostgreSQL major version changes** (for example 17 → 18): the official Postgres images changed their data directory layout starting with 18 (a single volume mount, with data stored under a version-specific subdirectory). An existing 17 data volume cannot be reused as-is by an 18 image. `pg_dump` your database first, then either keep using the matching Postgres major version, or follow [upstream's upgrade guidance](https://github.com/docker-library/postgres/issues/37) (`pg_upgrade` or dump-and-restore into a fresh volume) before switching image tags.
 
@@ -658,6 +675,8 @@ Automatic backups are a long-term goal (see [Roadmap](#roadmap)).
   - **Rejected logins** (admin or DAV), with source, IP, username, path, status, and reason. They are also stored in `diagnostic_events`. One address gets at most 10 rows per minute; further failures from it are counted on one `many usernames` row and logged once.
   - DAV answers with status 400 or higher (except 401) are stored the same way as `http_error` rows; their request line is the log entry. Both kinds are listed on the admin panel's Diagnostics page and summarised on the Dashboard. A DAV request that sends no credentials is not stored.
   - **Push:** subscriptions registered, renewed and removed, and messages that could not be delivered, at **Push log level**. Only the push service's host is logged.
+  - **User portal:** sign-ins and sessions ended by inactivity, at **Portal log level**, with the username only.
+  - **Item index:** a warning when a calendar object or contact could not be indexed (with the collection's id and the error type, never the content), and a summary line when `nexusdav:index-items` changed rows.
   - **Never logged or stored:** passwords, app password secrets, the `Authorization` header, other request headers, query strings and request bodies, and push service addresses or keys.
 - **Rotation:** Compose sets `max-size` `10m` and `max-file` `3`.
 - **Caching:** at each start the container caches config, routes, events, views and Filament components (`php artisan optimize`) and serves PHP with OPcache. Changing an environment variable takes a restart, which happens anyway when Compose recreates the container.

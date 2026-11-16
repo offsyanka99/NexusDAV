@@ -41,6 +41,7 @@ final class FactoryReset
     public const RESET_TABLES = [
         'users', 'principals', 'sessions',
         'app_passwords',
+        'item_index',
         'calendars', 'calendarinstances', 'calendarobjects', 'calendarchanges', 'calendarsubscriptions', 'schedulingobjects',
         'addressbooks', 'addressbookinstances', 'cards', 'addressbookchanges',
         'locks', 'propertystorage',

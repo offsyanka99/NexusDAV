@@ -7,7 +7,7 @@ This document describes how the main components fit together for Version 1. It i
 | Component | Responsibility |
 |-----------|----------------|
 | **Laravel** | HTTP routing, authentication, session, admin panel, application settings, user management |
-| **Filament** | Admin UI (Dashboard, Users, Settings, Configuration, Diagnostics) |
+| **Filament** | Admin UI (Dashboard, Users, Settings, Configuration, Diagnostics) at `/admin`, and from Version 2 the user portal at `/`: two panels (`AdminPanelProvider`, `PortalPanelProvider`) with what they share in `PanelSetup` |
 | **sabre/dav** | DAV protocol server (WebDAV, CalDAV, CardDAV) |
 | **sabre/dav PDO backend** | Storage for calendars, address books, objects and cards |
 | **File home** | Files under `/dav/files/<username>/`: sabre's `FSExt` nodes on the data volume (`/data/files`), through `FileStorage` |
@@ -28,6 +28,8 @@ Client (DAVx5, Thunderbird, Apple)
         |
         +-- Admin panel (/admin) --> Filament --> Laravel models
         |
+        +-- User portal (/, Version 2, behind the Portal switch) --> Filament
+        |
         +-- DAV requests (/dav/*) --> Auth (app password) --> sabre/dav Server
                                               |
                                               v
@@ -42,10 +44,29 @@ Client (DAVx5, Thunderbird, Apple)
 3. On success, the request is passed to sabre/dav with the authenticated principal.
 4. Main account password is **not** accepted on the DAV endpoint.
 
-### Admin panel authentication
+### Admin panel and user portal authentication
 
 - Separate from DAV.
-- Uses the admin account (Argon2id).
+- Uses the main password of the account (Argon2id). `User::canAccessPanel()`: `admin` for active admins; `portal` for active users with a password while the Portal switch is on.
+- Both panels use the `web` guard and one session: one sign-in for both, and signing out of one signs out of both. Each panel has its own idle lifetime, kept as its own last-activity time in the session (`PanelIdleTimeout`, a persistent panel middleware, so Livewire requests count too). `session.lifetime` is the longer of the two while the portal is on (`PanelSessions`).
+- With the Portal switch off, `RequirePortal` (first portal middleware) redirects every portal address to `/admin`. Filament's default panel stays `admin`.
+- On `/admin`, `AuthenticateAdmin` answers a signed-in user who may not use the panel with an Access denied page (403) and keeps them signed in; signing out still works.
+
+### User portal shell (Version 2)
+
+- **Apps:** each app (Dashboard, Calendar, Tasks, Notes, Contacts, Files) is one `App\Portal\PortalApp` class in `app/Portal/Apps`, with its id, label, icon, order, the settings it needs and its pages. `PortalApps` finds them; the panel registers their pages, the top navigation shows each visible app's first page, and a page of an app whose setting is off answers 404. A new app is a registry class and its pages, with no change to the provider.
+- **Pages** extend `App\Portal\PortalPage` (access and navigation from the registry). Dates use `PortalTime` (the user's time zone, the server's time format and week start, ISO week numbers); Filament's own date columns follow the user's zone through `FilamentTimezone`.
+- **Dashboard cards** extend `App\Portal\DashboardCard`; an app lists them, and the Dashboard shows those of the visible apps in order.
+- **UI state** goes into `users.portal_state` through `PortalState` (at most 64 KB, keys such as `calendar.view`). `put()` and `forget()` re-read the column under a row lock inside a transaction and write that one key back, so two overlapping requests of the same user keep each other's keys. On PostgreSQL the row lock serializes them. On SQLite `lockForUpdate()` is ignored and the IMMEDIATE transaction is the lock. The write updates only this column, so the account's save hooks are not run. `get()` reads the user it is given.
+- **Data layer** (`app/Services/Portal`, PR 50a): the portal reads and writes the same data as a DAV client, through the same backends (Decision 8).
+  - `PortalCollections` lists the calendars and address books a user sees as `CollectionRef` values (the collection's id, the user's instance, name, color, components, access) from `getCalendarsForUser()` and `getAddressBooksForUser()`, so the Sharing, CalDAV, CardDAV, Tasks and Notes switches apply as on DAV. `readOnlyReasons()` is the one rule for "read-only": a read-only share, or a holiday calendar (the `nexusdav-holiday` key of the calendar info, from PR 51). Every lookup by id checks the user again; another user's id is `NotFound`, like a missing one.
+  - `CalendarItemStore` and `ContactStore` share one write pipeline: look the collection up for the user, refuse a read-only one, then one transaction holding the lock a DAV write takes (`DavWriteLock::lockCalendar()` / `lockAddressBook()`; on SQLite the transaction's own write lock), the ETag check (`ChangedElsewhere`), CalDAV/CardDAV validation with sabre's repair (`ItemValidator`; a component the calendar does not take, a second UID in the collection), and the write through `CalendarBackend` or `AddressBookBackend`, which moves the sync token and records WebDAV-Push. `batch()` writes many items under one lock, matched by UID (skip, replace or fail), and reports refused items one by one; push merges into one message per topic.
+  - `CalendarItemReader` and `ContactReader` return one item with its ETag, or a cursor over a collection read in chunks. `ItemEditor` changes the properties a form edits and keeps the rest.
+  - `FileStore` works in the user's file home through `FileStorage` (name rules, links, upload limit), refuses a path a WebDAV client locked (`LockedItem`) or one that leaves the home, and pushes as the DAV plugin does.
+  - Refusals are `PortalException`s; `PortalErrors` turns them into translated notifications (`PortalPage::notifyFailure()`).
+- **Item index** (PR 50b, Decision 9): `item_index` holds one row per calendar object and contact for lists and search (`App\Models\ItemIndex` and its scopes: `visibleTo()`, `ofKind()`, `search()`, `dueBetween()`, `overlapping()`). `CalendarBackend` and `AddressBookBackend` call `ItemIndexer` on every create, update and delete of an object, inside the write's transaction and lock, in a savepoint, so a failure is logged and never fails the write; an object that cannot be parsed keeps a version-0 row. `nexusdav:index-items` (run by `nexusdav:prepare`, `IndexBackfill`) indexes what is missing or older, re-reading each object's ETag under the collection lock before it writes, and removes rows of objects deleted outside the backends.
+- **Calendar reader** (PR 50b): `CalendarReader` returns the `Occurrence`s of the visible calendars in a time range, from sabre's calendar-query and vobject's `expand()` in the user's time zone. A range longer than a year (`MAX_RANGE_DAYS`, 366 calendar days) is refused. At most `MAX_OCCURRENCES` (2,000) are returned, the earliest; once that many are kept, later objects are expanded only up to that last start. `truncated` is set when some were left out by that cap, or when a series passed `RECURRENCE_LIMIT` (100,000). vobject counts instances from the series' DTSTART and its own ceiling is 3,500, so a daily event older than about 9.6 years, or an hourly one older than about 146 days, would otherwise vanish from every later range. The reader raises `Settings::$maxRecurrences` to 100,000 for the candidate query and for `expand()` only, then restores it (CalDAV still uses 3,500). A series that still passes 100,000 contributes no occurrences and is reported through `truncated`; the query is finished from the stored first and last occurrence so the other events in that calendar remain. The candidate query is one day wider on each side, because sabre stores floating and all-day times as if they were UTC.
+- **Assets:** the portal has its own Filament theme, built by Vite. The image's `assets` stage (Node) builds it from the `vendor` directory of the PHP stage and the final image copies `public/build`. The admin panel keeps Filament's prebuilt styles.
 - Rate limiting and brute-force protection apply to both login and DAV Basic Auth. The limit is IP plus username, so failures from one address do not block that username from another. The address is the immediate peer. `X-Forwarded-For` counts only when that peer is an explicitly configured proxy, not when every address is trusted. A DAV login by email and by username for the same account share the lock once the user is known. Rejected credentials are stored in `diagnostic_events`.
 
 ## Directory structure (suggested)
@@ -53,6 +74,10 @@ Client (DAVx5, Thunderbird, Apple)
 ```
 app/
   Filament/                 # Admin resources (Users, Settings, etc.)
+    Auth/                   # Login (admin) and PortalLogin (email or username)
+    Portal/                 # user portal pages (Version 2): Dashboard, the app pages, Account, AppPasswords
+  Portal/                   # the portal shell: PortalApp, PortalApps, PortalPage, DashboardCard, PortalTime, PortalState
+    Apps/                   # one registry class per app
   Models/                   # User, AppPassword, Principal, DiagnosticEvent
   Services/
     Dav/
@@ -90,6 +115,20 @@ app/
       PushEndpointGuard.php # SSRF guard: https, public addresses only, resolved once
       PushHttpClient.php    # PSR-18 client on curl, pinned to the checked address, no redirects
       WebPushSender.php     # encrypts (aes128gcm) and signs (VAPID), returns a PushResult
+    Portal/
+      PortalConfig.php      # the Portal switch
+      PortalLog.php         # portal log lines at the Portal log level
+      PortalCollections.php # the user's calendars and address books (CollectionRef), read-only reasons
+      WritePipeline.php     # lookup, read-only check, transaction and collection lock for every item write
+      ItemValidator.php     # CalDAV / CardDAV validation and repair, components, UIDs
+      CalendarItemStore.php # events, tasks and notes through CalendarBackend; batches
+      ContactStore.php      # vCards through AddressBookBackend; batches
+      CalendarItemReader.php, ContactReader.php  # one item with its ETag, or a chunked cursor
+      ItemEditor.php        # edits a parsed item, keeping what a form does not edit
+      FileStore.php         # the file home: list, folders, write, read, rename, move, delete
+      PortalErrors.php      # refusals (Exceptions/) as translated notifications
+      CalendarReader.php    # occurrences of a time range, recurring events expanded (Occurrence, OccurrenceList)
+      Index/                # item_index: ItemIndexer (backend hooks), one indexer per kind, IndexBackfill
     WorkerStatus.php        # the queue worker's heartbeat: running, stale or never seen
     UserService.php         # Create user + principal + default calendar and address book
     AuthThrottle.php        # IP plus username limit for admin login and DAV
@@ -106,8 +145,16 @@ app/
       TrustProxies.php      # trusted proxies from config at request time
       ValidatePostSize.php  # Laravel's post_max_size check, except for an upload to /dav/files/
       SecurityHeaders.php   # admin panel headers
+      SetPanelLocale.php    # the signed-in user's language in both panels
+      PanelIdleTimeout.php  # each panel's own idle lifetime in the shared session
+      RequirePortal.php     # the Portal switch: off, portal addresses redirect to /admin
+      AuthenticateAdmin.php # /admin: Access denied for a signed-in user who is not an admin
+  Providers/Filament/
+    PanelSetup.php          # colors, middleware, language action, session timeout script, notification duration
+    AdminPanelProvider.php  # /admin, Filament's default panel
+    PortalPanelProvider.php # / (Version 2), and the reserved slugs
 routes/
-  web.php                   # Admin welcome. /dav and /.well-known are registered in bootstrap/app.php, outside the web group
+  web.php                   # No routes: / is the portal panel. /dav and /.well-known are registered in bootstrap/app.php, outside the web group
 config/
   nexusdav.php              # Feature flags, defaults
 ```

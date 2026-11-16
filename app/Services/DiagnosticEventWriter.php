@@ -19,33 +19,39 @@ final class DiagnosticEventWriter
 {
     public function __construct(private AuthThrottle $throttle) {}
 
-    public function recordAdmin(Failed $event): void
+    /**
+     * A refused sign-in on the admin panel or the user portal, with the
+     * panel's source and sign-in path.
+     */
+    public function recordPanel(Failed $event): void
     {
-        $typed = '';
-
-        if (isset($event->credentials['email']) && is_string($event->credentials['email'])) {
-            $typed = $event->credentials['email'];
-        }
+        $credentials = $event->credentials;
+        $typed = $credentials['email'] ?? $credentials['username'] ?? '';
+        $typed = is_string($typed) ? $typed : '';
 
         $user = $event->user instanceof User ? $event->user : null;
-        $branch = request()->attributes->get('nexusdav.admin_auth_failure');
+        $branch = request()->attributes->get('nexusdav.panel_auth_failure');
+        $panel = Filament::getCurrentOrDefaultPanel();
+        $portal = $panel->getId() === 'portal';
 
         if (! $user instanceof User) {
             $username = $typed;
             $reason = 'unknown user';
         } elseif ($branch === 'panel') {
             $username = $user->username;
-            $reason = 'panel refused';
+            $reason = $portal && ! $user->is_active ? 'user disabled' : 'panel refused';
+        } elseif ($portal && ! $user->hasPassword()) {
+            $username = $user->username;
+            $reason = 'no password';
         } else {
             $username = $user->username;
             $reason = 'bad password';
         }
 
-        $panel = Filament::getPanel('admin');
-        $path = '/'.trim((string) $panel->getPath(), '/').$panel->getLoginRouteSlug();
+        $path = '/'.trim(trim((string) $panel->getPath(), '/').$panel->getLoginRouteSlug(), '/');
 
         $this->recordAuthFailure(
-            DiagnosticEvent::SOURCE_ADMIN,
+            $portal ? DiagnosticEvent::SOURCE_PORTAL : DiagnosticEvent::SOURCE_ADMIN,
             $this->throttle->clientIp(),
             $username,
             null,

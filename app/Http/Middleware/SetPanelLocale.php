@@ -10,12 +10,12 @@ use Illuminate\Support\Facades\App;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Admin panel only: the signed-in admin's language, else the server default,
- * else English. The login page has no user, so it gets the server default.
- * The previous locale is restored so nothing outside the panel request
- * (DAV, /health, logs) sees the admin's language.
+ * Admin panel and user portal: the signed-in user's language, else the
+ * server default, else English. The sign-in page has no user, so it gets the
+ * server default. The previous locale is restored so nothing outside the
+ * panel request (DAV, /health, logs) sees the user's language.
  */
-final class SetAdminLocale
+final class SetPanelLocale
 {
     public function handle(Request $request, Closure $next): Response
     {

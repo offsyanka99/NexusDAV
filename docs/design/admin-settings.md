@@ -40,6 +40,9 @@ File storage is on the data volume, so it has no path setting. Per-user quotas, 
 
 ## Version 2
 
+- **User portal** section (PR 48 of the [Version 2 plan](../plans/implementation-plan-v2.md)):
+  - User portal (`NEXUSDAV_PORTAL`, default off until 2.0.0). Help: "Lets every active user with a password sign in at the server's address to manage their own calendars, contacts, tasks, notes and files. Off: the address opens the admin panel."
+  - Portal log level (`NEXUSDAV_PORTAL_LOG_LEVEL`, default `info`), shown while the portal is on: the least severe portal line that is logged (sign-ins, sessions ended by inactivity, later changes and imports). Lines name the user, never what they entered
 - Enable or disable on-server Scheduling
 
 ## Version 2.x

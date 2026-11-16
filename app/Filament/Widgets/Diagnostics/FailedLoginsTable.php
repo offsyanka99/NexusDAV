@@ -36,7 +36,11 @@ class FailedLoginsTable extends TableWidget
                 TextColumn::make('source')
                     ->label(__('Source'))
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => $state === DiagnosticEvent::SOURCE_DAV ? 'DAV' : __('Admin panel')),
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        DiagnosticEvent::SOURCE_DAV => 'DAV',
+                        DiagnosticEvent::SOURCE_PORTAL => __('User portal'),
+                        default => __('Admin panel'),
+                    }),
                 TextColumn::make('ip')->label(__('Address')),
                 TextColumn::make('username')->label(__('User'))->searchable(),
                 TextColumn::make('reason')
@@ -57,6 +61,7 @@ class FailedLoginsTable extends TableWidget
                     ->label(__('Source'))
                     ->options([
                         DiagnosticEvent::SOURCE_ADMIN => __('Admin panel'),
+                        DiagnosticEvent::SOURCE_PORTAL => __('User portal'),
                         DiagnosticEvent::SOURCE_DAV => 'DAV',
                     ]),
             ])

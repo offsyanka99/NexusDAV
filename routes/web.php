@@ -1,6 +1,4 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-
-// The stock welcome page printed the Laravel version to anyone. NexusDAV has no public page.
-Route::redirect('/', '/admin');
+// / is the user portal (PortalPanelProvider). With the Portal switch off,
+// RequirePortal redirects it to /admin. NexusDAV has no other public page.

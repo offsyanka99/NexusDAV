@@ -2,6 +2,7 @@
 
 namespace App\Services\Dav;
 
+use App\Services\Portal\Index\ItemIndexer;
 use App\Services\Push\PushChanges;
 use Illuminate\Support\Facades\DB;
 use PDO;
@@ -245,7 +246,40 @@ final class AddressBookBackend extends SabreAddressBookBackend
     {
         DavLimits::assertName($cardUri, 'The resource name');
 
-        return parent::createCard($addressBookId, $cardUri, $cardData);
+        $etag = parent::createCard($addressBookId, $cardUri, $cardData);
+        $this->index((int) $addressBookId, (string) $cardUri, $cardData, (string) $etag);
+
+        return $etag;
+    }
+
+    public function updateCard($addressBookId, $cardUri, $cardData)
+    {
+        $etag = parent::updateCard($addressBookId, $cardUri, $cardData);
+        $this->index((int) $addressBookId, (string) $cardUri, $cardData, (string) $etag);
+
+        return $etag;
+    }
+
+    public function deleteCard($addressBookId, $cardUri)
+    {
+        $deleted = parent::deleteCard($addressBookId, $cardUri);
+
+        app(ItemIndexer::class)->forgetCard((int) $addressBookId, (string) $cardUri);
+
+        return $deleted;
+    }
+
+    /**
+     * The portal's item index, in the same transaction and lock as the write.
+     */
+    private function index(int $addressBookId, string $cardUri, mixed $cardData, string $etag): void
+    {
+        if (! is_string($cardData)) {
+            $card = $this->getCard($addressBookId, $cardUri);
+            $cardData = is_array($card) ? (string) ($card['carddata'] ?? '') : '';
+        }
+
+        app(ItemIndexer::class)->indexCard($addressBookId, $cardUri, $cardData, $etag);
     }
 
     public function createCollection(string $principalUri, string $uri, string $displayName, ?string $description): void

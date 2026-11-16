@@ -218,6 +218,9 @@ final class SettingsTransfer
             'rate_limit_per_address' => __('Failures per address'),
             'rate_limit_decay_seconds' => __('Window'),
             'session_lifetime' => __('Session lifetime'),
+            'portal' => __('User portal'),
+            'portal_log_level' => __('Portal log level'),
+            'portal_session_lifetime' => __('Portal session lifetime'),
             'session_secure_cookie' => __('Secure cookies'),
             'diagnostics_retention_days' => __('Keep failed logins and DAV errors for'),
             'notification_seconds' => __('Close messages after'),
@@ -253,7 +256,7 @@ final class SettingsTransfer
                 5 => __('Friday'),
                 default => __('Saturday'),
             },
-            'log_level', 'push_log_level' => ucfirst((string) $value),
+            'log_level', 'push_log_level', 'portal_log_level' => ucfirst((string) $value),
             default => is_scalar($value) ? (string) $value : '',
         };
     }

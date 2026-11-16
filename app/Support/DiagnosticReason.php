@@ -20,6 +20,7 @@ final class DiagnosticReason
             'main password used' => __('main password used'),
             'panel refused' => __('panel refused'),
             'bad password' => __('bad password'),
+            'no password' => __('no password'),
             'many usernames' => __('many usernames'),
             'many requests' => __('many requests'),
             'Bad Request' => __('Bad Request'),

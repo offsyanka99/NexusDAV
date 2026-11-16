@@ -12,7 +12,7 @@ Sign-in lands on the **Dashboard**. The Dashboard shows the server at a glance: 
 
 A menu links to the other admin pages. The items include **Settings**, **Configuration**, **Users** and **Diagnostics**, plus the other pages described below as they arrive. Whether that menu sits on the left or along the top is not decided yet.
 
-The user menu (top right) has a **Language** item (since 0.1.2). Each admin chooses English or Russian there, or **Server default** to follow the Configuration page. The menu item shows the language in use. A language chosen there always wins over the Configuration page. The login page uses the server default.
+The user menu (top right) has a **User portal** link while the portal is switched on (Version 2, in development), and a **Language** item (since 0.1.2). Each admin chooses English or Russian there, or **Server default** to follow the Configuration page. The menu item shows the language in use. A language chosen there always wins over the Configuration page. The login page uses the server default.
 
 ### Settings
 
@@ -29,9 +29,9 @@ The Settings page holds system-level controls for services and related options. 
 - Enable or disable Sharing (Settings, `NEXUSDAV_SHARING`; released in 0.3.0).
 - See how much space the files take: a Files storage card on the Dashboard with the total size, the number of files, the users who have files and the free space of the volume. The total is counted when an admin clicks Refresh, because walking every file is slow on a large library; opening the Dashboard never does it.
 - Maximum upload size for Files (Settings, `NEXUSDAV_FILES_MAX_UPLOAD_MB`, 128 MB by default; released in 0.4.0). Per-user disk space limits (quotas) are Version 2.x.
-- Session and portal-related settings appear once the user portal exists (Version 2).
 
 **Version 2.**
+- **User portal** section (in development): the **User portal** switch (`NEXUSDAV_PORTAL`, off until 2.0.0; off, `/` and every portal address open the admin panel) and **Portal log level** (`NEXUSDAV_PORTAL_LOG_LEVEL`, Info), shown while the portal is on.
 - Enable or disable on-server Scheduling.
 
 **Version 2.x.**
@@ -50,6 +50,7 @@ The Configuration page holds server-wide preferences. A UI draft is kept in [doc
 
 **Version 1.x.**
 - Default interface language, built in 0.1.2 (`NEXUSDAV_LOCALE`). Each admin can override it from the user menu.
+- **Portal session lifetime** (Version 2, `NEXUSDAV_PORTAL_SESSION_LIFETIME`, 480 minutes) under Sessions: inactivity in the user portal before the user is signed out. The portal and the admin panel share one sign-in; each counts its own inactivity, and when either runs out the user is signed out of both.
 - **Settings backup** (1.6.0): export the settings of the Settings and Configuration pages as JSON, and import such a file after a preview of what changes. Values that come from the environment and secrets are not exported, and the file has no users, calendars or contacts (see the guide's [Backup, restore and upgrade](../guide.md#backup-restore-and-upgrade)).
 
 **Version 2.x.**
@@ -63,7 +64,7 @@ On the same page, a **Danger Zone** section (1.6.0) contains **Reset to Default*
 
 The Users page lists all accounts. An administrator can search the list by username, display name or email, create a new user, and edit, enable, disable or delete an existing one.
 
-Selecting a user shows their basic information together with the calendars and address books that belong to them. From there the administrator can create a new calendar or address book for that user.
+Selecting a user shows their basic information together with the calendars and address books that belong to them. **Portal sign-in** says whether the user can sign in to the user portal: possible, no password, user disabled, or the portal is off. The password help says that the password signs in to the user portal (and admins to the admin panel), never to DAV. From there the administrator can create a new calendar or address book for that user.
 
 Creating a calendar includes choosing a URI, display name, description, a color, and whether the collection holds tasks (VTODO) or notes (VJOURNAL). The color is Filament's color picker: the swatch opens a hue and saturation panel, the field still shows the hex code, and the stored value is `#RRGGBB` (default `#1A73E8`). Creating an address book includes a URI, display name and description.
 
@@ -74,7 +75,7 @@ A more detailed UI draft is kept in [docs/design/admin-users.md](../design/admin
 The Diagnostics page shows operational status and recent problems. Its heading gives the last 24 hours' failed logins and DAV errors, the same numbers as the Dashboard's Needs attention card. It helps an administrator see why a client cannot sync or why a notification did not go out. A simple version arrives in Version 1 and grows in later versions.
 
 **Version 1**
-- Recent failed login attempts to the admin panel and the DAV endpoint (time, IP, user, reason). Passwords and app password secrets are never stored or shown
+- Recent failed login attempts to the admin panel and the DAV endpoint (time, IP, user, reason). From Version 2, also to the user portal (source **User portal**, with the reasons unknown user, bad password, user disabled and no password). Passwords and app password secrets are never stored or shown
 - Latest DAV errors (4xx/5xx responses on `/dav/*`, with method, path, status, user and, for rejected logins, the reason such as revoked app password or main password used). An (i) button in the table header opens a list of the status codes the server returns, with what each means here and what to check (in English and Russian). A request without credentials is not an error and is not listed
 - A Request ID on each row (shown for DAV errors, optional for failed logins). Searching the container log for it shows that request's log lines, including any error detail
 - App passwords across all users (user, device, created, last used, revoked or expired; can be revoked)

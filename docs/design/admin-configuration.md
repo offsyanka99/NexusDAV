@@ -19,7 +19,7 @@ The Configuration page holds server-wide preferences that are not tied to a spec
 - Window in seconds (`NEXUSDAV_RATE_LIMIT_DECAY_SECONDS`, default `60`)
 
 **Sessions** section:
-- Session lifetime (`SESSION_LIFETIME`, default `120`): Laravel's session lifetime, minutes of inactivity before an admin is signed out. A script on each signed-in page counts the same time from the last answer of the server (shared between tabs through the browser's local storage), signs the admin out and opens the sign-in page with `?timeout=1`, which shows a warning that stays until closed. A Livewire request refused with 419 or 401, or redirected to the sign-in page, does the same.
+- Session lifetime (`SESSION_LIFETIME`, default `120`): minutes of inactivity in the admin panel before the user is signed out (until Version 2 it was Laravel's session lifetime itself; see Version 2 below). A script on each signed-in page counts the same time from the last answer of the server (shared between tabs through the browser's local storage), signs the admin out and opens the sign-in page with `?timeout=1`, which shows a warning that stays until closed. A Livewire request refused with 419 or 401, or redirected to the sign-in page, does the same.
 - Secure cookies (`SESSION_SECURE_COOKIE`): on by default when `APP_URL` is `https`. Turning it on is refused unless the panel is open over HTTPS, so an admin cannot sign themselves out by accident
 
 **Notifications** section:
@@ -65,7 +65,9 @@ Built in PR 44 and PR 45. The last section of the page, below **Save**:
 
 ## Version 2
 
-- Portal log level and portal session settings (the user portal arrives in Version 2)
+- Portal session lifetime (`NEXUSDAV_PORTAL_SESSION_LIFETIME`, 5 to 10080 minutes, default `480`) in the **Sessions** section: minutes of inactivity in the user portal before the user is signed out. Both panels share one sign-in and one session. Each panel keeps its own last-activity time in the session (`PanelIdleTimeout`, also on Livewire requests); a request to a panel whose own lifetime has passed signs out of both and opens that panel's sign-in page. Laravel's `session.lifetime` (the session row and cookie) is the longer of the two lifetimes while the portal is on, else the admin's. Each panel's timeout script counts its own lifetime in its own local storage key (`nexusdav.admin.activity`, `nexusdav.portal.activity`)
+- The Rate limiting section applies to the user portal sign-in too, counted under the source `portal`
+- The Portal log level is on the Settings page, in its User portal section
 
 ## Version 2.x
 

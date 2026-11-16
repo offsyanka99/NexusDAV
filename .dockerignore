@@ -18,6 +18,8 @@ docs
 # A cached config.php would carry the developer's .env values.
 bootstrap/cache/*.php
 public/hot
+# Built in the image's assets stage.
+public/build
 storage/logs/*.log
 storage/framework/cache/data/*
 !storage/framework/cache/data/.gitignore

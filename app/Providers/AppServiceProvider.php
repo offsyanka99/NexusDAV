@@ -2,9 +2,17 @@
 
 namespace App\Providers;
 
+use App\Models\User;
+use App\Portal\PortalApps;
+use App\Portal\PortalState;
+use App\Portal\PortalTime;
+use App\Providers\Filament\PanelSetup;
 use App\Services\AuthThrottle;
+use App\Services\Dav\AddressBookBackend;
+use App\Services\Dav\CalendarBackend;
 use App\Services\Dav\DavAuthBackend;
 use App\Services\DiagnosticEventWriter;
+use App\Services\Portal\PortalLog;
 use App\Services\Push\PushChanges;
 use App\Services\Push\PushKeys;
 use App\Services\Push\PushResolver;
@@ -13,12 +21,15 @@ use App\Services\Push\SystemPushResolver;
 use App\Services\Push\WebPushSender;
 use App\Services\SettingsService;
 use App\Support\LocaleCatalog;
+use App\Support\PanelSessions;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
-use Filament\Notifications\Notification;
 use Filament\Schemas\Schema;
 use Filament\Support\Facades\FilamentTimezone;
 use Filament\Tables\Table;
 use Illuminate\Auth\Events\Failed;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -32,6 +43,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(DavAuthBackend::class);
         $this->app->singleton(SettingsService::class);
         $this->app->singleton(LocaleCatalog::class);
+        $this->app->singleton(PortalApps::class);
+        $this->app->singleton(PortalState::class);
+
+        // The portal's stores and readers use the backends DAV uses.
+        $this->app->bind(CalendarBackend::class, fn (): CalendarBackend => new CalendarBackend(DB::connection()->getPdo()));
+        $this->app->bind(AddressBookBackend::class, fn (): AddressBookBackend => new AddressBookBackend(DB::connection()->getPdo()));
 
         // Per request, and per job in the queue worker.
         $this->app->scoped(PushKeys::class);
@@ -49,9 +66,22 @@ class AppServiceProvider extends ServiceProvider
         $this->app->make(SettingsService::class)->apply();
 
         Event::listen(Failed::class, function (Failed $event): void {
-            app(DiagnosticEventWriter::class)->recordAdmin($event);
+            app(DiagnosticEventWriter::class)->recordPanel($event);
             app(AuthThrottle::class)->hitAddress();
         });
+
+        // Only the panels' sign-in pages sign in through the guard; DAV does not.
+        Event::listen(Login::class, function (Login $event): void {
+            $panel = (string) Filament::getCurrentOrDefaultPanel()->getId();
+
+            PanelSessions::signedIn($panel);
+
+            if ($panel === 'portal' && $event->user instanceof User) {
+                PortalLog::info('Portal sign-in', ['username' => $event->user->username]);
+            }
+        });
+
+        PanelSetup::configureNotifications();
 
         $this->configurePanelTime();
     }
@@ -64,24 +94,12 @@ class AppServiceProvider extends ServiceProvider
      */
     private function configurePanelTime(): void
     {
-        FilamentTimezone::set(fn (): string => (string) config('nexusdav.default_timezone', 'UTC'));
+        // The portal shows times in the signed-in user's zone (PortalTime).
+        FilamentTimezone::set(fn (): string => Filament::getCurrentPanel()?->getId() === 'portal'
+            ? PortalTime::timezone()
+            : (string) config('nexusdav.default_timezone', 'UTC'));
 
         $twelveHour = fn (): bool => config('nexusdav.time_format') === '12';
-
-        // Success and info messages close after the configured time (0 keeps
-        // them); errors and warnings stay until closed. An explicit
-        // ->persistent() or ->duration() on a message still wins.
-        Notification::configureUsing(function (Notification $notification): void {
-            $notification->duration(function () use ($notification): int|string {
-                $seconds = (int) config('nexusdav.notifications.seconds', 6);
-
-                if ($seconds <= 0 || in_array($notification->getStatus(), ['danger', 'warning'], true)) {
-                    return 'persistent';
-                }
-
-                return $seconds * 1000;
-            });
-        });
 
         Table::configureUsing(function (Table $table) use ($twelveHour): void {
             $table

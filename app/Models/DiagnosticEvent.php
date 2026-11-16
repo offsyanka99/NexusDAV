@@ -42,6 +42,8 @@ class DiagnosticEvent extends Model
 
     public const SOURCE_DAV = 'dav';
 
+    public const SOURCE_PORTAL = 'portal';
+
     public const KIND_AUTH_FAILED = 'auth_failed';
 
     public const KIND_HTTP_ERROR = 'http_error';

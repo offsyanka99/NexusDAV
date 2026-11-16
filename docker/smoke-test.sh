@@ -68,6 +68,13 @@ printf '%s\n' "$headers" | grep -qi '^x-frame-options: DENY' || fail "/admin/log
 if printf '%s\n' "$headers" | grep -qi '^x-powered-by:'; then fail "/admin/login sends X-Powered-By"; fi
 ok "/admin/login is served with frame protection and no X-Powered-By"
 
+theme=$(docker exec "$NAME" php -r '$m = json_decode((string) @file_get_contents("/app/public/build/manifest.json"), true); echo $m["resources/css/filament/portal/theme.css"]["file"] ?? "";')
+[ -n "$theme" ] || fail "the portal theme is not in public/build/manifest.json"
+headers=$(curl -s -D - -o /dev/null "$BASE/build/$theme" | tr -d '\r')
+printf '%s\n' "$headers" | grep -q '^HTTP/[0-9.]* 200' || fail "/build/$theme status"
+printf '%s\n' "$headers" | grep -qi '^content-type: text/css' || fail "/build/$theme is not served as CSS"
+ok "the portal theme is built and served"
+
 version=$(docker exec "$NAME" php -r 'echo getenv("NEXUSDAV_VERSION");')
 [ -n "$version" ] || fail "NEXUSDAV_VERSION is not set in the image"
 ok "version $version"

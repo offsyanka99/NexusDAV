@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Filament\Pages\Configuration;
+use App\Filament\Portal\Account;
+use App\Filament\Portal\AppPasswords;
 use App\Filament\Resources\Users\Pages\CreateUser;
 use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\RelationManagers\AddressBooksRelationManager;
@@ -449,14 +451,21 @@ class LocalizationTest extends TestCase
         $this->diagnosticEvent(DiagnosticEvent::KIND_AUTH_FAILED, DiagnosticEvent::SOURCE_DAV, 401, 'bad secret');
         $this->diagnosticEvent(DiagnosticEvent::KIND_HTTP_ERROR, DiagnosticEvent::SOURCE_DAV, 404, 'Not Found');
 
+        app(SettingsService::class)->save(['portal' => true]);
+
         $leaks = [];
         $leaks['login'] = $this->untranslated($this->get('/admin/login')->assertOk()->getContent());
+        $leaks['portal login'] = $this->untranslated($this->get('/login')->assertOk()->getContent());
 
         $this->actingAs($root);
 
-        foreach (['/admin', '/admin/users', '/admin/users/create', '/admin/users/'.$ada->getKey().'/edit', '/admin/settings', '/admin/configuration', '/admin/diagnostics'] as $page) {
+        foreach (['/', '/calendar', '/tasks', '/notes', '/contacts', '/account', '/app-passwords', '/admin', '/admin/users', '/admin/users/create', '/admin/users/'.$ada->getKey().'/edit', '/admin/settings', '/admin/configuration', '/admin/diagnostics'] as $page) {
             $leaks[$page] = $this->untranslated($this->get($page)->assertOk()->getContent());
         }
+
+        app(SettingsService::class)->save(['files' => true]);
+        $leaks['/files'] = $this->untranslated($this->get('/files')->assertOk()->getContent());
+        Filament::setCurrentPanel(Filament::getPanel('admin'));
 
         App::setLocale('en_XA');
 
@@ -469,6 +478,14 @@ class LocalizationTest extends TestCase
         }
 
         $leaks['language menu'] = $this->untranslated(Livewire::test(Topbar::class)->mountAction('language')->html());
+
+        Filament::setCurrentPanel(Filament::getPanel('portal'));
+        $leaks['change password'] = $this->untranslated(Livewire::test(Account::class)->mountAction('changePassword')->html());
+        $leaks['generate app password'] = $this->untranslated(Livewire::test(AppPasswords::class)->mountTableAction('generate')->html());
+        Filament::setCurrentPanel(Filament::getPanel('admin'));
+
+        $this->actingAs($ada);
+        $leaks['access denied'] = $this->untranslated($this->get('/admin')->assertForbidden()->getContent());
 
         $this->assertSame([], array_filter($leaks), 'Untranslated text found: '.json_encode(array_filter($leaks), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
     }

@@ -3,6 +3,7 @@
 namespace App\Services\Dav;
 
 use App\Models\User;
+use App\Services\Portal\Index\ItemIndexer;
 use App\Services\Push\PushChanges;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -26,9 +27,10 @@ use Sabre\DAV\Sync\Plugin as SyncPlugin;
  * client cannot add or change one. Stored tasks and notes stay readable.
  * A new calendar gets the owner's time zone (or the server's) as its
  * calendar-timezone. Sync tokens and the ctag carry the calendar's id
- * (SyncToken).
+ * (SyncToken). Not final: the portal tests flag a calendar the way PR 51
+ * flags a holiday calendar, in getCalendarsForUser().
  */
-final class CalendarBackend extends SabreCalendarBackend
+class CalendarBackend extends SabreCalendarBackend
 {
     private const SYNC_TOKEN = '{http://sabredav.org/ns}sync-token';
 
@@ -333,7 +335,50 @@ final class CalendarBackend extends SabreCalendarBackend
     {
         DavLimits::assertName($objectUri, 'The resource name');
 
-        return parent::createCalendarObject($calendarId, $objectUri, $calendarData);
+        $etag = parent::createCalendarObject($calendarId, $objectUri, $calendarData);
+        $this->index($calendarId, (string) $objectUri, $calendarData, (string) $etag);
+
+        return $etag;
+    }
+
+    public function updateCalendarObject($calendarId, $objectUri, $calendarData)
+    {
+        $etag = parent::updateCalendarObject($calendarId, $objectUri, $calendarData);
+        $this->index($calendarId, (string) $objectUri, $calendarData, (string) $etag);
+
+        return $etag;
+    }
+
+    /**
+     * A MOVE into another calendar is a create there and this delete here,
+     * so the source's index row goes too.
+     */
+    public function deleteCalendarObject($calendarId, $objectUri)
+    {
+        parent::deleteCalendarObject($calendarId, $objectUri);
+
+        app(ItemIndexer::class)->forgetCalendarObject(self::calendarIdOf($calendarId), (string) $objectUri);
+    }
+
+    /**
+     * The portal's item index, in the same transaction and lock as the write
+     * (a DAV request's, or a store's). It is keyed by the calendar id, not
+     * the instance, so a shared calendar has one set of rows.
+     */
+    private function index(mixed $calendarId, string $objectUri, mixed $calendarData, string $etag): void
+    {
+        $id = self::calendarIdOf($calendarId);
+
+        if (! is_string($calendarData)) {
+            $calendarData = (string) ($this->getCalendarObject([$id, 0], $objectUri)['calendardata'] ?? '');
+        }
+
+        app(ItemIndexer::class)->indexCalendarObject($id, $objectUri, $calendarData, $etag);
+    }
+
+    private static function calendarIdOf(mixed $calendarId): int
+    {
+        return (int) (is_array($calendarId) ? $calendarId[0] : $calendarId);
     }
 
     /**

@@ -14,7 +14,8 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 
 /**
- * DAV services and the log level. Configuration holds server-wide preferences.
+ * DAV services, the user portal and the log level. Configuration holds
+ * server-wide preferences.
  */
 class Settings extends SettingsPage
 {
@@ -39,7 +40,7 @@ class Settings extends SettingsPage
      */
     protected function settingKeys(): array
     {
-        return ['caldav', 'carddav', 'tasks', 'notes', 'sharing', 'files', 'files_max_upload_mb', 'push', 'push_files', 'push_max_subscriptions', 'push_allow_private', 'push_log_level', 'log_level', 'sync_history_days'];
+        return ['caldav', 'carddav', 'tasks', 'notes', 'sharing', 'files', 'files_max_upload_mb', 'push', 'push_files', 'push_max_subscriptions', 'push_allow_private', 'push_log_level', 'portal', 'portal_log_level', 'log_level', 'sync_history_days'];
     }
 
     public function form(Schema $schema): Schema
@@ -137,6 +138,26 @@ class Settings extends SettingsPage
                                 ->visible(fn (Get $get): bool => (bool) $get('push'))
                                 ->helperText(__('The least severe push message that is logged. Debug logs every message sent. Lines show only the push service host, never the address or keys.')),
                             'push_log_level',
+                        ),
+                    ]),
+                Section::make(__('User portal'))
+                    ->schema([
+                        $this->lockable(
+                            Toggle::make('portal')
+                                ->label(__('User portal'))
+                                ->live()
+                                ->helperText(__("Lets every active user with a password sign in at the server's address to manage their own calendars, contacts, tasks, notes and files. Off: the address opens the admin panel.")),
+                            'portal',
+                        ),
+                        $this->lockable(
+                            Select::make('portal_log_level')
+                                ->label(__('Portal log level'))
+                                ->options(array_combine(SettingsService::LOG_LEVELS, array_map('ucfirst', SettingsService::LOG_LEVELS)))
+                                ->required()
+                                ->selectablePlaceholder(false)
+                                ->visible(fn (Get $get): bool => (bool) $get('portal'))
+                                ->helperText(__('The least severe portal message that is logged: sign-ins and changes made in the portal. Lines name the user, never what they entered.')),
+                            'portal_log_level',
                         ),
                     ]),
                 Section::make(__('Logging'))

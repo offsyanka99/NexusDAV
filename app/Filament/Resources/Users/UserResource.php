@@ -13,6 +13,7 @@ use App\Filament\Resources\Users\RelationManagers\ReceivedSharesRelationManager;
 use App\Models\Principal;
 use App\Models\User;
 use App\Services\Dav\FileStorage;
+use App\Services\Portal\PortalConfig;
 use App\Services\UserService;
 use App\Support\PanelErrorTranslator;
 use BackedEnum;
@@ -126,6 +127,17 @@ class UserResource extends Resource
                                     ->whereIn('addressbookid', $record->addressBooks()->select('addressbooks.id'))
                                     ->count();
                             }),
+                        TextEntry::make('portal_sign_in')
+                            ->label(__('Portal sign-in'))
+                            ->inlineLabel()
+                            ->saved(false)
+                            ->state(fn (?User $record): string => match (true) {
+                                ! $record instanceof User => '—',
+                                ! PortalConfig::enabled() => __('User portal is off'),
+                                ! $record->is_active => __('User disabled'),
+                                ! $record->hasPassword() => __('No password'),
+                                default => __('Possible'),
+                            }),
                         TextEntry::make('file_home')
                             ->label(__('File home'))
                             ->inlineLabel()
@@ -192,7 +204,7 @@ class UserResource extends Resource
                                     ->revealable()
                                     ->dehydrated(false)
                                     ->required(fn (Get $get): bool => filled($get('password'))),
-                                Text::make(__('At least :count characters. Required for admins. Optional for everyone else. Only the admin panel accepts this password.', ['count' => UserService::MIN_PASSWORD_LENGTH]))
+                                Text::make(__('At least :count characters. Required for admins. Optional for everyone else. It signs in to the user portal, and admins to the admin panel too; never to DAV, where devices use app passwords.', ['count' => UserService::MIN_PASSWORD_LENGTH]))
                                     ->columnSpanFull(),
                             ]),
                         Toggle::make('is_admin')

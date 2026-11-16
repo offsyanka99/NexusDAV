@@ -4,7 +4,7 @@ This document collects features planned for Version 2 and beyond. The labels are
 
 Sources: [guide.md](../guide.md), the [apps](../apps/README.md) pages, [admin.md](../apps/admin.md), the design notes under [docs/design](../design), and the items the Version 1.x plan leaves out.
 
-## Version 2
+## Version 2 and 2.x
 
 ### User portal
 
@@ -17,13 +17,7 @@ A basic user portal beside the admin panel. A UI draft is in [docs/design/user-p
 - Their own time zone and language (the `users.timezone` and `users.locale` columns already exist)
 - Session settings for the portal, and a portal log level on the Configuration page
 - **User dashboard** — a landing page that shows upcoming events, overdue tasks, recently modified files and current quota usage so the user sees what needs attention without navigating into each app.
-
-### Server features
-
-- On-server CalDAV scheduling (invitations and free/busy between users on this server). No outbound email yet
-  - A Scheduling on/off switch on the Settings page
-  - Room and resource calendars that can be booked through scheduling
-- Import / Export of ICS and VCF (calendars, contacts, tasks and notes)
+- Multilingual user portal
 - Search across events and contacts
 
 ### Calendar and contacts
@@ -31,8 +25,26 @@ A basic user portal beside the admin panel. A UI draft is in [docs/design/user-p
 - Holidays calendar (the country is selected first)
 - Custom color for a specific event
 - Duplicate contact detection and merge
+- Import / Export of ICS and VCF (calendars, contacts, tasks and notes)
 
-## Version 2.x
+### Files and storage
+- User quotas
+- Trash for files in the user portal
+- **In-browser preview** — view images, PDFs, office documents and common video formats directly in the portal without downloading them first.
+- **Bulk operations** — select multiple files and download them as a zip, move them, or delete them in one action.
+
+### Notes
+
+- Extend User portal Notes functionality. Give the user the option to choose how to save Notes - as WebDAV notes or as a CalDav. If as a WebDav Notes - the `folder` should be configured in advance in the User settings.
+- Add support of Apple Notes
+
+## Version 2.5.x
+
+### Server features
+
+- On-server CalDAV scheduling (invitations and free/busy between users on this server). No outbound email yet
+  - A Scheduling on/off switch on the Settings page
+  - Room and resource calendars that can be booked through scheduling
 
 ### Email and notifications
 
@@ -48,30 +60,25 @@ A basic user portal beside the admin panel. A UI draft is in [docs/design/user-p
 ### Attachments and storage
 
 - Managed Attachments, with an on/off switch on the Settings page
-- User quotas
-- Per-user and server storage statistics
+- Per-user and server storage statistics for calendars and contacts. File usage (each user's files, and free space on the volume) is already on the admin Dashboard since 0.4.0. `users.quota_bytes` exists and is not enforced.
 
 ### Files and data
 
 - Editing office documents in the browser
 - Trash and restore of deleted items
-- Trash for files in the user portal
 - Direct import from Radicale, Baïkal and Nextcloud
 - **File versioning** — keep a limited history of previous versions of a file (for example the last N versions or versions from the last 30 days) so a user can restore an earlier copy after an accidental overwrite.
 - **Public share links** — generate a link to a file, folder or calendar that can be protected with a password, an expiry date and read-only or download-only access. Useful for sharing with people who do not have an account on the server.
-- **In-browser preview** — view images, PDFs, office documents and common video formats directly in the portal without downloading them first.
 - **Activity / Recent** — a feed of recent changes across the user's own calendars, contacts, tasks and files.
 - **Favorites / Starred** — mark files, calendars or contacts as favorites so they appear in a quick-access list.
-- **Bulk operations** — select multiple files and download them as a zip, move them, or delete them in one action.
 
 ### Admin and operations
 
 - Audit trail of successful logins and admin actions. Failed logins are already recorded on the Diagnostics page since Version 1
-- Fuller health checks (database, disk, queue, SMTP). The WebDAV-Push worker status arrives in Version 1.x
+- Fuller health checks (database, disk, queue, SMTP). The WebDAV-Push worker status shipped in 0.5.0 (running or not, last heartbeat, jobs waiting)
 - Automatic backups (local + remote: S3, Backblaze, etc.)
-- Settings that become secrets (the SMTP password) are left out of the settings file, which arrives in 1.6.0
+- Settings that become secrets (the SMTP password) are left out of the settings file, which shipped in 1.6.0
 - Optional two-factor authentication for the admin panel
-- Multilingual user portal
 - **Multi-admin roles** — at least two roles: a full administrator and a user manager who can create and disable users but cannot change server settings, SMTP or backups.
 - **Impersonation** — an administrator can open the user portal as a specific user to reproduce a problem, with a clear audit log entry and a visible banner that impersonation is active.
 - **Session management** — show the active sessions of a user (device, IP, last activity) and allow an administrator or the user themselves to revoke a session.
@@ -83,12 +90,12 @@ A basic user portal beside the admin panel. A UI draft is in [docs/design/user-p
 - A user portal that works well on mobile and has a dark mode
 - An admin panel optimised for mobile. Filament's layout is already responsive, and its light, dark and system theme switcher is already on in the admin panel
 
-### Dashboard (Version 2.x additions)
+### Dashboard
 
 - Storage and quota summary
 - Extended health, mail queue and backup status
 
-### Diagnostics (Version 2.x additions)
+### Diagnostics
 
 - Collections without recent sync (no requests for a configurable period, for example 30 days)
 - Quotas and usage per user
@@ -97,35 +104,34 @@ A basic user portal beside the admin panel. A UI draft is in [docs/design/user-p
 - Server log filter by username or principal. The Diagnostics tables can already be searched by username since Version 1
 - Backups (last successful backup, size, errors)
 
-### Configuration (Version 2.x)
+### Configuration
 
-- Backup and restore settings for configuration and data
+- Backup and restore of settings shipped in 1.6.0 (Configuration, export and import of the settings JSON). Backup and restore of the server's data (database and files) is not built yet.
 - Health check settings
 - SMTP settings and the From address used for outbound email
+
+### Calendar
+- Public read-only calendar links / ICS subscriptions
+- Birthdays calendar generated from contacts
+- **Improved VALARM support** — better handling of reminders, including relative alarms and multiple alarms per event.
 
 ## Later / not yet assigned to a version
 
 These items appear in the long-term lists of the guide and the app pages, or were left out of Version 1.x, and have not been scheduled to a specific version.
 
 ### Calendar
-
-- Public read-only calendar links / ICS subscriptions
-- Birthdays calendar generated from contacts
 - **Recurrence expansion on the server** — expand recurring events on the server so clients receive individual occurrences instead of having to expand the series themselves. Improves compatibility with simpler clients.
-- **Improved VALARM support** — better handling of reminders, including relative alarms and multiple alarms per event.
 
 ### Contacts
 
-- Share a contact by email (requires the Version 2.x mailer)
+- Share a contact by email (requires the 2.5.x mailer)
 - A server-wide, read-only address book listing the users on this server
-- **CardDAV multi-get and large address book optimisations** — reduce the number of round-trips when a client synchronises a large address book.
+- **Large address book synchronisation** — `addressbook-multiget` is already served. What is left is fewer round-trips on a large book.
 
 ### Tasks and notes
 
-- A task editor in the admin panel
 - Scheduling or invitations for tasks
 - Turning a task into an event, or the other way around
-- Sync with Apple Notes
 - Sharing a single note with someone who does not have the whole collection
 
 ### Files
@@ -161,7 +167,6 @@ These items appear in the long-term lists of the guide and the app pages, or wer
 
 - Prometheus metrics endpoint
 - Maintenance mode and read-only mode for upgrades
-- A listing in the official TrueNAS SCALE Apps catalog
 - **Point-in-time recovery** — more granular backups that allow restoring the database and files to a specific moment rather than only the last full backup.
 - **Feature flags** — enable or disable experimental or optional features for individual users or groups without a server restart.
 - **Timezone database updates** — a way to update the timezone data used by the server without rebuilding the whole image.
